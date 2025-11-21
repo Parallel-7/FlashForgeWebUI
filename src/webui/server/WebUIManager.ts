@@ -40,7 +40,6 @@ import {
 import { StandardAPIResponse } from '../types/web-api.types';
 import { createAPIRoutes, buildRouteDependencies } from './api-routes';
 import { getWebSocketManager } from './WebSocketManager';
-import { getRtspStreamService } from '../../services/RtspStreamService';
 import type { PollingData } from '../../types/polling';
 import type { WebUILoginResponse } from '../types/web-api.types';
 import { registerPublicThemeRoutes } from './routes/theme-routes';
