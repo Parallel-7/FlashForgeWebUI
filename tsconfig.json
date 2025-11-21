@@ -22,6 +22,7 @@
     "types": ["node"]
   },
   "include": [
+    "src/index.ts",
     "src/managers/**/*.ts",
     "src/printer-backends/**/*.ts",
     "src/services/**/*.ts",
