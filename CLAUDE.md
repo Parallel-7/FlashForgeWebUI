@@ -80,16 +80,34 @@ ls -la node_modules/@parallel-7/slicer-meta
 # Both should be symlinks pointing to .dependencies/
 ```
 
-## Reference Repository
+## Reference Repository (Required for Development)
 
-The source FlashForgeUI-Electron repository is cloned at:
-```
-/home/user/FlashForgeWebUI/FlashForgeUI-Electron
+The source FlashForgeUI-Electron repository must be cloned for reference during development. This repository contains the original implementation that we're porting from.
+
+### Cloning the Reference Repository
+
+If the FlashForgeUI-Electron directory doesn't exist, clone it:
+
+```bash
+cd /home/user/FlashForgeWebUI
+git clone https://github.com/Parallel-7/FlashForgeUI-Electron.git
+cd FlashForgeUI-Electron
+git checkout alpha
+cd ..
 ```
 
+**Expected location:** `/home/user/FlashForgeWebUI/FlashForgeUI-Electron`
 **Branch:** alpha
+**Important:** This directory is gitignored in the main project and should NOT be deleted during development.
 
-**DO NOT delete this directory** - it contains the source code we're porting from.
+### When to Use the Reference Repository
+
+- **Phase 1-5**: Reference specific implementations from the source files
+- **Debugging**: Compare implementations when issues arise
+- **Feature parity**: Ensure 1:1 functionality match with original WebUI
+- **Type definitions**: Check original type structures and interfaces
+
+The reference repository is read-only and should not be modified. All development happens in the main FlashForgeWebUI directory.
 
 ## Important Notes
 
