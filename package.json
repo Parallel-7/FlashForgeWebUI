@@ -1,0 +1,74 @@
+{
+  "name": "flashforge-webui",
+  "version": "1.0.0",
+  "description": "Standalone WebUI for FlashForge 3D Printers",
+  "main": "dist/index.js",
+  "type": "commonjs",
+  "scripts": {
+    "dev": "concurrently \"npm run build:watch\" \"npm run start:dev\"",
+    "start": "node dist/index.js",
+    "start:dev": "node --watch dist/index.js",
+    "build": "npm run build:backend && npm run build:webui",
+    "build:watch": "concurrently \"npm run build:backend:watch\" \"npm run build:webui:watch\"",
+    "build:backend": "tsc",
+    "build:backend:watch": "tsc --watch",
+    "build:webui": "tsc --project src/webui/static/tsconfig.json && npm run build:webui:copy",
+    "build:webui:watch": "tsc --project src/webui/static/tsconfig.json --watch",
+    "build:webui:copy": "node scripts/copy-webui-assets.js",
+    "build:linux": "npm run build && pkg . --targets node20-linux-x64 --output dist/flashforge-webui-linux-x64",
+    "build:linux-arm": "npm run build && pkg . --targets node20-linux-arm64 --output dist/flashforge-webui-linux-arm64",
+    "build:linux-armv7": "npm run build && pkg . --targets node20-linux-armv7 --output dist/flashforge-webui-linux-armv7",
+    "build:win": "npm run build && pkg . --targets node20-win-x64 --output dist/flashforge-webui-win-x64.exe",
+    "build:mac": "npm run build && pkg . --targets node20-macos-x64 --output dist/flashforge-webui-macos-x64",
+    "build:mac-arm": "npm run build && pkg . --targets node20-macos-arm64 --output dist/flashforge-webui-macos-arm64",
+    "build:all": "npm run build && npm run build:linux && npm run build:linux-arm && npm run build:linux-armv7 && npm run build:win && npm run build:mac && npm run build:mac-arm",
+    "clean": "rimraf dist",
+    "lint": "eslint src/**/*.ts",
+    "lint:fix": "eslint src/**/*.ts --fix",
+    "type-check": "tsc --noEmit",
+    "test": "echo \"Tests not yet implemented\" && exit 0"
+  },
+  "keywords": [
+    "flashforge",
+    "3d-printer",
+    "webui",
+    "monitoring",
+    "control"
+  ],
+  "author": "Parallel-7",
+  "license": "MIT",
+  "dependencies": {
+    "@ghosttypes/ff-api": "file:.dependencies/ff-5mp-api-ts-1.0.0",
+    "@parallel-7/slicer-meta": "file:.dependencies/slicer-meta-1.1.0",
+    "express": "^5.1.0",
+    "ws": "^8.18.3",
+    "axios": "^1.8.4",
+    "zod": "^4.0.5",
+    "gridstack": "^12.3.3",
+    "lucide": "^0.552.0",
+    "@cycjimmy/jsmpeg-player": "^6.1.2",
+    "node-rtsp-stream": "^0.0.9",
+    "form-data": "^4.0.0"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/node": "^20.17.9",
+    "@types/ws": "^8.5.13",
+    "@typescript-eslint/eslint-plugin": "^8.14.0",
+    "@typescript-eslint/parser": "^8.14.0",
+    "concurrently": "^9.1.2",
+    "eslint": "^9.16.0",
+    "typescript": "^5.7.2",
+    "rimraf": "^6.0.1",
+    "pkg": "^5.8.1"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "pkg": {
+    "assets": [
+      "dist/webui/**/*"
+    ],
+    "outputPath": "dist"
+  }
+}
