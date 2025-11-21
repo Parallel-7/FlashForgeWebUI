@@ -38,17 +38,17 @@
   "author": "Parallel-7",
   "license": "MIT",
   "dependencies": {
+    "@cycjimmy/jsmpeg-player": "^6.1.2",
     "@ghosttypes/ff-api": "file:.dependencies/ff-5mp-api-ts-1.0.0",
     "@parallel-7/slicer-meta": "file:.dependencies/slicer-meta-1.1.0",
-    "express": "^5.1.0",
-    "ws": "^8.18.3",
     "axios": "^1.8.4",
-    "zod": "^4.0.5",
+    "express": "^5.1.0",
+    "form-data": "^4.0.0",
     "gridstack": "^12.3.3",
     "lucide": "^0.552.0",
-    "@cycjimmy/jsmpeg-player": "^6.1.2",
     "node-rtsp-stream": "^0.0.9",
-    "form-data": "^4.0.0"
+    "ws": "^8.18.3",
+    "zod": "^4.0.5"
   },
   "devDependencies": {
     "@types/express": "^4.17.21",
@@ -58,9 +58,11 @@
     "@typescript-eslint/parser": "^8.14.0",
     "concurrently": "^9.1.2",
     "eslint": "^9.16.0",
-    "typescript": "^5.7.2",
+    "globals": "^16.5.0",
+    "pkg": "^5.8.1",
     "rimraf": "^6.0.1",
-    "pkg": "^5.8.1"
+    "typescript": "^5.7.2",
+    "typescript-eslint": "^8.47.0"
   },
   "engines": {
     "node": ">=20.0.0"

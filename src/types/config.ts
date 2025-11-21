@@ -227,10 +227,13 @@ export function sanitizeConfig(config: Partial<AppConfig>): AppConfig {
             if (key === 'WebUIPort' || key === 'CameraProxyPort') {
               // Validate port numbers
               if (numValue >= 1 && numValue <= 65535) {
-                assignConfigValue(sanitized, key, numValue);
+                // Type assertion is safe here because we've validated it's a valid port number
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                (sanitized as any)[key] = numValue;
               }
             } else {
-              assignConfigValue(sanitized, key, numValue);
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              (sanitized as any)[key] = numValue;
             }
           }
         } else if (expectedType === 'string') {

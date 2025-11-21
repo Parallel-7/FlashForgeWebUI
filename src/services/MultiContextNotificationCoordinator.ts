@@ -35,6 +35,7 @@
 
 import { EventEmitter } from '../utils/EventEmitter';
 import { getMultiContextPrintStateMonitor } from './MultiContextPrintStateMonitor';
+import { getPrinterContextManager } from '../managers/PrinterContextManager';
 import type { PrinterStatus } from '../types/polling';
 
 // ============================================================================
@@ -129,7 +130,10 @@ export class MultiContextNotificationCoordinator extends EventEmitter<Notificati
       completedAt?: Date;
     }
   ): void {
-    const printerName = event.status.printerInfo.printerName || 'Unknown Printer';
+    // Get printer name from context
+    const contextManager = getPrinterContextManager();
+    const context = contextManager.getContext(event.contextId);
+    const printerName = context?.printerDetails?.Name || 'Unknown Printer';
 
     const notification: PrintNotificationEvent = {
       type,

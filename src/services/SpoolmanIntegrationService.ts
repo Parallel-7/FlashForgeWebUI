@@ -22,13 +22,19 @@
 import { EventEmitter } from '../utils/EventEmitter';
 import type { ConfigManager } from '../managers/ConfigManager';
 import type { PrinterContextManager } from '../managers/PrinterContextManager';
-import type { PrinterBackendManager } from '../managers/PrinterBackendManager';
+// TODO: Import PrinterBackendManager when Phase 1 is complete
+// import type { PrinterBackendManager } from '../managers/PrinterBackendManager';
 import { getPrinterDetailsManager } from '../managers/PrinterDetailsManager';
 import { SpoolmanService } from './SpoolmanService';
 import type { ActiveSpoolData, SpoolResponse, SpoolSearchQuery } from '../types/spoolman';
 import { toAppError } from '../utils/error.utils';
 import type { ConfigUpdateEvent } from '../types/config';
 import type { PrinterDetails } from '../types/printer';
+
+// Temporary stub until PrinterBackendManager is implemented
+interface PrinterBackendManager {
+  getFeatures(contextId: string): { materialStation?: { available: boolean } } | null;
+}
 
 /**
  * Event payload for spool selection changes
@@ -52,13 +58,13 @@ interface SpoolmanIntegrationEventMap extends Record<string, unknown[]> {
 export class SpoolmanIntegrationService extends EventEmitter<SpoolmanIntegrationEventMap> {
   private readonly configManager: ConfigManager;
   private readonly contextManager: PrinterContextManager;
-  private readonly backendManager: PrinterBackendManager;
+  private readonly backendManager: PrinterBackendManager | null;
   private readonly handleConfigUpdatedBound: (event: ConfigUpdateEvent) => void;
 
   constructor(
     configManager: ConfigManager,
     contextManager: PrinterContextManager,
-    backendManager: PrinterBackendManager
+    backendManager: PrinterBackendManager | null = null
   ) {
     super();
     this.configManager = configManager;
@@ -112,9 +118,11 @@ export class SpoolmanIntegrationService extends EventEmitter<SpoolmanIntegration
       }
 
       // Check for material station feature (AD5X indicator)
-      const features = this.backendManager.getFeatures(contextId);
-      if (features?.materialStation?.available === true) {
-        return false; // AD5X with material station
+      if (this.backendManager) {
+        const features = this.backendManager.getFeatures(contextId);
+        if (features?.materialStation?.available === true) {
+          return false; // AD5X with material station
+        }
       }
 
       // Check for AD5X model name
@@ -461,7 +469,7 @@ let instance: SpoolmanIntegrationService | null = null;
 export function initializeSpoolmanIntegrationService(
   configManager: ConfigManager,
   contextManager: PrinterContextManager,
-  backendManager: PrinterBackendManager
+  backendManager: PrinterBackendManager | null = null
 ): SpoolmanIntegrationService {
   instance = new SpoolmanIntegrationService(configManager, contextManager, backendManager);
   return instance;
