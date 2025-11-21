@@ -21,7 +21,6 @@ import { getConfigManager } from '../managers/ConfigManager';
 import { SavedPrinterMatch, AutoConnectDecision } from '../types/printer';
 export class AutoConnectService extends EventEmitter {
   private static instance: AutoConnectService | null = null;
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   // @ts-expect-error - ConfigManager will be used when config options are added
   private readonly _configManager = getConfigManager();
 
