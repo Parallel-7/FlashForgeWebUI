@@ -22,11 +22,18 @@
     "types": ["node"]
   },
   "include": [
-    "src/**/*"
+    "src/managers/**/*.ts",
+    "src/printer-backends/**/*.ts",
+    "src/services/**/*.ts",
+    "src/types/**/*.ts",
+    "src/utils/**/*.ts",
+    "src/webui/**/*.ts"
   ],
   "exclude": [
     "node_modules",
     "dist",
-    "src/webui/static/**/*"
+    ".dependencies",
+    "FlashForgeUI-Electron",
+    "src/webui/static"
   ]
 }

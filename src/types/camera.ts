@@ -1,9 +1,12 @@
 /**
- * @fileoverview Camera type definitions for camera proxy system
+ * @fileoverview Comprehensive type definitions for camera proxy system
  *
- * Provides type safety for camera configuration, proxy server management,
- * stream URL resolution, and client connection tracking.
+ * Provides complete type safety for camera configuration, proxy server management,
+ * stream URL resolution, and client connection tracking. Supports both built-in printer
+ * cameras (MJPEG/RTSP) and custom camera URLs with proper validation and type guards.
  */
+
+import { PrinterFeatureSet } from './printer-backend';
 
 /**
  * Camera source types
@@ -36,6 +39,44 @@ export interface CameraProxyConfig {
     /** Use exponential backoff for retries */
     readonly exponentialBackoff: boolean;
   };
+}
+
+/**
+ * Camera configuration from user settings
+ */
+export interface CameraUserConfig {
+  /** Whether custom camera is enabled */
+  readonly customCameraEnabled: boolean;
+  /** Custom camera URL if enabled */
+  readonly customCameraUrl: string | null;
+}
+
+/**
+ * Resolved camera configuration after applying priority logic
+ */
+export interface ResolvedCameraConfig {
+  /** Source type of the camera */
+  readonly sourceType: CameraSourceType;
+  /** Stream protocol type (MJPEG or RTSP) */
+  readonly streamType?: CameraStreamType;
+  /** Final camera stream URL (null if no camera available) */
+  readonly streamUrl: string | null;
+  /** Whether camera feature is available */
+  readonly isAvailable: boolean;
+  /** Reason if camera is not available */
+  readonly unavailableReason?: string;
+}
+
+/**
+ * Camera URL resolution parameters
+ */
+export interface CameraUrlResolutionParams {
+  /** Printer IP address */
+  readonly printerIpAddress: string;
+  /** Printer feature set from backend */
+  readonly printerFeatures: PrinterFeatureSet;
+  /** User configuration for camera */
+  readonly userConfig: CameraUserConfig;
 }
 
 /**
@@ -115,4 +156,50 @@ export interface CameraProxyEvent {
   readonly data?: unknown;
   /** Error message if applicable */
   readonly error?: string;
+}
+
+/**
+ * Camera URL builder function type
+ */
+export type CameraUrlBuilder = (ipAddress: string) => string;
+
+/**
+ * Default camera URL patterns for different printer models
+ */
+export const DEFAULT_CAMERA_PATTERNS = {
+  /** Default MJPEG stream pattern for FlashForge printers */
+  FLASHFORGE_MJPEG: (ip: string) => `http://${ip}:8080/?action=stream`,
+} as const;
+
+/**
+ * Camera validation result
+ */
+export interface CameraUrlValidationResult {
+  /** Whether the URL is valid */
+  readonly isValid: boolean;
+  /** Validation error message if invalid */
+  readonly error?: string;
+  /** Parsed URL object if valid */
+  readonly parsedUrl?: URL;
+}
+
+/**
+ * Type guard to check if a camera source is available
+ */
+export function isCameraAvailable(config: ResolvedCameraConfig): config is ResolvedCameraConfig & { streamUrl: string } {
+  return config.isAvailable && config.streamUrl !== null;
+}
+
+/**
+ * Type guard to check if using custom camera
+ */
+export function isCustomCamera(config: ResolvedCameraConfig): boolean {
+  return config.sourceType === 'custom';
+}
+
+/**
+ * Type guard to check if using built-in camera
+ */
+export function isBuiltinCamera(config: ResolvedCameraConfig): boolean {
+  return config.sourceType === 'builtin';
 }
