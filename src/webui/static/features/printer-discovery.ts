@@ -235,11 +235,10 @@ async function connectToDiscoveredPrinter(
 ): Promise<void> {
   try {
     // Determine printer type based on model
-    // 5M family includes: 5M, 5M Pro, AD5X, AD5X Pro
-    const is5MFamily = model.includes('5M') ||
-                       model.includes('Pro') ||
-                       model.includes('AD5X') ||
-                       model.includes('ad5x');
+    // 5M family includes: Adventurer 5M, Adventurer 5M Pro, AD5X, AD5X Pro
+    // Match backend logic in PrinterUtils.detectPrinterFamily()
+    const modelLower = model.toLowerCase();
+    const is5MFamily = modelLower.includes('5m') || modelLower.includes('ad5x');
     const type = is5MFamily ? 'new' : 'legacy';
 
     // If 5M family printer, prompt for check code
