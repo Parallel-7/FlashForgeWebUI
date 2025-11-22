@@ -235,9 +235,14 @@ async function connectToDiscoveredPrinter(
 ): Promise<void> {
   try {
     // Determine printer type based on model
-    const type = model.includes('5M') || model.includes('Pro') ? 'new' : 'legacy';
+    // 5M family includes: 5M, 5M Pro, AD5X, AD5X Pro
+    const is5MFamily = model.includes('5M') ||
+                       model.includes('Pro') ||
+                       model.includes('AD5X') ||
+                       model.includes('ad5x');
+    const type = is5MFamily ? 'new' : 'legacy';
 
-    // If new printer, prompt for check code
+    // If 5M family printer, prompt for check code
     let checkCode: string | undefined;
     if (type === 'new') {
       checkCode = prompt('Enter the printer check code (8 digits):') || undefined;
