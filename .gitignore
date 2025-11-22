@@ -17,6 +17,9 @@ out/
 .env.local
 .env.*.local
 
+# NPM authentication
+.npmrc
+
 # Logs
 logs/
 *.log

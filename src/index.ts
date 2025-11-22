@@ -178,6 +178,10 @@ async function connectPrinters(config: HeadlessConfig): Promise<string[]> {
 async function startWebUI(): Promise<void> {
   try {
     console.log('[WebUI] Starting WebUI server...');
+
+    // Enable auto-start after all services are initialized
+    webUIManager.enableAutoStart();
+
     const success = await webUIManager.start();
 
     if (!success) {
@@ -253,15 +257,40 @@ async function initializeCameraProxies(): Promise<void> {
  * Setup signal handlers for graceful shutdown
  */
 function setupSignalHandlers(): void {
+  // Handle Ctrl+C (works on all platforms including Windows)
   process.on('SIGINT', () => {
-    console.log('\n[Shutdown] Received SIGINT signal');
-    void shutdown().then(() => process.exit(0));
+    console.log('\n[Shutdown] Received SIGINT signal (Ctrl+C)');
+    void shutdown().then(() => {
+      process.exit(0);
+    }).catch((error) => {
+      console.error('[Shutdown] Error during shutdown:', error);
+      process.exit(1);
+    });
   });
 
+  // Handle termination signal (Linux/Mac)
   process.on('SIGTERM', () => {
     console.log('\n[Shutdown] Received SIGTERM signal');
-    void shutdown().then(() => process.exit(0));
+    void shutdown().then(() => {
+      process.exit(0);
+    }).catch((error) => {
+      console.error('[Shutdown] Error during shutdown:', error);
+      process.exit(1);
+    });
   });
+
+  // Windows-specific: Handle process termination
+  if (process.platform === 'win32') {
+    const readline = require('readline');
+    const rl = readline.createInterface({
+      input: process.stdin,
+      output: process.stdout
+    });
+
+    rl.on('SIGINT', () => {
+      process.emit('SIGINT' as any);
+    });
+  }
 }
 
 /**
@@ -334,17 +363,17 @@ async function main(): Promise<void> {
       }
     });
 
-    // 5. Apply CLI overrides
-    await applyConfigOverrides(config);
-
-    // 6. Initialize RTSP stream service
+    // 5. Initialize RTSP stream service (before config changes)
     const rtspStreamService = getRtspStreamService();
     await rtspStreamService.initialize();
     console.log('[Init] RTSP stream service initialized');
 
-    // 7. Initialize Spoolman integration service
+    // 6. Initialize Spoolman integration service (before config changes)
     initializeSpoolmanIntegrationService(configManager, contextManager, backendManager);
     console.log('[Init] Spoolman integration service initialized');
+
+    // 7. Apply CLI overrides (after services are initialized)
+    await applyConfigOverrides(config);
 
     // 8. Initialize monitoring systems
     const multiContextTempMonitor = getMultiContextTemperatureMonitor();

@@ -95,7 +95,10 @@ export class WebUIManager extends EventEmitter {
   // Track which contexts have WebUI enabled
   private readonly registeredContexts: Set<string> = new Set();
   private readonly contextSerialNumbers: Map<string, string> = new Map();
-  
+
+  // Initialization control - prevent auto-start during app initialization
+  private allowAutoStart = false;
+
   // WebSocket manager
   private readonly webSocketManager = getWebSocketManager();
 
@@ -143,8 +146,8 @@ export class WebUIManager extends EventEmitter {
     // JSON body parsing
     this.expressApp.use(express.json());
 
-    // Static file serving - serve from dist/webui directory
-    const webUIStaticPath = path.join(process.cwd(), 'dist', 'webui');
+    // Static file serving - serve from dist/webui/static directory
+    const webUIStaticPath = path.join(process.cwd(), 'dist', 'webui', 'static');
     console.log(`WebUI serving static files from: ${webUIStaticPath}`);
 
     try {
@@ -247,13 +250,18 @@ export class WebUIManager extends EventEmitter {
    * Handle configuration changes
    */
   private async handleConfigurationChange(): Promise<void> {
+    // Don't auto-start during initialization
+    if (!this.allowAutoStart) {
+      return;
+    }
+
     const config = this.configManager.getConfig();
     const options: WebUIServerOptions = {
       port: config.WebUIPort,
       password: config.WebUIPassword,
       enabled: config.WebUIEnabled
     };
-    
+
     // If server should be running but isn't, start it
     if (options.enabled && !this.isRunning) {
       await this.start();
@@ -279,6 +287,14 @@ export class WebUIManager extends EventEmitter {
   }
   
   /**
+   * Enable auto-start on configuration changes
+   * Should be called after all services are initialized
+   */
+  public enableAutoStart(): void {
+    this.allowAutoStart = true;
+  }
+
+  /**
    * Initialize and start the web UI server
    */
   public async start(): Promise<boolean> {
@@ -287,7 +303,7 @@ export class WebUIManager extends EventEmitter {
       console.log('WebUI server is already running');
       return true;
     }
-    
+
     try {
       const config = this.configManager.getConfig();
       

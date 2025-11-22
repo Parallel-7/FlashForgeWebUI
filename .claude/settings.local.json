@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install:*)",
+      "Bash(npm run build:*)",
+      "Bash(git -C \"C:\\Users\\Cope\\Documents\\GitHub\\FlashForgeUI-Electron\" branch --show-current)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

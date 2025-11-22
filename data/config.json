@@ -1,0 +1,22 @@
+{
+  "WebUIEnabled": true,
+  "WebUIPort": 3000,
+  "WebUIPassword": "changeme",
+  "WebUIPasswordRequired": true,
+  "CustomCamera": false,
+  "CustomCameraUrl": "",
+  "CameraProxyPort": 8181,
+  "SpoolmanEnabled": false,
+  "SpoolmanServerUrl": "",
+  "SpoolmanUpdateMode": "weight",
+  "CustomLeds": false,
+  "ForceLegacyAPI": false,
+  "DebugMode": false,
+  "WebUITheme": {
+    "primary": "#2260c3",
+    "secondary": "#357abd",
+    "background": "#121212",
+    "surface": "#1e1e1e",
+    "text": "#e0e0e0"
+  }
+}
