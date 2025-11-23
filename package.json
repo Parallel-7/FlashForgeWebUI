@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "Standalone WebUI for FlashForge 3D Printers",
   "main": "dist/index.js",
+  "bin": "dist/index.js",
   "type": "commonjs",
   "scripts": {
     "dev": "npm run build && concurrently --names \"BACKEND,WEBUI,SERVER\" \"npm run build:backend:watch\" \"npm run build:webui:watch\" \"npm run start:dev\"",
