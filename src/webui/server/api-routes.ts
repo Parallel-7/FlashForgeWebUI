@@ -22,6 +22,9 @@ import { registerCameraRoutes } from './routes/camera-routes';
 import { registerContextRoutes } from './routes/context-routes';
 import { registerThemeRoutes } from './routes/theme-routes';
 import { registerSpoolmanRoutes } from './routes/spoolman-routes';
+import { registerDiscoveryRoutes } from './routes/discovery-routes';
+import { registerPrinterManagementRoutes } from './routes/printer-management-routes';
+import { registerPrinterDetectionRoutes } from './routes/printer-detection-routes';
 
 export function buildRouteDependencies(): RouteDependencies {
   return {
@@ -45,6 +48,9 @@ export function createAPIRoutes(deps: RouteDependencies = buildRouteDependencies
   registerContextRoutes(router, deps);
   registerThemeRoutes(router, deps);
   registerSpoolmanRoutes(router, deps);
+  registerDiscoveryRoutes(router, deps);
+  registerPrinterDetectionRoutes(router, deps);
+  registerPrinterManagementRoutes(router, deps);
 
   return router;
 }

@@ -255,6 +255,93 @@
         </div>
       </div>
 
+      <!-- Printer Discovery Modal -->
+      <div id="discovery-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="discovery-modal-title">
+        <div class="modal-content large">
+          <div class="modal-header">
+            <h2 id="discovery-modal-title">Add Printer</h2>
+            <button id="close-discovery" class="close-btn" aria-label="Close discovery">&times;</button>
+          </div>
+          <div class="modal-body">
+            <div class="discovery-tabs">
+              <button class="discovery-tab-btn active" data-tab="scan">
+                <i data-lucide="wifi" aria-hidden="true"></i> Network Scan
+              </button>
+              <button class="discovery-tab-btn" data-tab="manual">
+                <i data-lucide="keyboard" aria-hidden="true"></i> Manual Entry
+              </button>
+              <button class="discovery-tab-btn" data-tab="saved">
+                <i data-lucide="archive" aria-hidden="true"></i> Saved Printers
+              </button>
+            </div>
+
+            <div class="discovery-tab-content">
+              <!-- Network Scan Tab -->
+              <div class="discovery-tab-pane" id="discovery-tab-scan">
+                <p class="help-text">
+                  Scan your local network to automatically discover FlashForge printers.
+                </p>
+
+                <button class="btn btn-primary btn-block" id="discovery-scan-btn">
+                  <i data-lucide="search" aria-hidden="true"></i> Start Network Scan
+                </button>
+
+                <div class="scan-progress hidden" id="discovery-scan-progress">
+                  <div class="spinner"></div>
+                  <p>Scanning network... This may take up to 30 seconds.</p>
+                </div>
+
+                <div class="discovered-printers-container hidden" id="discovery-discovered-printers">
+                  <h3>Discovered Printers</h3>
+                  <div class="printer-list" id="discovery-printer-list"></div>
+                </div>
+              </div>
+
+              <!-- Manual Entry Tab -->
+              <div class="discovery-tab-pane hidden" id="discovery-tab-manual">
+                <p class="help-text">
+                  Enter the IP address of your printer to connect directly.
+                </p>
+
+                <div class="form-group">
+                  <label for="discovery-manual-ip">IP Address</label>
+                  <input type="text" id="discovery-manual-ip" class="form-control" placeholder="192.168.1.100" />
+                </div>
+
+                <div class="form-group">
+                  <label for="discovery-printer-type">Printer Type</label>
+                  <select id="discovery-printer-type" class="form-control">
+                    <option value="new">5M / 5M Pro (New API)</option>
+                    <option value="legacy">Legacy Printers (Old API)</option>
+                  </select>
+                </div>
+
+                <div class="form-group" id="discovery-check-code-group">
+                  <label for="discovery-check-code">Check Code</label>
+                  <input type="text" id="discovery-check-code" class="form-control" placeholder="12345678" maxlength="8" />
+                  <small class="form-text">Required for 5M/Pro printers. Found in printer settings.</small>
+                </div>
+
+                <button class="btn btn-primary btn-block" id="discovery-manual-connect">
+                  <i data-lucide="link" aria-hidden="true"></i> Connect to Printer
+                </button>
+              </div>
+
+              <!-- Saved Printers Tab -->
+              <div class="discovery-tab-pane hidden" id="discovery-tab-saved">
+                <p class="help-text">
+                  Reconnect to a previously saved printer.
+                </p>
+
+                <div class="saved-printers-list" id="discovery-saved-printers-list">
+                  <p class="text-muted">Loading saved printers...</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- Toast Notification -->
       <div id="toast" class="toast hidden"></div>
     </div>

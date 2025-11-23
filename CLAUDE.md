@@ -1,168 +1,296 @@
-# Claude Code Setup Instructions for FlashForgeWebUI
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Project Overview
 
-This is a standalone WebUI implementation for FlashForge 3D printers, ported from the FlashForgeUI-Electron project. Unlike the Electron-based desktop application, this is a pure Node.js server application that runs the WebUI in headless mode.
+FlashForgeWebUI is a standalone web-based interface for controlling and monitoring FlashForge 3D printers. It was ported from the FlashForgeUI-Electron project (located at `C:\Users\Cope\Documents\GitHub\FlashForgeUI-Electron`) to create a lightweight deployment option for low-spec devices like Raspberry Pi, without Electron dependencies.
 
-## Why Manual Dependencies Are Required
+**Current Status**: Initial porting is complete but not fully tested. Some bugs are expected.
 
-Two critical dependencies are hosted on GitHub Packages, which requires authentication:
-- `@ghosttypes/ff-api` - FlashForge 5M/Pro printer API client
-- `@parallel-7/slicer-meta` - Slicer file metadata parser
+## Build & Development Commands
 
-**The Issue:** GitHub Package authentication does not work reliably in this environment, so we manually download and build these dependencies from their GitHub releases.
-
-## Setting Up Dependencies (Required for Every Session)
-
-### Step 1: Download and Build ff-5mp-api-ts
-
+### Development
 ```bash
-cd /home/user/FlashForgeWebUI
-mkdir -p .dependencies
-cd .dependencies
-
-# Download v1.0.0
-curl -L -o ff-5mp-api-ts.zip https://github.com/GhostTypes/ff-5mp-api-ts/archive/refs/tags/1.0.0.zip
-unzip -q ff-5mp-api-ts.zip
-rm ff-5mp-api-ts.zip
-
-# Build the library
-cd ff-5mp-api-ts-1.0.0
-npm install
-npm run build
-cd ..
+npm run dev              # Build and watch with hot reload (concurrent backend + webui + server)
+npm run build            # Full production build (backend + webui)
+npm run start            # Run the built application
+npm run start:dev        # Run with nodemon (watches for changes)
 ```
 
-### Step 2: Download and Build slicer-meta
-
+### Build Components
 ```bash
-# Still in .dependencies directory
-curl -L -o slicer-meta.zip https://github.com/Parallel-7/slicer-meta/archive/refs/tags/v1.1.0.zip
-unzip -q slicer-meta.zip
-rm slicer-meta.zip
-
-# Build the library
-cd slicer-meta-1.1.0
-npm install
-npm run build
-cd ../..
+npm run build:backend           # Compile TypeScript backend (tsc)
+npm run build:backend:watch     # Watch backend files
+npm run build:webui             # Compile frontend TS + copy static assets
+npm run build:webui:watch       # Watch frontend files
+npm run build:webui:copy        # Copy HTML/CSS and vendor libraries to dist
 ```
 
-### Step 3: Link Dependencies in package.json
+### Platform-Specific Builds
+```bash
+npm run build:linux        # Linux x64 executable (using pkg)
+npm run build:linux-arm    # Linux ARM64 executable
+npm run build:linux-armv7  # Linux ARMv7 executable
+npm run build:win          # Windows x64 executable
+npm run build:mac          # macOS x64 executable
+npm run build:mac-arm      # macOS ARM64 executable
+npm run build:all          # Build for all platforms
+```
 
-After downloading and building, your `package.json` should reference these local dependencies:
+### Code Quality
+```bash
+npm run lint           # Run ESLint on all TypeScript files
+npm run lint:fix       # Auto-fix ESLint issues
+npm run type-check     # TypeScript type checking without emit
+npm test               # Tests (not yet implemented)
+npm run clean          # Remove dist directory
+```
 
-```json
-{
-  "dependencies": {
-    "@ghosttypes/ff-api": "file:.dependencies/ff-5mp-api-ts-1.0.0",
-    "@parallel-7/slicer-meta": "file:.dependencies/slicer-meta-1.1.0"
+## Runtime Modes
+
+The application supports multiple startup modes via CLI arguments:
+
+```bash
+# Connect to last used printer
+node dist/index.js --last-used
+
+# Connect to all saved printers
+node dist/index.js --all-saved-printers
+
+# Connect to specific printers
+node dist/index.js --printers="192.168.1.100:new:12345678,192.168.1.101:legacy"
+
+# Start without printer connections (WebUI only)
+node dist/index.js --no-printers
+
+# Override WebUI settings
+node dist/index.js --last-used --webui-port=3001 --webui-password=mypassword
+```
+
+Printer spec format: `IP:TYPE:CHECKCODE` where TYPE is "new" or "legacy"
+
+## Architecture
+
+### Core Architecture Pattern
+
+The system is built on a **multi-context singleton architecture**:
+
+1. **Singleton Managers** - Global coordinators for major subsystems (branded types enforce single instance)
+2. **Multi-Context Design** - Support for simultaneous connections to multiple printers, each isolated in its own context
+3. **Event-Driven Communication** - EventEmitter pattern for loose coupling between components
+4. **Service-Oriented** - Clear separation between managers, backends, and services
+
+### Key Layers
+
+```
+src/index.ts                    # Entry point - initializes all singletons, connects printers, starts WebUI
+├── managers/                   # Singleton coordinators (ConfigManager, PrinterContextManager, etc.)
+├── printer-backends/           # Printer-specific API implementations
+├── services/                   # Background services (polling, camera, spoolman, monitoring)
+├── webui/                      # Web server and frontend
+│   ├── server/                 # Express server, WebSocket, API routes, auth
+│   └── static/                 # Frontend TypeScript (separate tsconfig, compiled to ES modules)
+├── types/                      # TypeScript type definitions
+└── utils/                      # Shared utilities
+```
+
+### Critical Components
+
+**Managers** (Singleton coordinators):
+- `ConfigManager` - Global configuration (loads from `data/config.json`)
+- `PrinterContextManager` - Multi-printer context lifecycle (create/switch/remove contexts)
+- `PrinterBackendManager` - Backend instantiation based on printer model
+- `ConnectionFlowManager` - Connection orchestration (discovery, pairing, reconnect)
+
+**Contexts**: Each connected printer gets a unique context containing:
+- Unique ID and printer details
+- Backend instance (AD5XBackend, Adventurer5MBackend, GenericLegacyBackend, etc.)
+- Polling service instance
+- Connection state
+- Camera proxy port
+- Spoolman spool assignment
+
+**Backends**: Abstraction layer over printer APIs (all extend `BasePrinterBackend`):
+- `AD5XBackend` - Adventurer 5M X series (uses AD5X API)
+- `Adventurer5MBackend` - Adventurer 5M (FiveMClient)
+- `Adventurer5MProBackend` - Adventurer 5M Pro (FiveMClient)
+- `DualAPIBackend` - Base for printers supporting both FiveMClient + FlashForgeClient
+- `GenericLegacyBackend` - Fallback for older printers (FlashForgeClient only)
+
+**Services**:
+- `MultiContextPollingCoordinator` - Manages per-context polling (3s for all contexts)
+- `MultiContextPrintStateMonitor` - Track print progress, emit notifications
+- `MultiContextTemperatureMonitor` - Temperature anomaly detection
+- `MultiContextSpoolmanTracker` - Filament usage tracking
+- `CameraProxyService` - MJPEG camera proxying
+- `RtspStreamService` - RTSP stream management
+- `SavedPrinterService` - Persistent printer storage (`data/printer_details.json`)
+
+**WebUI**:
+- `WebUIManager` - Express HTTP server + static file serving
+- `WebSocketManager` - Real-time bidirectional communication with frontend
+- `AuthManager` - Optional password authentication
+- API routes organized by feature (printer-control, job, camera, spoolman, etc.)
+- Frontend uses GridStack for draggable dashboard, JSMpeg for video streaming
+
+### Data Directory
+
+The `data/` folder contains runtime configuration and is **not tracked in git** (will be added to `.gitignore`). You can still manually access it to read:
+- `data/config.json` - User settings (WebUI port, password, camera URLs, Spoolman config, theme)
+- `data/printer_details.json` - Saved printer details for auto-reconnect
+
+Default config values are in `ConfigManager.ts`.
+
+### Build System
+
+**Dual TypeScript Compilation**:
+1. **Backend** (`tsconfig.json`): Compiles `src/` → `dist/` as CommonJS (Node.js target)
+2. **Frontend** (`src/webui/static/tsconfig.json`): Compiles frontend TS → `dist/webui/static/` as ES modules (browser target)
+
+**Asset Pipeline** (`scripts/copy-webui-assets.js`):
+- Copies `index.html`, `webui.css`, `gridstack-extra.min.css` from `src/webui/static/`
+- Copies vendor libraries from `node_modules/` (jsmpeg, gridstack, lucide)
+
+**pkg Bundling**: Production builds use `pkg` to create standalone executables with embedded assets (`dist/webui/**/*`)
+
+## Dependencies
+
+**Core**:
+- `@ghosttypes/ff-api` - FlashForge printer API clients (FiveMClient, FlashForgeClient)
+- `@parallel-7/slicer-meta` - Printer metadata and model detection
+- `express` - HTTP server
+- `ws` - WebSocket server
+- `zod` - Schema validation
+
+**Frontend**:
+- `gridstack` - Dashboard layout system
+- `@cycjimmy/jsmpeg-player` - Video streaming
+- `lucide` - Icon library
+
+**Dev**:
+- TypeScript 5.7, ESLint 9 with TypeScript ESLint
+- `concurrently` - Parallel build tasks
+- `nodemon` - Dev server hot reload
+- `pkg` - Executable packaging
+
+## Printer API Integration
+
+FlashForge printers have two API generations:
+
+1. **Legacy API** (`FlashForgeClient`) - Older printers, line-based TCP protocol
+2. **New API** (`FiveMClient`) - Newer printers (5M series), structured commands with JSON responses
+
+Some printers support **both** (dual-API). The backend system abstracts these differences.
+
+**Backend Selection** (in `PrinterBackendManager.createBackend()`):
+- Adventurer 5M X → `AD5XBackend` (specialized AD5X API)
+- Adventurer 5M → `Adventurer5MBackend`
+- Adventurer 5M Pro → `Adventurer5MProBackend`
+- Other new-API printers → Backend based on `clientType` from discovery
+- Legacy printers → `GenericLegacyBackend`
+
+**Feature Detection**: Each backend declares supported features via `getBaseFeatures()`. Features include LED control, material station, RTSP camera, power toggle, etc. The UI dynamically shows/hides controls based on feature availability.
+
+## Event Flow
+
+1. **Startup** (`src/index.ts`):
+   - Initialize data directory
+   - Parse CLI arguments
+   - Load config
+   - Initialize services (RTSP, Spoolman, monitoring)
+   - Connect to printers (creates contexts + backends)
+   - Start WebUI server
+   - Setup event forwarding (polling data → WebUI)
+   - Start polling for each context
+   - Setup signal handlers for graceful shutdown
+
+2. **Polling Lifecycle**:
+   - `MultiContextPollingCoordinator` creates `PrinterPollingService` per context
+   - Polling service calls `backend.getPrinterStatus()` every 3 seconds
+   - Status data emitted as `polling-data` event with contextId
+   - Event forwarded to `WebUIManager` → `WebSocketManager` → Browser clients
+
+3. **WebSocket Communication**:
+   - Frontend connects via WebSocket on server start
+   - Server pushes status updates (polling data, notifications)
+   - Client sends commands (job control, printer settings, context switching)
+   - Bidirectional type-safe API defined in `web-api.schemas.ts` / `web-api.types.ts`
+
+## Common Patterns
+
+**Singleton Pattern**:
+```typescript
+// Branded type to enforce singleton
+type ManagerBrand = { readonly __brand: 'Manager' };
+type ManagerInstance = Manager & ManagerBrand;
+
+class Manager {
+  private static instance: ManagerInstance | null = null;
+
+  private constructor() { /* ... */ }
+
+  static getInstance(): ManagerInstance {
+    if (!this.instance) {
+      this.instance = new Manager() as ManagerInstance;
+    }
+    return this.instance;
+  }
+}
+
+export function getManager(): ManagerInstance {
+  return Manager.getInstance();
+}
+```
+
+**Context Access**:
+```typescript
+const contextManager = getPrinterContextManager();
+const activeContextId = contextManager.getActiveContextId();
+const context = contextManager.getContext(activeContextId);
+const backend = context?.backend;
+```
+
+**EventEmitter Usage**:
+```typescript
+// Typed events for safety
+interface EventMap extends Record<string, unknown[]> {
+  'event-name': [arg1: Type1, arg2: Type2];
+}
+
+class Service extends EventEmitter<EventMap> {
+  doSomething() {
+    this.emit('event-name', arg1, arg2);
   }
 }
 ```
 
-### Step 4: Install Project Dependencies
+## Gotchas
 
-```bash
-cd /home/user/FlashForgeWebUI
-npm install
-```
+1. **Dual Build System**: Backend and frontend have separate `tsconfig.json` files with different module systems (CommonJS vs ES modules)
+2. **Data Directory**: Not in git but can be manually accessed for debugging. Default location is `<project>/data/`
+3. **Port Allocation**: Camera proxies dynamically allocate ports starting from config value (`CameraProxyPort`)
+4. **Polling Frequency**: All contexts poll at 3 seconds (changed from 30s for inactive contexts to prevent TCP keep-alive failures)
+5. **Context IDs**: UUID-based, generated during connection. Not tied to IP or serial number
+6. **Backend Lifecycle**: Backends are created per context, not shared. Each context has its own TCP connection
+7. **Graceful Shutdown**: SIGINT/SIGTERM handlers stop polling, disconnect contexts, and stop WebUI before exit
+8. **Windows Compatibility**: Special handling for Ctrl+C via readline interface (see `index.ts`)
 
-## Verification
+## Testing Notes
 
-To verify the setup worked:
+Initial porting is complete but **not fully tested**. Known areas to test:
+- Multi-printer context switching
+- Camera proxy stability under load
+- RTSP streaming for supported printers
+- Spoolman integration (filament tracking)
+- Print state monitoring and notifications
+- Temperature anomaly detection
+- Different printer model backends (AD5X, 5M, 5M Pro, legacy)
+- WebUI authentication
+- Platform-specific builds (Linux ARM, Windows, macOS)
 
-```bash
-# Check that the dependencies are linked
-ls -la node_modules/@ghosttypes/ff-api
-ls -la node_modules/@parallel-7/slicer-meta
+## Related Projects
 
-# Both should be symlinks pointing to .dependencies/
-```
-
-## Reference Repository (Required for Development)
-
-The source FlashForgeUI-Electron repository must be cloned for reference during development. This repository contains the original implementation that we're porting from.
-
-### Cloning the Reference Repository
-
-If the FlashForgeUI-Electron directory doesn't exist, clone it:
-
-```bash
-cd /home/user/FlashForgeWebUI
-git clone https://github.com/Parallel-7/FlashForgeUI-Electron.git
-cd FlashForgeUI-Electron
-git checkout alpha
-cd ..
-```
-
-**Expected location:** `/home/user/FlashForgeWebUI/FlashForgeUI-Electron`
-**Branch:** alpha
-**Important:** This directory is gitignored in the main project and should NOT be deleted during development.
-
-### When to Use the Reference Repository
-
-- **Phase 1-5**: Reference specific implementations from the source files
-- **Debugging**: Compare implementations when issues arise
-- **Feature parity**: Ensure 1:1 functionality match with original WebUI
-- **Type definitions**: Check original type structures and interfaces
-
-The reference repository is read-only and should not be modified. All development happens in the main FlashForgeWebUI directory.
-
-## Important Notes
-
-1. **The `.dependencies/` folder is gitignored** - it must be rebuilt in every Claude Code session
-2. **Library versions are pinned** - v1.0.0 for ff-api, v1.1.0 for slicer-meta
-3. **Both libraries are TypeScript** - they require `npm run build` to generate dist/ folders
-4. **npm install in main project** - must be run after setting up dependencies
-
-## Troubleshooting
-
-### "Cannot find module '@ghosttypes/ff-api'"
-
-The dependency wasn't linked correctly. Ensure:
-- You ran `npm run build` in each library folder
-- The `dist/` folders exist in each library
-- You ran `npm install` in the main project after setting up dependencies
-
-### "ENOENT: no such file or directory"
-
-The `.dependencies` folder structure is incorrect. Verify:
-```bash
-ls .dependencies/
-# Should show:
-# ff-5mp-api-ts-1.0.0/
-# slicer-meta-1.1.0/
-```
-
-### Build Errors
-
-If builds fail:
-1. Delete `node_modules` in the library folder
-2. Re-run `npm install`
-3. Re-run `npm run build`
-
-## Quick Setup Script
-
-For convenience, you can run all setup commands at once:
-
-```bash
-#!/bin/bash
-cd /home/user/FlashForgeWebUI
-
-# Download and build ff-api
-mkdir -p .dependencies && cd .dependencies
-curl -L -o ff-5mp-api-ts.zip https://github.com/GhostTypes/ff-5mp-api-ts/archive/refs/tags/1.0.0.zip
-unzip -q ff-5mp-api-ts.zip && rm ff-5mp-api-ts.zip
-cd ff-5mp-api-ts-1.0.0 && npm install && npm run build && cd ..
-
-# Download and build slicer-meta
-curl -L -o slicer-meta.zip https://github.com/Parallel-7/slicer-meta/archive/refs/tags/v1.1.0.zip
-unzip -q slicer-meta.zip && rm slicer-meta.zip
-cd slicer-meta-1.1.0 && npm install && npm run build && cd ../..
-
-# Install main project dependencies
-npm install
-
-echo "✓ Dependencies setup complete"
-```
+- **FlashForgeUI-Electron**: Parent project with full Electron desktop app (`C:\Users\Cope\Documents\GitHub\FlashForgeUI-Electron`)
+- **@ghosttypes/ff-api**: FlashForge API client library (public package)
+- **@parallel-7/slicer-meta**: Printer metadata and model utilities (public package)

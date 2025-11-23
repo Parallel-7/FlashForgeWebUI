@@ -1601,3 +1601,246 @@ body {
     text-align: left;
   }
 }
+
+/* ===================================
+   Printer Discovery Styles
+   =================================== */
+
+.add-printer-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  background: var(--primary-color);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.add-printer-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+.add-printer-btn:hover {
+  background: var(--primary-hover);
+}
+
+.discovery-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 24px;
+  border-bottom: 2px solid var(--border-color);
+}
+
+.discovery-tab-btn {
+  padding: 12px 16px;
+  border: none;
+  background: transparent;
+  color: var(--text-color);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: -2px;
+}
+
+.discovery-tab-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+.discovery-tab-btn:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.discovery-tab-btn.active {
+  border-bottom-color: var(--primary-color);
+  color: var(--primary-color);
+}
+
+.discovery-tab-pane {
+  display: block;
+}
+
+.discovery-tab-pane.hidden {
+  display: none;
+}
+
+.scan-progress {
+  text-align: center;
+  padding: 32px;
+}
+
+.spinner {
+  border: 3px solid rgba(255, 255, 255, 0.1);
+  border-top: 3px solid var(--primary-color);
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 16px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.printer-card,
+.saved-printer-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  margin-bottom: 12px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.printer-card.known {
+  border-left: 3px solid var(--primary-color);
+}
+
+.printer-card.new {
+  border-left: 3px solid #4caf50;
+}
+
+.printer-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+}
+
+.printer-info h4 {
+  margin: 0;
+  color: var(--text-color);
+  font-size: 16px;
+}
+
+.printer-details {
+  margin: 0;
+  color: var(--text-color-secondary);
+  font-size: 14px;
+}
+
+.printer-info small {
+  color: var(--text-color-secondary);
+  font-size: 12px;
+}
+
+.badge {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  margin-left: 8px;
+}
+
+.badge-success {
+  background: #4caf50;
+  color: white;
+}
+
+.badge-info {
+  background: #2196f3;
+  color: white;
+}
+
+.badge-warning {
+  background: #ff9800;
+  color: white;
+}
+
+.form-group {
+  margin-bottom: 20px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--text-color);
+  font-weight: 500;
+  font-size: 14px;
+}
+
+.form-control {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: var(--surface-color);
+  color: var(--text-color);
+  font-size: 14px;
+}
+
+.form-control:focus {
+  outline: none;
+  border-color: var(--primary-color);
+}
+
+.form-text {
+  display: block;
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--text-color-secondary);
+}
+
+.btn {
+  padding: 10px 16px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+}
+
+.btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+.btn-primary {
+  background: var(--primary-color);
+  color: white;
+}
+
+.btn-primary:hover {
+  background: var(--primary-hover);
+}
+
+.btn-danger {
+  background: #f44336;
+  color: white;
+}
+
+.btn-danger:hover {
+  background: #d32f2f;
+}
+
+.btn-block {
+  width: 100%;
+  justify-content: center;
+}
+
+.printer-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.text-muted {
+  color: var(--text-color-secondary);
+}
+
+.text-danger {
+  color: #f44336;
+}

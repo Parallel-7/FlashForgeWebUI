@@ -1,0 +1,19 @@
+{
+  "lastUsedPrinterSerial": "SNMQRE9400951",
+  "printers": {
+    "SNMQRE9400951": {
+      "Name": "AD5X",
+      "IPAddress": "192.168.1.110",
+      "SerialNumber": "SNMQRE9400951",
+      "CheckCode": "0e35a229",
+      "ClientType": "new",
+      "printerModel": "Flashforge AD5X",
+      "modelType": "ad5x",
+      "customCameraEnabled": true,
+      "customCameraUrl": "",
+      "customLedsEnabled": false,
+      "forceLegacyMode": false,
+      "lastConnected": "2025-11-23T02:52:58.265Z"
+    }
+  }
+}

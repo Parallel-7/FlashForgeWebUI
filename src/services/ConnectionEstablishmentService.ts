@@ -60,84 +60,169 @@ export class ConnectionEstablishmentService extends EventEmitter {
   /**
    * Create temporary connection to determine printer type
    * Uses legacy API for universal compatibility
+   * Includes timeout handling and retry logic
    */
-  public async createTemporaryConnection(printer: DiscoveredPrinter): Promise<TemporaryConnectionResult> {
+  public async createTemporaryConnection(
+    printer: DiscoveredPrinter,
+    timeout = 10000,
+    retries = 3
+  ): Promise<TemporaryConnectionResult> {
     this.emit('temporary-connection-started', printer);
 
-    try {
-      // Always use legacy API for type detection
-      const tempClient = new FlashForgeClient(printer.ipAddress);
-      const connected = await tempClient.initControl();
+    for (let attempt = 1; attempt <= retries; attempt++) {
+      let tempClient: FlashForgeClient | null = null;
 
-      if (!connected) {
-        this.emit('temporary-connection-failed', 'Failed to establish temporary connection');
-        return {
-          success: false,
-          error: 'Failed to establish temporary connection'
-        };
-      }
+      try {
+        console.log(`[Connection] Attempt ${attempt}/${retries} for ${printer.ipAddress}`);
 
-      // Get printer info to determine type
-      const printerInfo = await tempClient.getPrinterInfo();
-      if (!printerInfo || !printerInfo.TypeName) {
-        void tempClient.dispose();
-        this.emit('temporary-connection-failed', 'Failed to get printer type information');
-        return {
-          success: false,
-          error: 'Failed to get printer type information'
-        };
-      }
+        // Always use legacy API for type detection
+        tempClient = new FlashForgeClient(printer.ipAddress);
 
-      const typeName = printerInfo.TypeName;
-      const familyInfo = detectPrinterFamily(typeName);
-      
-      console.log('Temporary connection - extracted printer info:', {
-        TypeName: printerInfo.TypeName,
-        Name: printerInfo.Name,
-        SerialNumber: printerInfo.SerialNumber,
-        is5MFamily: familyInfo.is5MFamily
-      });
-      
-      this.emit('printer-type-detected', { typeName, familyInfo });
-      
-      // For legacy printers, we can reuse this connection
-      if (!familyInfo.is5MFamily) {
-        return {
-          success: true,
-          typeName,
-          printerInfo: {
-            ...(printerInfo as unknown as Record<string, unknown>),
-            _reuseableClient: tempClient // Store for reuse
+        // Wrap initControl in timeout
+        console.log(`[Connection] Initializing control connection (timeout: ${timeout}ms)...`);
+        const connected = await Promise.race([
+          tempClient.initControl(),
+          new Promise<boolean>((_, reject) =>
+            setTimeout(() => reject(new Error('Connection timeout')), timeout)
+          )
+        ]);
+
+        if (!connected) {
+          console.error(`[Connection] initControl returned false for ${printer.ipAddress}`);
+          if (tempClient) {
+            try {
+              void tempClient.dispose();
+            } catch (disposeError) {
+              console.error('[Connection] Error disposing temp client after initControl failure:', disposeError);
+            }
           }
-        };
-      } else {
-        // 5M family - dispose temp client, will create new one
-        // But first ensure we have critical information for dual API connection
-        if (!printerInfo.SerialNumber || printerInfo.SerialNumber.trim() === '') {
-          console.warn('Warning: No serial number found in printer info for 5M family printer');
-          console.warn('This may cause dual API connection to fail');
+
+          if (attempt < retries) {
+            await this.delay(1000 * attempt); // Exponential backoff
+            continue;
+          }
+
+          this.emit('temporary-connection-failed', 'Failed to initialize control');
+          return {
+            success: false,
+            error: 'Failed to initialize control'
+          };
         }
-        
-        void tempClient.dispose();
-        
-        // Add a small delay after disposing temp client to ensure clean state
-        await new Promise(resolve => setTimeout(resolve, 200));
-        
+
+        console.log(`[Connection] Control initialized, fetching printer info (timeout: ${timeout}ms)...`);
+
+        // Get printer info with timeout
+        const printerInfo = await Promise.race([
+          tempClient.getPrinterInfo(),
+          new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error('Printer info timeout')), timeout)
+          )
+        ]);
+
+        if (!printerInfo || !printerInfo.TypeName) {
+          console.error(`[Connection] Invalid printer info received`);
+          if (tempClient) {
+            void tempClient.dispose();
+          }
+
+          if (attempt < retries) {
+            await this.delay(1000 * attempt);
+            continue;
+          }
+
+          this.emit('temporary-connection-failed', 'Failed to get printer type information');
+          return {
+            success: false,
+            error: 'Failed to get printer type information'
+          };
+        }
+
+        const typeName = printerInfo.TypeName;
+        const familyInfo = detectPrinterFamily(typeName);
+
+        console.log('[Connection] Temporary connection successful - extracted printer info:', {
+          TypeName: printerInfo.TypeName,
+          Name: printerInfo.Name,
+          SerialNumber: printerInfo.SerialNumber,
+          is5MFamily: familyInfo.is5MFamily
+        });
+
+        this.emit('printer-type-detected', { typeName, familyInfo });
+
+        // For legacy printers, we can reuse this connection
+        if (!familyInfo.is5MFamily) {
+          console.log('[Connection] Legacy printer detected, reusing connection');
+          return {
+            success: true,
+            typeName,
+            printerInfo: {
+              ...(printerInfo as unknown as Record<string, unknown>),
+              _reuseableClient: tempClient // Store for reuse
+            }
+          };
+        } else {
+          // 5M family - dispose temp client, will create new one
+          // But first ensure we have critical information for dual API connection
+          if (!printerInfo.SerialNumber || printerInfo.SerialNumber.trim() === '') {
+            console.warn('[Connection] Warning: No serial number found in printer info for 5M family printer');
+            console.warn('[Connection] This may cause dual API connection to fail');
+          }
+
+          console.log('[Connection] 5M family printer detected, disposing temporary connection');
+          void tempClient.dispose();
+
+          // Add a small delay after disposing temp client to ensure clean state
+          await new Promise(resolve => setTimeout(resolve, 200));
+
+          return {
+            success: true,
+            typeName,
+            printerInfo: printerInfo as unknown as ExtendedPrinterInfo
+          };
+        }
+
+      } catch (error) {
+        console.error(`[Connection] Attempt ${attempt} failed:`, error);
+
+        // Clean up temp client on error
+        if (tempClient) {
+          try {
+            void tempClient.dispose();
+          } catch (disposeError) {
+            console.error('[Connection] Error disposing temp client after error:', disposeError);
+          }
+        }
+
+        if (attempt < retries) {
+          const backoffDelay = 1000 * attempt;
+          console.log(`[Connection] Retrying in ${backoffDelay}ms...`);
+          await this.delay(backoffDelay);
+          continue;
+        }
+
+        // All retries exhausted
+        const errorMessage = getConnectionErrorMessage(error);
+        console.error(`[Connection] All ${retries} attempts failed:`, errorMessage);
+        this.emit('temporary-connection-failed', errorMessage);
         return {
-          success: true,
-          typeName,
-          printerInfo: printerInfo as unknown as ExtendedPrinterInfo
+          success: false,
+          error: errorMessage
         };
       }
-
-    } catch (error) {
-      const errorMessage = getConnectionErrorMessage(error);
-      this.emit('temporary-connection-failed', errorMessage);
-      return {
-        success: false,
-        error: errorMessage
-      };
     }
+
+    // Should never reach here, but TypeScript requires it
+    return {
+      success: false,
+      error: 'All connection attempts failed'
+    };
+  }
+
+  /**
+   * Delay helper for exponential backoff
+   */
+  private async delay(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
   }
 
   /**
