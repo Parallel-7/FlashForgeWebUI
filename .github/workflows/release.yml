@@ -102,11 +102,11 @@ jobs:
 
           # Package with yao-pkg based on platform/arch
           if [[ "${{ matrix.platform }}" == "win" ]]; then
-            npx yao-pkg . --targets node20-win-${{ matrix.arch }} --output dist/${{ matrix.output }}
+            npx @yao-pkg/pkg . --targets node20-win-${{ matrix.arch }} --output dist/${{ matrix.output }}
           elif [[ "${{ matrix.platform }}" == "mac" ]]; then
-            npx yao-pkg . --targets node20-macos-${{ matrix.arch }} --output dist/${{ matrix.output }}
+            npx @yao-pkg/pkg . --targets node20-macos-${{ matrix.arch }} --output dist/${{ matrix.output }}
           elif [[ "${{ matrix.platform }}" == "linux" ]]; then
-            npx yao-pkg . --targets node20-linux-${{ matrix.arch }} --output dist/${{ matrix.output }}
+            npx @yao-pkg/pkg . --targets node20-linux-${{ matrix.arch }} --output dist/${{ matrix.output }}
           fi
 
       - name: Upload Build Artifacts
