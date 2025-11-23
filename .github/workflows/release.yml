@@ -92,12 +92,12 @@ jobs:
           mkdir -p ~/.pkg-cache/v3.5
 
           # Download pre-built ARMv7 binary from yao-pkg/pkg-binaries
-          # Using node 20.19.5 (latest available ARMv7 build, ~47MB)
-          curl -L -o ~/.pkg-cache/v3.5/fetched-v20.19.5-linux-armv7 \
-            https://github.com/yao-pkg/pkg-binaries/releases/download/node20/node-v20.19.5-linux-armv7
+          # Using node 20.18.0 linuxstatic build (highest Node 20 recognized by pkg)
+          curl -L -o ~/.pkg-cache/v3.5/fetched-v20.18.0-linuxstatic-armv7 \
+            https://github.com/yao-pkg/pkg-binaries/releases/download/node20/node-v20.18.0-linuxstatic-armv7
 
           # Make executable
-          chmod +x ~/.pkg-cache/v3.5/fetched-v20.19.5-linux-armv7
+          chmod +x ~/.pkg-cache/v3.5/fetched-v20.18.0-linuxstatic-armv7
 
           # Verify download (should be ~47MB)
           ls -lh ~/.pkg-cache/v3.5/
@@ -127,9 +127,9 @@ jobs:
           elif [[ "${{ matrix.platform }}" == "mac" ]]; then
             npx @yao-pkg/pkg . --targets node20-macos-${{ matrix.arch }} --output dist/${{ matrix.output }}
           elif [[ "${{ matrix.platform }}" == "linux" ]]; then
-            # Special case: ARMv7 requires explicit version (20.19.5 from pkg-binaries)
+            # Special case: ARMv7 needs the linuxstatic target to pick the supported Node 20 build
             if [[ "${{ matrix.arch }}" == "armv7" ]]; then
-              npx @yao-pkg/pkg . --targets node20.19.5-linux-armv7 --output dist/${{ matrix.output }}
+              npx @yao-pkg/pkg . --targets node20-linuxstatic-armv7 --output dist/${{ matrix.output }}
             else
               npx @yao-pkg/pkg . --targets node20-linux-${{ matrix.arch }} --output dist/${{ matrix.output }}
             fi
