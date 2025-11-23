@@ -82,6 +82,27 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Pre-download ARMv7 Node.js Binary (if needed)
+        if: matrix.arch == 'armv7'
+        shell: bash
+        run: |
+          echo "Pre-caching ARMv7 Node.js binary to avoid cross-compilation..."
+
+          # Create pkg cache directory (v3.5 is the pkg-fetch cache version)
+          mkdir -p ~/.pkg-cache/v3.5
+
+          # Download pre-built ARMv7 binary from yao-pkg/pkg-fetch releases
+          # Using node20.10.0 which has confirmed armv7 support
+          curl -L -o ~/.pkg-cache/v3.5/built-v20.10.0-linuxstatic-armv7 \
+            https://github.com/yao-pkg/pkg-fetch/releases/download/node20/built-v20.10.0-linuxstatic-armv7
+
+          # Make executable
+          chmod +x ~/.pkg-cache/v3.5/built-v20.10.0-linuxstatic-armv7
+
+          # Verify download
+          ls -lh ~/.pkg-cache/v3.5/
+          echo "ARMv7 binary cached successfully"
+
       - name: Set Application Version
         shell: bash
         run: |
