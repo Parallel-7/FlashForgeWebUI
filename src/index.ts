@@ -208,12 +208,14 @@ async function startWebUI(): Promise<void> {
  */
 function setupEventForwarding(): void {
   // Forward polling data to WebUI for real-time updates
+  // For WebUI (single-printer or multi-printer), forward all context data
+  // The WebUI/WebSocket layer will handle filtering if needed
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   pollingCoordinator.on('polling-data', (contextId: string, data: any) => {
-    const activeContextId = contextManager.getActiveContextId();
-    if (activeContextId === contextId) {
-      webUIManager.handlePollingUpdate(data);
-    }
+    // Forward all polling data regardless of active context
+    // This ensures data reaches the WebUI even if active context isn't set yet
+    webUIManager.handlePollingUpdate(data);
+    console.log(`[Events] Forwarded polling data for context: ${contextId}`);
   });
 
   console.log('[Events] Event forwarding configured for WebUI');
@@ -410,8 +412,27 @@ async function main(): Promise<void> {
     // 11. Start WebUI server
     await startWebUI();
 
-    // 12. Setup event forwarding
+    // 12. Setup event forwarding BEFORE starting polling
+    // This ensures listeners are ready when polling data starts flowing
     setupEventForwarding();
+
+    // 12b. Setup post-connection hook for dynamic printer connections
+    // This handles printers connected after startup (via API reconnect/discovery)
+    connectionManager.on('connected', (printerDetails) => {
+      const activeContextId = contextManager.getActiveContextId();
+      if (activeContextId) {
+        console.log(`[Events] Printer connected: ${printerDetails.Name}, starting services...`);
+
+        // Start polling for the new context
+        try {
+          pollingCoordinator.startPollingForContext(activeContextId);
+          console.log(`[Polling] Started for context: ${activeContextId}`);
+        } catch (error) {
+          console.error(`[Polling] Failed to start for context ${activeContextId}:`, error);
+        }
+      }
+    });
+    console.log('[Events] Post-connection hook configured');
 
     // 13. Start polling for connected printers
     if (connectedContexts.length > 0) {

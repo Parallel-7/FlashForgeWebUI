@@ -3,7 +3,11 @@
     "allow": [
       "Bash(npm install:*)",
       "Bash(npm run build:*)",
-      "Bash(git -C \"C:\\Users\\Cope\\Documents\\GitHub\\FlashForgeUI-Electron\" branch --show-current)"
+      "Bash(git -C \"C:\\Users\\Cope\\Documents\\GitHub\\FlashForgeUI-Electron\" branch --show-current)",
+      "Bash(dir /s /b *.tsx 2)",
+      "Bash(nul)",
+      "Bash(dir /s /b:*)",
+      "Bash(findstr:*)"
     ],
     "deny": [],
     "ask": []

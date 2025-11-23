@@ -61,6 +61,12 @@ export function registerCameraRoutes(router: Router, deps: RouteDependencies): v
       const { resolveCameraConfig, getCameraUserConfig } = await import(
         '../../../utils/camera-utils'
       );
+
+      // Use the standard camera resolution logic which handles all cases:
+      // - Custom camera with URL → uses provided URL
+      // - Custom camera without URL → auto-generates http://{IP}:8080/?action=stream
+      // - Built-in camera (5M Pro) → uses default URL
+      // - No camera → returns unavailable
       const backendStatus = backend.getBackendStatus();
       const cameraConfig = resolveCameraConfig({
         printerIpAddress: context.printerDetails.IPAddress,

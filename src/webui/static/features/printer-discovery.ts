@@ -225,32 +225,91 @@ function displayDiscoveredPrinters(matches: SavedPrinterMatch[]): void {
 }
 
 /**
+ * Get saved printer by serial number
+ */
+async function getSavedPrinterBySerial(serialNumber: string): Promise<{ Name: string; IPAddress: string; SerialNumber: string; CheckCode?: string; printerModel?: string } | null> {
+  if (!serialNumber) {
+    return null;
+  }
+
+  try {
+    const response = await apiRequest<{
+      success: boolean;
+      printers?: { Name: string; IPAddress: string; SerialNumber: string; CheckCode?: string; printerModel?: string }[];
+      error?: string;
+    }>('/api/printers/saved');
+
+    if (!response.success || !response.printers) {
+      return null;
+    }
+
+    return response.printers.find(p => p.SerialNumber === serialNumber) || null;
+  } catch (error) {
+    console.error('Failed to fetch saved printers:', error);
+    return null;
+  }
+}
+
+/**
  * Connect to a discovered printer
  */
 async function connectToDiscoveredPrinter(
   ip: string,
   serial: string,
   name: string,
-  model: string
+  _model: string
 ): Promise<void> {
   try {
-    // Determine printer type based on model
-    // 5M family includes: Adventurer 5M, Adventurer 5M Pro, AD5X, AD5X Pro
-    // Match backend logic in PrinterUtils.detectPrinterFamily()
-    const modelLower = model.toLowerCase();
-    const is5MFamily = modelLower.includes('5m') || modelLower.includes('ad5x');
-    const type = is5MFamily ? 'new' : 'legacy';
+    showToast('Detecting printer type...', 'info');
 
-    // If 5M family printer, prompt for check code
+    // STEP 1: Probe printer to detect type and capabilities
+    const detectResponse = await apiRequest<{
+      success: boolean;
+      typeName?: string;
+      name?: string;
+      serialNumber?: string;
+      is5MFamily?: boolean;
+      requiresCheckCode?: boolean;
+      clientType?: string;
+      error?: string;
+    }>('/api/printers/detect', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ipAddress: ip })
+    });
+
+    if (!detectResponse.success || !detectResponse.typeName) {
+      throw new Error(detectResponse.error || 'Failed to detect printer type');
+    }
+
+    const { typeName, serialNumber, is5MFamily, requiresCheckCode, clientType } = detectResponse;
+    const detectedName = detectResponse.name || name;
+    const detectedSerial = serialNumber || serial;
+    const type = clientType || (is5MFamily ? 'new' : 'legacy');
+
+    console.log(`[Discovery] Detected: ${typeName} (${is5MFamily ? '5M family' : 'legacy'})`);
+
+    // STEP 2: Get check code if needed
     let checkCode: string | undefined;
-    if (type === 'new') {
-      checkCode = prompt('Enter the printer check code (8 digits):') || undefined;
-      if (!checkCode || checkCode.length !== 8) {
-        showToast('Invalid check code', 'error');
-        return;
+    if (requiresCheckCode && is5MFamily) {
+      // Check if printer is already saved with a check code
+      const savedPrinter = await getSavedPrinterBySerial(detectedSerial);
+
+      if (savedPrinter?.CheckCode && savedPrinter.CheckCode !== '123') {
+        // Use saved check code
+        checkCode = savedPrinter.CheckCode;
+        console.log('[Discovery] Using saved check code');
+      } else {
+        // Prompt user for check code
+        checkCode = prompt(`Enter the check code for ${detectedName} (8 digits):`) || undefined;
+        if (!checkCode || checkCode.length !== 8) {
+          showToast('Invalid check code - must be 8 digits', 'error');
+          return;
+        }
       }
     }
 
+    // STEP 3: Connect with detected type and check code
     showToast('Connecting to printer...', 'info');
 
     const response = await apiRequest<{
@@ -262,9 +321,9 @@ async function connectToDiscoveredPrinter(
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         ipAddress: ip,
-        serialNumber: serial,
-        name,
-        model,
+        serialNumber: detectedSerial,
+        name: detectedName,
+        model: typeName,
         type,
         checkCode
       })
@@ -274,7 +333,7 @@ async function connectToDiscoveredPrinter(
       throw new Error(response.error || 'Connection failed');
     }
 
-    showToast(`Connected to ${name}!`, 'success');
+    showToast(`Connected to ${detectedName}!`, 'success');
     hideElement('discovery-modal');
 
     // Reload page to refresh printer list
@@ -297,8 +356,8 @@ async function connectManually(): Promise<void> {
   if (!ipInput || !typeSelect) return;
 
   const ip = ipInput.value.trim();
-  const type = typeSelect.value;
-  const checkCode = checkCodeInput?.value.trim();
+  const userSelectedType = typeSelect.value;
+  const userCheckCode = checkCodeInput?.value.trim();
 
   // Validate IP
   if (!ip) {
@@ -306,13 +365,71 @@ async function connectManually(): Promise<void> {
     return;
   }
 
-  // Validate check code for new printers
-  if (type === 'new' && (!checkCode || checkCode.length !== 8)) {
-    showToast('Please enter a valid 8-digit check code', 'error');
-    return;
-  }
-
   try {
+    showToast('Detecting printer type...', 'info');
+
+    // STEP 1: Auto-detect printer type
+    const detectResponse = await apiRequest<{
+      success: boolean;
+      typeName?: string;
+      name?: string;
+      serialNumber?: string;
+      is5MFamily?: boolean;
+      requiresCheckCode?: boolean;
+      clientType?: string;
+      error?: string;
+    }>('/api/printers/detect', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ipAddress: ip })
+    });
+
+    if (!detectResponse.success || !detectResponse.typeName) {
+      throw new Error(detectResponse.error || 'Failed to detect printer type');
+    }
+
+    const { typeName, serialNumber, is5MFamily, requiresCheckCode, clientType } = detectResponse;
+    const detectedName = detectResponse.name || `Printer at ${ip}`;
+    const detectedSerial = serialNumber || '';
+    const detectedType = clientType || (is5MFamily ? 'new' : 'legacy');
+
+    console.log(`[Manual] Detected: ${typeName} (${is5MFamily ? '5M family' : 'legacy'})`);
+
+    // STEP 2: Validate user selection against detection (warn if mismatch)
+    if (userSelectedType !== detectedType) {
+      const proceed = confirm(
+        `Warning: You selected "${userSelectedType}" but the printer was detected as "${detectedType}".\n\n` +
+        `Using detected type: ${detectedType}\n\nContinue?`
+      );
+      if (!proceed) {
+        return;
+      }
+    }
+
+    // STEP 3: Get check code if needed
+    let checkCode: string | undefined;
+    if (requiresCheckCode && is5MFamily) {
+      // Check if printer is already saved with a check code
+      const savedPrinter = await getSavedPrinterBySerial(detectedSerial);
+
+      if (savedPrinter?.CheckCode && savedPrinter.CheckCode !== '123') {
+        // Use saved check code
+        checkCode = savedPrinter.CheckCode;
+        console.log('[Manual] Using saved check code');
+      } else if (userCheckCode && userCheckCode.length === 8) {
+        // Use user-provided check code from form
+        checkCode = userCheckCode;
+      } else {
+        // Prompt user for check code
+        checkCode = prompt(`Enter the check code for ${detectedName} (8 digits):`) || undefined;
+        if (!checkCode || checkCode.length !== 8) {
+          showToast('Invalid check code - must be 8 digits', 'error');
+          return;
+        }
+      }
+    }
+
+    // STEP 4: Connect with detected type
     showToast('Connecting to printer...', 'info');
 
     const response = await apiRequest<{
@@ -324,8 +441,11 @@ async function connectManually(): Promise<void> {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         ipAddress: ip,
-        type,
-        checkCode: type === 'new' ? checkCode : undefined
+        serialNumber: detectedSerial,
+        name: detectedName,
+        model: typeName,
+        type: detectedType,
+        checkCode
       })
     });
 

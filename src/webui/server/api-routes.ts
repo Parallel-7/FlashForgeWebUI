@@ -24,6 +24,7 @@ import { registerThemeRoutes } from './routes/theme-routes';
 import { registerSpoolmanRoutes } from './routes/spoolman-routes';
 import { registerDiscoveryRoutes } from './routes/discovery-routes';
 import { registerPrinterManagementRoutes } from './routes/printer-management-routes';
+import { registerPrinterDetectionRoutes } from './routes/printer-detection-routes';
 
 export function buildRouteDependencies(): RouteDependencies {
   return {
@@ -48,6 +49,7 @@ export function createAPIRoutes(deps: RouteDependencies = buildRouteDependencies
   registerThemeRoutes(router, deps);
   registerSpoolmanRoutes(router, deps);
   registerDiscoveryRoutes(router, deps);
+  registerPrinterDetectionRoutes(router, deps);
   registerPrinterManagementRoutes(router, deps);
 
   return router;
