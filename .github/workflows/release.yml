@@ -1,0 +1,244 @@
+name: Build and Release FlashForgeWebUI
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version Number (e.g., 1.0.0)'
+        required: true
+        default: ''
+      prerelease:
+        description: 'Is this a Pre-Release?'
+        type: boolean
+        default: false
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Windows x64 (native)
+          - os: windows-latest
+            platform: win
+            arch: x64
+            output: flashforge-webui-win-x64.exe
+
+          # macOS x64 (Intel)
+          - os: macos-13
+            platform: mac
+            arch: x64
+            output: flashforge-webui-macos-x64
+
+          # macOS ARM64 (Apple Silicon)
+          - os: macos-latest
+            platform: mac
+            arch: arm64
+            output: flashforge-webui-macos-arm64
+
+          # Linux x64
+          - os: ubuntu-latest
+            platform: linux
+            arch: x64
+            output: flashforge-webui-linux-x64
+
+          # Linux ARM64 (native ARM runner - requires public repo)
+          - os: ubuntu-24.04-arm
+            platform: linux
+            arch: arm64
+            output: flashforge-webui-linux-arm64
+
+          # Linux ARMv7 (cross-compile from x64)
+          - os: ubuntu-latest
+            platform: linux
+            arch: armv7
+            output: flashforge-webui-linux-armv7
+
+    steps:
+      - name: Checkout FlashForgeWebUI
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Configure GitHub Packages Authentication
+        shell: bash
+        run: |
+          echo "Setting up GitHub Packages authentication"
+          echo "@ghosttypes:registry=https://npm.pkg.github.com" >> .npmrc
+          echo "@parallel-7:registry=https://npm.pkg.github.com" >> .npmrc
+          echo "//npm.pkg.github.com/:_authToken=${{ secrets.GITHUB_TOKEN }}" >> .npmrc
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Run npm ci
+        shell: bash
+        run: |
+          npm ci
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set Application Version
+        shell: bash
+        run: |
+          VERSION="${{ github.event.inputs.version }}"
+          if [[ "$VERSION" == *.* && "$VERSION" != *.*.* ]]; then
+            VERSION="${VERSION}.0"
+          elif [[ "$VERSION" != *.* ]]; then
+            VERSION="${VERSION}.0.0"
+          fi
+          echo "Setting version to: $VERSION"
+          npm version "$VERSION" --no-git-tag-version --allow-same-version
+
+      - name: Build application
+        shell: bash
+        run: |
+          # Build the TypeScript source
+          npm run build
+
+          # Package with yao-pkg based on platform/arch
+          if [[ "${{ matrix.platform }}" == "win" ]]; then
+            npx yao-pkg . --targets node20-win-${{ matrix.arch }} --output dist/${{ matrix.output }}
+          elif [[ "${{ matrix.platform }}" == "mac" ]]; then
+            npx yao-pkg . --targets node20-macos-${{ matrix.arch }} --output dist/${{ matrix.output }}
+          elif [[ "${{ matrix.platform }}" == "linux" ]]; then
+            npx yao-pkg . --targets node20-linux-${{ matrix.arch }} --output dist/${{ matrix.output }}
+          fi
+
+      - name: Upload Build Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.output }}
+          path: dist/${{ matrix.output }}
+          if-no-files-found: error
+
+  create_github_release:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Display downloaded artifacts structure
+        shell: bash
+        run: |
+          echo "Downloaded artifacts layout:"
+          ls -R artifacts
+
+      - name: Prepare Release Assets
+        id: prep_assets
+        shell: bash
+        run: |
+          mkdir release_assets
+
+          # Copy all executables from artifact directories
+          find artifacts/ -type f -executable -o -name "*.exe" | while IFS= read -r file; do
+            filename=$(basename "$file")
+            cp "$file" "release_assets/$filename"
+            echo "Copied $file to release_assets/$filename"
+          done
+
+          # Also copy any non-executable files (in case executables lose +x during artifact download)
+          find artifacts/ -type f ! -name "*.exe" | while IFS= read -r file; do
+            filename=$(basename "$file")
+            if [[ ! -f "release_assets/$filename" ]]; then
+              cp "$file" "release_assets/$filename"
+              echo "Copied $file to release_assets/$filename"
+            fi
+          done
+
+          echo "Prepared assets in release_assets:"
+          ls -lh release_assets/
+
+      - name: Generate Release Notes
+        id: generate_notes
+        shell: bash
+        run: |
+          VERSION="${{ github.event.inputs.version }}"
+          if [[ "$VERSION" == *.* && "$VERSION" != *.*.* ]]; then
+            VERSION="${VERSION}.0"
+          elif [[ "$VERSION" != *.* ]]; then
+            VERSION="${VERSION}.0.0"
+          fi
+
+          IS_PRERELEASE="${{ github.event.inputs.prerelease }}"
+          RELEASE_TYPE_BADGE=""
+          if [[ "$IS_PRERELEASE" == "true" ]]; then
+            RELEASE_TYPE_BADGE=" (Pre-release)"
+          fi
+
+          cat > RELEASE_NOTES.md << EOF
+          # FlashForgeWebUI v${VERSION}${RELEASE_TYPE_BADGE}
+
+          Standalone web-based interface for FlashForge 3D printers.
+
+          ## Downloads
+
+          Choose the appropriate binary for your platform:
+
+          - **Windows (x64)**: \`flashforge-webui-win-x64.exe\`
+          - **macOS (Intel)**: \`flashforge-webui-macos-x64\`
+          - **macOS (Apple Silicon)**: \`flashforge-webui-macos-arm64\`
+          - **Linux (x64)**: \`flashforge-webui-linux-x64\`
+          - **Linux (ARM64)**: \`flashforge-webui-linux-arm64\` (Raspberry Pi 4/5, ARM servers)
+          - **Linux (ARMv7)**: \`flashforge-webui-linux-armv7\` (Raspberry Pi 3, older ARM devices)
+
+          ## Installation
+
+          1. Download the appropriate binary for your platform
+          2. Make it executable (Linux/macOS): \`chmod +x flashforge-webui-*\`
+          3. Run it: \`./flashforge-webui-*\` (or \`flashforge-webui-*.exe\` on Windows)
+
+          ## Usage
+
+          Run with no arguments to start the WebUI server only:
+          \`\`\`bash
+          ./flashforge-webui-linux-x64
+          \`\`\`
+
+          Or use CLI options to auto-connect to printers:
+          \`\`\`bash
+          # Connect to last used printer
+          ./flashforge-webui-linux-x64 --last-used
+
+          # Connect to all saved printers
+          ./flashforge-webui-linux-x64 --all-saved-printers
+
+          # Connect to specific printer(s)
+          ./flashforge-webui-linux-x64 --printers="192.168.1.100:new:12345678"
+
+          # Customize WebUI port and password
+          ./flashforge-webui-linux-x64 --webui-port=3001 --webui-password=mypassword
+          \`\`\`
+
+          See the [README](https://github.com/Parallel-7/FlashForgeWebUI) for full documentation.
+
+          EOF
+
+          echo "VERSION_TAG=v${VERSION}" >> $GITHUB_ENV
+          echo "RELEASE_NAME=FlashForgeWebUI v${VERSION}${RELEASE_TYPE_BADGE}" >> $GITHUB_ENV
+          echo "RELEASE_NOTES_PATH=RELEASE_NOTES.md" >> $GITHUB_ENV
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.VERSION_TAG }}
+          name: ${{ env.RELEASE_NAME }}
+          body_path: ${{ env.RELEASE_NOTES_PATH }}
+          draft: false
+          prerelease: ${{ github.event.inputs.prerelease }}
+          files: |
+            release_assets/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
