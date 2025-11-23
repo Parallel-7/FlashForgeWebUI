@@ -168,8 +168,8 @@ jobs:
         run: |
           mkdir release_assets
 
-          # Copy all executables from artifact directories
-          find artifacts/ -type f -executable -o -name "*.exe" | while IFS= read -r file; do
+          # Copy all executables from artifact directories (including Windows .exe files)
+          find artifacts/ -type f \( -executable -o -name "*.exe" \) | while IFS= read -r file; do
             filename=$(basename "$file")
             cp "$file" "release_assets/$filename"
             echo "Copied $file to release_assets/$filename"
