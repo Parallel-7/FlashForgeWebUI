@@ -26,34 +26,34 @@ jobs:
             output: flashforge-webui-win-x64.exe
 
           # macOS x64 (Intel)
-          - os: macos-13
+          - os: macos-15-intel
             platform: mac
             arch: x64
-            output: flashforge-webui-macos-x64
+            output: flashforge-webui-macos-x64.bin
 
           # macOS ARM64 (Apple Silicon)
           - os: macos-latest
             platform: mac
             arch: arm64
-            output: flashforge-webui-macos-arm64
+            output: flashforge-webui-macos-arm64.bin
 
           # Linux x64
           - os: ubuntu-latest
             platform: linux
             arch: x64
-            output: flashforge-webui-linux-x64
+            output: flashforge-webui-linux-x64.bin
 
           # Linux ARM64 (native ARM runner - requires public repo)
           - os: ubuntu-24.04-arm
             platform: linux
             arch: arm64
-            output: flashforge-webui-linux-arm64
+            output: flashforge-webui-linux-arm64.bin
 
           # Linux ARMv7 (cross-compile from x64)
           - os: ubuntu-latest
             platform: linux
             arch: armv7
-            output: flashforge-webui-linux-armv7
+            output: flashforge-webui-linux-armv7.bin
 
     steps:
       - name: Checkout FlashForgeWebUI
@@ -214,38 +214,38 @@ jobs:
           Choose the appropriate binary for your platform:
 
           - **Windows (x64)**: \`flashforge-webui-win-x64.exe\`
-          - **macOS (Intel)**: \`flashforge-webui-macos-x64\`
-          - **macOS (Apple Silicon)**: \`flashforge-webui-macos-arm64\`
-          - **Linux (x64)**: \`flashforge-webui-linux-x64\`
-          - **Linux (ARM64)**: \`flashforge-webui-linux-arm64\` (Raspberry Pi 4/5, ARM servers)
-          - **Linux (ARMv7)**: \`flashforge-webui-linux-armv7\` (Raspberry Pi 3, older ARM devices)
+          - **macOS (Intel)**: \`flashforge-webui-macos-x64.bin\`
+          - **macOS (Apple Silicon)**: \`flashforge-webui-macos-arm64.bin\`
+          - **Linux (x64)**: \`flashforge-webui-linux-x64.bin\`
+          - **Linux (ARM64)**: \`flashforge-webui-linux-arm64.bin\` (Raspberry Pi 4/5, ARM servers)
+          - **Linux (ARMv7)**: \`flashforge-webui-linux-armv7.bin\` (Raspberry Pi 3, older ARM devices)
 
           ## Installation
 
           1. Download the appropriate binary for your platform
-          2. Make it executable (Linux/macOS): \`chmod +x flashforge-webui-*\`
-          3. Run it: \`./flashforge-webui-*\` (or \`flashforge-webui-*.exe\` on Windows)
+          2. Make it executable (Linux/macOS): \`chmod +x flashforge-webui-*.bin\`
+          3. Run it: \`./flashforge-webui-*.bin\` (or \`flashforge-webui-*.exe\` on Windows)
 
           ## Usage
 
           Run with no arguments to start the WebUI server only:
           \`\`\`bash
-          ./flashforge-webui-linux-x64
+          ./flashforge-webui-linux-x64.bin
           \`\`\`
 
           Or use CLI options to auto-connect to printers:
           \`\`\`bash
           # Connect to last used printer
-          ./flashforge-webui-linux-x64 --last-used
+          ./flashforge-webui-linux-x64.bin --last-used
 
           # Connect to all saved printers
-          ./flashforge-webui-linux-x64 --all-saved-printers
+          ./flashforge-webui-linux-x64.bin --all-saved-printers
 
           # Connect to specific printer(s)
-          ./flashforge-webui-linux-x64 --printers="192.168.1.100:new:12345678"
+          ./flashforge-webui-linux-x64.bin --printers="192.168.1.100:new:12345678"
 
           # Customize WebUI port and password
-          ./flashforge-webui-linux-x64 --webui-port=3001 --webui-password=mypassword
+          ./flashforge-webui-linux-x64.bin --webui-port=3001 --webui-password=mypassword
           \`\`\`
 
           See the [README](https://github.com/Parallel-7/FlashForgeWebUI) for full documentation.
