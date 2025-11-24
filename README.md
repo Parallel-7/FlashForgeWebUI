@@ -80,12 +80,12 @@ FlashForge WebUI supports a wide range of FlashForge printers through its adapta
   <tr>
     <td>Adventurer 5M</td>
     <td>Adventurer 5M, 5M Pro</td>
-    <td>New (FiveMClient)</td>
+    <td>New (HTTP API)</td>
   </tr>
   <tr>
     <td>AD5X</td>
-    <td>Adventurer 5M X Series</td>
-    <td>New (AD5X API)</td>
+    <td>AD5X</td>
+    <td>New (HTTP API)</td>
   </tr>
   <tr>
     <td>Legacy</td>
@@ -100,13 +100,25 @@ FlashForge WebUI supports a wide range of FlashForge printers through its adapta
 </div>
 
 <div align="center">
-
-**Prerequisites**
-
+  <h3>Prerequisites</h3>
 </div>
 
-*   Node.js 20.0.0 or higher (for source installation)
-*   Network connection to your printer(s)
+<div align="center">
+<table>
+  <tr>
+    <th>Requirement</th>
+    <th>Details</th>
+  </tr>
+  <tr>
+    <td>Node.js</td>
+    <td>Version 20.0.0 or higher (for source installation)</td>
+  </tr>
+  <tr>
+    <td>Network</td>
+    <td>Connection to your printer(s)</td>
+  </tr>
+</table>
+</div>
 
 <div align="center">
 
@@ -186,8 +198,12 @@ MIT License
     <th>Role</th>
   </tr>
   <tr>
-    <td>@ghosttypes/ff-api</td>
+    <td><a href="https://github.com/GhostTypes/ff-5mp-api-ts">ff-5mp-api-ts</a></td>
     <td>FlashForge API Client Library</td>
+  </tr>
+  <tr>
+    <td><a href="https://github.com/Parallel-7/slicer-meta">slicer-meta</a></td>
+    <td>Printer Metadata & Model Utilities</td>
   </tr>
   <tr>
     <td>FlashForgeUI-Electron</td>
