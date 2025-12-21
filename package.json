@@ -79,6 +79,11 @@
     "node": ">=20.0.0"
   },
   "pkg": {
+    "scripts": [
+      "node_modules/axios/dist/**/*.cjs",
+      "node_modules/axios/dist/**/*.js",
+      "node_modules/zod/**/*.cjs"
+    ],
     "assets": [
       "dist/webui/**/*"
     ],
