@@ -222,58 +222,6 @@ function setupEventForwarding(): void {
 }
 
 /**
- * Start polling for all connected contexts
- */
-function startPolling(): void {
-  for (const contextId of connectedContexts) {
-    try {
-      pollingCoordinator.startPollingForContext(contextId);
-      console.log(`[Polling] Started for context: ${contextId}`);
-    } catch (error) {
-      console.error(`[Polling] Failed to start for context ${contextId}:`, error);
-    }
-  }
-}
-
-/**
- * Initialize monitors for all connected contexts
- * Creates PrintStateMonitor and SpoolmanTracker for each context
- */
-function initializeMonitors(): void {
-  const printStateMonitor = getMultiContextPrintStateMonitor();
-  const spoolmanTracker = getMultiContextSpoolmanTracker();
-
-  for (const contextId of connectedContexts) {
-    try {
-      const context = contextManager.getContext(contextId);
-      const pollingService = context?.pollingService;
-
-      if (!pollingService) {
-        console.error(`[Monitors] Missing polling service for context ${contextId}`);
-        continue;
-      }
-
-      // Create PrintStateMonitor
-      printStateMonitor.createMonitorForContext(contextId, pollingService);
-      const stateMonitor = printStateMonitor.getMonitor(contextId);
-
-      if (!stateMonitor) {
-        console.error(`[Monitors] Failed to create print state monitor for ${contextId}`);
-        continue;
-      }
-
-      console.log(`[Monitors] Created PrintStateMonitor for context ${contextId}`);
-
-      // Create SpoolmanTracker (depends on PrintStateMonitor)
-      spoolmanTracker.createTrackerForContext(contextId, stateMonitor);
-      console.log(`[Monitors] Created SpoolmanTracker for context ${contextId}`);
-    } catch (error) {
-      console.error(`[Monitors] Failed to initialize monitors for context ${contextId}:`, error);
-    }
-  }
-}
-
-/**
  * Initialize camera proxies for all connected contexts
  */
 async function initializeCameraProxies(): Promise<void> {
@@ -454,43 +402,37 @@ async function main(): Promise<void> {
     // This ensures listeners are ready when polling data starts flowing
     setupEventForwarding();
 
-    // 12b. Setup post-connection hook for dynamic printer connections
-    // This handles printers connected after startup (via API reconnect/discovery)
+    // 12b. Setup post-connection hook for logging
     connectionManager.on('connected', (printerDetails) => {
-      const activeContextId = contextManager.getActiveContextId();
-      if (activeContextId) {
-        console.log(`[Events] Printer connected: ${printerDetails.Name}, starting services...`);
-
-        // Start polling for the new context
-        try {
-          pollingCoordinator.startPollingForContext(activeContextId);
-          console.log(`[Polling] Started for context: ${activeContextId}`);
-        } catch (error) {
-          console.error(`[Polling] Failed to start for context ${activeContextId}:`, error);
-        }
-      }
+      console.log(`[Events] Printer connected: ${printerDetails.Name}`);
+      // Polling and monitors are initialized by backend-initialized handler
     });
     console.log('[Events] Post-connection hook configured');
 
-    // 12c. Setup backend-initialized hook to create monitors and trackers
+    // 12c. Setup backend-initialized hook to start polling and create monitors
     // This is critical for Spoolman deduction and print state monitoring
+    // IMPORTANT: This handles both startup connections AND dynamic connections (API reconnect/discovery)
     connectionManager.on('backend-initialized', (event: unknown) => {
       const backendEvent = event as { contextId: string; modelType: string };
       const contextId = backendEvent.contextId;
 
-      console.log(`[Events] Backend initialized for context ${contextId}, creating monitors...`);
-
-      // Get context and polling service
-      const context = contextManager.getContext(contextId);
-      const pollingService = context?.pollingService;
-
-      if (!pollingService) {
-        console.error('[Events] Missing polling service for context initialization');
-        return;
-      }
+      console.log(`[Events] Backend initialized for context ${contextId}, starting services...`);
 
       try {
-        // Create PrintStateMonitor for this context
+        // STEP 1: Start polling FIRST (this creates the pollingService reference)
+        pollingCoordinator.startPollingForContext(contextId);
+        console.log(`[Polling] Started for context: ${contextId}`);
+
+        // STEP 2: Get context and polling service (now available after step 1)
+        const context = contextManager.getContext(contextId);
+        const pollingService = context?.pollingService;
+
+        if (!pollingService) {
+          console.error('[Events] Missing polling service for context initialization');
+          return;
+        }
+
+        // STEP 3: Create PrintStateMonitor for this context
         const printStateMonitor = getMultiContextPrintStateMonitor();
         printStateMonitor.createMonitorForContext(contextId, pollingService);
         const stateMonitor = printStateMonitor.getMonitor(contextId);
@@ -502,27 +444,22 @@ async function main(): Promise<void> {
 
         console.log(`[Events] Created PrintStateMonitor for context ${contextId}`);
 
-        // Create SpoolmanTracker for this context (depends on PrintStateMonitor)
+        // STEP 4: Create SpoolmanTracker for this context (depends on PrintStateMonitor)
         const spoolmanTracker = getMultiContextSpoolmanTracker();
         spoolmanTracker.createTrackerForContext(contextId, stateMonitor);
 
         console.log(`[Events] Created SpoolmanTracker for context ${contextId}`);
+        console.log(`[Events] All services initialized for context ${contextId}`);
       } catch (error) {
-        console.error(`[Events] Failed to create monitors for context ${contextId}:`, error);
+        console.error(`[Events] Failed to initialize services for context ${contextId}:`, error);
       }
     });
     console.log('[Events] Backend-initialized hook configured');
 
-    // 13. Start polling for connected printers
+    // 13. Note: Polling and monitors are initialized by backend-initialized handler
+    // This handler fires for both startup connections AND dynamic connections
     if (connectedContexts.length > 0) {
-      startPolling();
-      console.log(`[Init] Polling started for ${connectedContexts.length} printer(s)`);
-    }
-
-    // 13b. Initialize monitors and trackers for connected printers
-    if (connectedContexts.length > 0) {
-      initializeMonitors();
-      console.log(`[Init] Monitors initialized for ${connectedContexts.length} printer(s)`);
+      console.log(`[Init] Services initialized for ${connectedContexts.length} printer(s) via backend-initialized handler`);
     }
 
     // 14. Initialize camera proxies
