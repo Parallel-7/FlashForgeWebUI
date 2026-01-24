@@ -377,39 +377,18 @@ async function main(): Promise<void> {
     multiContextSpoolmanTracker.initialize();
     console.log('[Init] Spoolman tracker initialized');
 
-    // 10. Connect to printers
-    console.log('[Init] Connecting to printers...');
-    connectedContexts = await connectPrinters(config);
-
-    if (connectedContexts.length === 0 && config.mode !== 'no-printers') {
-      console.warn('[Warning] No printers connected, but WebUI will still start');
-    } else if (connectedContexts.length > 0) {
-      console.log(`[Init] Connected to ${connectedContexts.length} printer(s)`);
-
-      // Log connection summary
-      for (const contextId of connectedContexts) {
-        const context = contextManager.getContext(contextId);
-        if (context) {
-          console.log(`  - ${context.printerDetails.Name} (${context.printerDetails.IPAddress})`);
-        }
-      }
-    }
-
-    // 11. Start WebUI server
-    await startWebUI();
-
-    // 12. Setup event forwarding BEFORE starting polling
-    // This ensures listeners are ready when polling data starts flowing
+    // 10. Setup event handlers BEFORE connecting to printers
+    // This ensures handlers are ready when backend-initialized events fire during connection
     setupEventForwarding();
 
-    // 12b. Setup post-connection hook for logging
+    // 10b. Setup post-connection hook for logging
     connectionManager.on('connected', (printerDetails) => {
       console.log(`[Events] Printer connected: ${printerDetails.Name}`);
       // Polling and monitors are initialized by backend-initialized handler
     });
     console.log('[Events] Post-connection hook configured');
 
-    // 12c. Setup backend-initialized hook to start polling and create monitors
+    // 10c. Setup backend-initialized hook to start polling and create monitors
     // This is critical for Spoolman deduction and print state monitoring
     // IMPORTANT: This handles both startup connections AND dynamic connections (API reconnect/discovery)
     connectionManager.on('backend-initialized', (event: unknown) => {
@@ -455,6 +434,27 @@ async function main(): Promise<void> {
       }
     });
     console.log('[Events] Backend-initialized hook configured');
+
+    // 11. Connect to printers (handlers are now ready to receive backend-initialized events)
+    console.log('[Init] Connecting to printers...');
+    connectedContexts = await connectPrinters(config);
+
+    if (connectedContexts.length === 0 && config.mode !== 'no-printers') {
+      console.warn('[Warning] No printers connected, but WebUI will still start');
+    } else if (connectedContexts.length > 0) {
+      console.log(`[Init] Connected to ${connectedContexts.length} printer(s)`);
+
+      // Log connection summary
+      for (const contextId of connectedContexts) {
+        const context = contextManager.getContext(contextId);
+        if (context) {
+          console.log(`  - ${context.printerDetails.Name} (${context.printerDetails.IPAddress})`);
+        }
+      }
+    }
+
+    // 12. Start WebUI server
+    await startWebUI();
 
     // 13. Note: Polling and monitors are initialized by backend-initialized handler
     // This handler fires for both startup connections AND dynamic connections
