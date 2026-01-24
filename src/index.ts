@@ -222,20 +222,6 @@ function setupEventForwarding(): void {
 }
 
 /**
- * Start polling for all connected contexts
- */
-function startPolling(): void {
-  for (const contextId of connectedContexts) {
-    try {
-      pollingCoordinator.startPollingForContext(contextId);
-      console.log(`[Polling] Started for context: ${contextId}`);
-    } catch (error) {
-      console.error(`[Polling] Failed to start for context ${contextId}:`, error);
-    }
-  }
-}
-
-/**
  * Initialize camera proxies for all connected contexts
  */
 async function initializeCameraProxies(): Promise<void> {
@@ -391,7 +377,65 @@ async function main(): Promise<void> {
     multiContextSpoolmanTracker.initialize();
     console.log('[Init] Spoolman tracker initialized');
 
-    // 10. Connect to printers
+    // 10. Setup event handlers BEFORE connecting to printers
+    // This ensures handlers are ready when backend-initialized events fire during connection
+    setupEventForwarding();
+
+    // 10b. Setup post-connection hook for logging
+    connectionManager.on('connected', (printerDetails) => {
+      console.log(`[Events] Printer connected: ${printerDetails.Name}`);
+      // Polling and monitors are initialized by backend-initialized handler
+    });
+    console.log('[Events] Post-connection hook configured');
+
+    // 10c. Setup backend-initialized hook to start polling and create monitors
+    // This is critical for Spoolman deduction and print state monitoring
+    // IMPORTANT: This handles both startup connections AND dynamic connections (API reconnect/discovery)
+    connectionManager.on('backend-initialized', (event: unknown) => {
+      const backendEvent = event as { contextId: string; modelType: string };
+      const contextId = backendEvent.contextId;
+
+      console.log(`[Events] Backend initialized for context ${contextId}, starting services...`);
+
+      try {
+        // STEP 1: Start polling FIRST (this creates the pollingService reference)
+        pollingCoordinator.startPollingForContext(contextId);
+        console.log(`[Polling] Started for context: ${contextId}`);
+
+        // STEP 2: Get context and polling service (now available after step 1)
+        const context = contextManager.getContext(contextId);
+        const pollingService = context?.pollingService;
+
+        if (!pollingService) {
+          console.error('[Events] Missing polling service for context initialization');
+          return;
+        }
+
+        // STEP 3: Create PrintStateMonitor for this context
+        const printStateMonitor = getMultiContextPrintStateMonitor();
+        printStateMonitor.createMonitorForContext(contextId, pollingService);
+        const stateMonitor = printStateMonitor.getMonitor(contextId);
+
+        if (!stateMonitor) {
+          console.error('[Events] Failed to create print state monitor');
+          return;
+        }
+
+        console.log(`[Events] Created PrintStateMonitor for context ${contextId}`);
+
+        // STEP 4: Create SpoolmanTracker for this context (depends on PrintStateMonitor)
+        const spoolmanTracker = getMultiContextSpoolmanTracker();
+        spoolmanTracker.createTrackerForContext(contextId, stateMonitor);
+
+        console.log(`[Events] Created SpoolmanTracker for context ${contextId}`);
+        console.log(`[Events] All services initialized for context ${contextId}`);
+      } catch (error) {
+        console.error(`[Events] Failed to initialize services for context ${contextId}:`, error);
+      }
+    });
+    console.log('[Events] Backend-initialized hook configured');
+
+    // 11. Connect to printers (handlers are now ready to receive backend-initialized events)
     console.log('[Init] Connecting to printers...');
     connectedContexts = await connectPrinters(config);
 
@@ -409,35 +453,13 @@ async function main(): Promise<void> {
       }
     }
 
-    // 11. Start WebUI server
+    // 12. Start WebUI server
     await startWebUI();
 
-    // 12. Setup event forwarding BEFORE starting polling
-    // This ensures listeners are ready when polling data starts flowing
-    setupEventForwarding();
-
-    // 12b. Setup post-connection hook for dynamic printer connections
-    // This handles printers connected after startup (via API reconnect/discovery)
-    connectionManager.on('connected', (printerDetails) => {
-      const activeContextId = contextManager.getActiveContextId();
-      if (activeContextId) {
-        console.log(`[Events] Printer connected: ${printerDetails.Name}, starting services...`);
-
-        // Start polling for the new context
-        try {
-          pollingCoordinator.startPollingForContext(activeContextId);
-          console.log(`[Polling] Started for context: ${activeContextId}`);
-        } catch (error) {
-          console.error(`[Polling] Failed to start for context ${activeContextId}:`, error);
-        }
-      }
-    });
-    console.log('[Events] Post-connection hook configured');
-
-    // 13. Start polling for connected printers
+    // 13. Note: Polling and monitors are initialized by backend-initialized handler
+    // This handler fires for both startup connections AND dynamic connections
     if (connectedContexts.length > 0) {
-      startPolling();
-      console.log(`[Init] Polling started for ${connectedContexts.length} printer(s)`);
+      console.log(`[Init] Services initialized for ${connectedContexts.length} printer(s) via backend-initialized handler`);
     }
 
     // 14. Initialize camera proxies
