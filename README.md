@@ -137,7 +137,7 @@ Download the appropriate binary for your platform from the [Releases](https://gi
 | Linux ARM64 | `flashforge-webui-linux-arm64` | Raspberry Pi 4/5 (64-bit OS) |
 | Linux ARMv7 | `flashforge-webui-linux-armv7` | Raspberry Pi 3/4 (32-bit OS) |
 
-**Raspberry Pi Users:** Use `flashforge-webui-linux-arm64` for 64-bit Raspberry Pi OS, or `flashforge-webui-linux-armv7` for 32-bit. Do NOT use the x64 binary on ARM devices.
+**Raspberry Pi Users:** Use `flashforge-webui-linux-arm64` for 64-bit Raspberry Pi OS, or `flashforge-webui-linux-armv7` for 32-bit.
 
 ```bash
 # Make the binary executable (Linux/macOS)
@@ -235,12 +235,7 @@ npm run build:mac
 
 **"Cannot GET /" or blank page when accessing WebUI:**
 - If running from source: Make sure you ran `npm run build` before `npm start`
-- If using a binary: Ensure you downloaded the correct binary for your architecture (see platform table above)
-
-**Binary doesn't work on Raspberry Pi:**
-- You must use the ARM binary, not the x64 binary
-- Check your OS architecture: `uname -m` (aarch64 = ARM64, armv7l = ARMv7)
-- Use `flashforge-webui-linux-arm64` for 64-bit or `flashforge-webui-linux-armv7` for 32-bit
+- If using a pre-1.0.2 binary: Update to version 1.0.2 or later (fixes static file serving bug)
 
 **"Permission denied" when running binary:**
 ```bash
@@ -254,6 +249,15 @@ chmod +x flashforge-webui-linux-*
 - Ensure your printer is on the same network as the device running WebUI
 - Check that the printer's IP address is correct
 - For legacy printers, ensure TCP port 8899 is accessible
+
+**Selecting the correct binary for your platform:**
+- Windows: `flashforge-webui-win-x64.exe`
+- macOS Intel: `flashforge-webui-macos-x64`
+- macOS Apple Silicon: `flashforge-webui-macos-arm64`
+- Linux x64: `flashforge-webui-linux-x64`
+- Raspberry Pi (64-bit OS): `flashforge-webui-linux-arm64`
+- Raspberry Pi (32-bit OS): `flashforge-webui-linux-armv7`
+- Check your architecture with `uname -m` (x86_64 = x64, aarch64 = ARM64, armv7l = ARMv7)
 
 <div align="center">
   <h2>License</h2>
