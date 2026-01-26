@@ -181,6 +181,24 @@ npm run dev
 ```
 
 <div align="center">
+  <h2>Usage</h2>
+</div>
+
+After starting the server, open your browser and navigate to:
+
+```
+http://localhost:3000
+```
+
+Or if accessing from another device on your network:
+
+```
+http://<server-ip>:3000
+```
+
+**Default Login:** The default password is `changeme`. You should change this in `data/config.json` or via the `--webui-password` flag.
+
+<div align="center">
   <h2>Command Line Options</h2>
 </div>
 
@@ -199,34 +217,32 @@ npm run dev
 
 <div align="center">
 
-The application automatically creates a configuration file at `data/config.json` on first run. You can modify this file to customize your experience.
+The application automatically creates a configuration file at `data/config.json` on first run.
 
 </div>
 
-```json
-{
-  "WebUIEnabled": true,
-  "WebUIPort": 3000,
-  "WebUIPassword": "changeme",
-  "WebUIPasswordRequired": true,
-  "SpoolmanEnabled": false,
-  "SpoolmanServerUrl": "http://your-spoolman-instance:7912",
-  "CameraProxyPort": 8181
-}
-```
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `WebUIEnabled` | `true` | Enable/disable the web interface |
+| `WebUIPort` | `3000` | Port for the web server |
+| `WebUIPassword` | `changeme` | Login password (change this!) |
+| `WebUIPasswordRequired` | `true` | Require password to access |
+| `SpoolmanEnabled` | `false` | Enable Spoolman integration |
+| `SpoolmanServerUrl` | `""` | Your Spoolman server URL (e.g., `http://192.168.1.100:7912`) |
+| `CameraProxyPort` | `8181` | Starting port for camera proxies |
 
 <div align="center">
-  <h2>Development</h2>
+  <h2>Building from Source</h2>
 </div>
 
 ```bash
-# Start development server with hot-reload
-npm run dev
-
 # Build for specific platform
-npm run build:linux
-npm run build:win
-npm run build:mac
+npm run build:linux        # Linux x64
+npm run build:linux-arm    # Linux ARM64 (Raspberry Pi 4/5)
+npm run build:linux-armv7  # Linux ARMv7 (Raspberry Pi 3)
+npm run build:win          # Windows x64
+npm run build:mac          # macOS x64
+npm run build:mac-arm      # macOS ARM (Apple Silicon)
 ```
 
 <div align="center">
