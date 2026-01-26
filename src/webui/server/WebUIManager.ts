@@ -23,7 +23,9 @@ import * as http from 'http';
 import express from 'express';
 import * as os from 'os';
 import * as path from 'path';
+import * as fs from 'fs';
 import { getConfigManager } from '../../managers/ConfigManager';
+import { getEnvironmentService } from '../../services/EnvironmentService';
 
 import { AppError, ErrorCode } from '../../utils/error.utils';
 import { getAuthManager } from './AuthManager';
@@ -96,6 +98,9 @@ export class WebUIManager extends EventEmitter {
   private readonly registeredContexts: Set<string> = new Set();
   private readonly contextSerialNumbers: Map<string, string> = new Map();
 
+  // Static file path for SPA fallback
+  private webUIStaticPath: string = '';
+
   // Initialization control - prevent auto-start during app initialization
   private allowAutoStart = false;
 
@@ -146,16 +151,45 @@ export class WebUIManager extends EventEmitter {
     // JSON body parsing
     this.expressApp.use(express.json());
 
-    // Static file serving - serve from dist/webui/static directory
-    const webUIStaticPath = path.join(process.cwd(), 'dist', 'webui', 'static');
-    console.log(`WebUI serving static files from: ${webUIStaticPath}`);
+    // Static file serving - use EnvironmentService for correct path resolution
+    const environmentService = getEnvironmentService();
+    const webUIStaticPath = environmentService.getWebUIStaticPath();
+
+    // Log environment info for debugging
+    const envInfo = environmentService.getEnvironmentInfo();
+    console.log(`[WebUI] Environment: ${envInfo.isPackaged ? 'packaged binary' : 'development'}`);
+    console.log(`[WebUI] Serving static files from: ${webUIStaticPath}`);
+
+    // Verify the static path exists
+    if (!fs.existsSync(webUIStaticPath)) {
+      console.error(`[WebUI] Static file path does not exist: ${webUIStaticPath}`);
+      console.error('[WebUI] Environment details:', JSON.stringify(envInfo, null, 2));
+
+      if (!envInfo.isPackaged) {
+        console.error('[WebUI] Hint: Run "npm run build" to compile the WebUI assets');
+      }
+
+      throw new AppError(
+        `WebUI static files not found at: ${webUIStaticPath}`,
+        ErrorCode.CONFIG_INVALID,
+        { webUIStaticPath, environment: envInfo },
+        undefined
+      );
+    }
 
     try {
-      this.expressApp.use(express.static(webUIStaticPath));
-      console.log('WebUI static file middleware configured successfully');
+      this.expressApp.use(express.static(webUIStaticPath, {
+        // Enable fallthrough for SPA routing (handled separately)
+        fallthrough: true,
+        // Set reasonable cache headers
+        maxAge: envInfo.isProduction ? '1d' : 0
+      }));
+      console.log('[WebUI] Static file middleware configured successfully');
+
+      // Store static path for SPA fallback
+      this.webUIStaticPath = webUIStaticPath;
     } catch (error) {
-      console.error('Failed to configure WebUI static file serving:', error);
-      console.error(`Attempted path: ${webUIStaticPath}`);
+      console.error('[WebUI] Failed to configure static file serving:', error);
       throw new AppError(
         `Failed to configure WebUI static file serving from path: ${webUIStaticPath}`,
         ErrorCode.CONFIG_INVALID,
@@ -185,6 +219,38 @@ export class WebUIManager extends EventEmitter {
     // Import and use API routes
     const apiRoutes = createAPIRoutes(routeDependencies);
     this.expressApp.use('/api', apiRoutes);
+
+    // 404 handler for API routes - must come before SPA fallback
+    this.expressApp.use('/api/*', (req, res) => {
+      const response: StandardAPIResponse = {
+        success: false,
+        error: `API endpoint not found: ${req.method} ${req.path}`
+      };
+      res.status(404).json(response);
+    });
+
+    // SPA fallback - serve index.html for non-API routes that don't match static files
+    // This enables client-side routing in the WebUI
+    this.expressApp.get('*', (req, res, next) => {
+      // Skip if this looks like a file request with extension (handled by static middleware)
+      if (path.extname(req.path) && req.path !== '/') {
+        // File request that wasn't found by static middleware - return 404
+        const response: StandardAPIResponse = {
+          success: false,
+          error: `File not found: ${req.path}`
+        };
+        res.status(404).json(response);
+        return;
+      }
+
+      // Serve index.html for SPA routes
+      const indexPath = path.join(this.webUIStaticPath, 'index.html');
+      if (fs.existsSync(indexPath)) {
+        res.sendFile(indexPath);
+      } else {
+        next();
+      }
+    });
 
     // Error handling (must be last)
     this.expressApp.use(createErrorMiddleware());
