@@ -4,9 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-FlashForgeWebUI is a standalone web-based interface for controlling and monitoring FlashForge 3D printers. It was ported from the FlashForgeUI-Electron project (located at `C:\Users\Cope\Documents\GitHub\FlashForgeUI-Electron`) to create a lightweight deployment option for low-spec devices like Raspberry Pi, without Electron dependencies.
+FlashForgeWebUI is a standalone web-based interface for controlling and monitoring FlashForge 3D printers. It provides a lightweight deployment option for low-spec devices like Raspberry Pi, without Electron dependencies.
 
-**Current Status**: Initial porting is complete but not fully tested. Some bugs are expected.
+**Current Status**: Production-ready. Core functionality tested and working including multi-printer support, Spoolman integration, and cross-platform binary distribution.
 
 ## Build & Development Commands
 
@@ -278,19 +278,19 @@ class Service extends EventEmitter<EventMap> {
 
 ## Testing Notes
 
-Initial porting is complete but **not fully tested**. Known areas to test:
+Core functionality has been tested and verified:
 - Multi-printer context switching
-- Camera proxy stability under load
-- RTSP streaming for supported printers
 - Spoolman integration (filament tracking)
-- Print state monitoring and notifications
-- Temperature anomaly detection
-- Different printer model backends (AD5X, 5M, 5M Pro, legacy)
+- Platform-specific binary builds (Linux ARM, Linux x64, Windows, macOS)
 - WebUI authentication
-- Platform-specific builds (Linux ARM, Windows, macOS)
+- Static file serving in packaged binaries
+
+Areas for continued testing:
+- Camera proxy stability under extended load
+- RTSP streaming for all supported printers
+- Temperature anomaly detection edge cases
 
 ## Related Projects
 
-- **FlashForgeUI-Electron**: Parent project with full Electron desktop app (`C:\Users\Cope\Documents\GitHub\FlashForgeUI-Electron`)
 - **@ghosttypes/ff-api**: FlashForge API client library (public package)
 - **@parallel-7/slicer-meta**: Printer metadata and model utilities (public package)
