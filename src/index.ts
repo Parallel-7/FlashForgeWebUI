@@ -28,6 +28,7 @@ import { getRtspStreamService } from './services/RtspStreamService';
 import { initializeSpoolmanIntegrationService } from './services/SpoolmanIntegrationService';
 import { getSavedPrinterService } from './services/SavedPrinterService';
 import { parseHeadlessArguments, validateHeadlessConfig } from './utils/HeadlessArguments';
+import * as readline from 'readline';
 import { withTimeout, createHardDeadline } from './utils/ShutdownTimeout';
 import type { HeadlessConfig, PrinterSpec } from './utils/HeadlessArguments';
 import type { PrinterDetails, PrinterClientType } from './types/printer';
@@ -294,7 +295,6 @@ function setupSignalHandlers(): void {
 
   // Windows-specific: Handle process termination
   if (process.platform === 'win32') {
-    const readline = require('readline');
     const rl = readline.createInterface({
       input: process.stdin,
       output: process.stdout

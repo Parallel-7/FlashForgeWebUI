@@ -232,6 +232,10 @@ export class WebUIManager extends EventEmitter {
 
     // SPA fallback - serve index.html for non-API routes that don't match static files
     // This enables client-side routing in the WebUI
+
+    // NOTE: Using path.extname() is safe here because this app does NOT use client-side routing.
+    // All UI state is managed via DOM manipulation, not URL routes. If client-side routing
+    // is added in the future, this should be changed to use Accept header detection instead.
     this.expressApp.get('/*splat', (req, res, next) => {
       // Skip if this looks like a file request with extension (handled by static middleware)
       if (path.extname(req.path) && req.path !== '/') {
@@ -249,7 +253,12 @@ export class WebUIManager extends EventEmitter {
       if (fs.existsSync(indexPath)) {
         res.sendFile(indexPath);
       } else {
-        next();
+        // index.html is missing - this indicates a build/deployment error
+        next(new AppError(
+          'WebUI application files not found. Please ensure the application has been built properly.',
+          ErrorCode.CONFIG_INVALID,
+          { indexPath, staticPath: this.webUIStaticPath }
+        ));
       }
     });
 
