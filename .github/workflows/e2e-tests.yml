@@ -123,7 +123,7 @@ jobs:
         shell: bash
         run: |
           if [[ "${{ runner.os }}" == "Windows" ]]; then
-            powershell -Command "Start-Process -FilePath '.\dist\${{ matrix.output }}' -ArgumentList '--no-printers' -RedirectStandardOutput 'startup.log' -RedirectStandardError 'startup.log'"
+            cmd.exe /c "start /b .\dist\${{ matrix.output }} --no-printers > startup.log 2>&1"
           else
             chmod +x dist/${{ matrix.output }}
             ./dist/${{ matrix.output }} --no-printers > startup.log 2>&1 &
@@ -222,6 +222,7 @@ jobs:
 
       - name: Generate summary
         if: always()
+        shell: bash
         run: |
           echo "## ${{ matrix.platform }} ${{ matrix.arch }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
