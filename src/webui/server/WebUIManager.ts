@@ -221,7 +221,7 @@ export class WebUIManager extends EventEmitter {
     this.expressApp.use('/api', apiRoutes);
 
     // 404 handler for API routes - must come before SPA fallback
-    this.expressApp.use('/api/*', (req, res) => {
+    this.expressApp.use('/api/*splat', (req, res) => {
       const response: StandardAPIResponse = {
         success: false,
         error: `API endpoint not found: ${req.method} ${req.path}`
@@ -231,7 +231,7 @@ export class WebUIManager extends EventEmitter {
 
     // SPA fallback - serve index.html for non-API routes that don't match static files
     // This enables client-side routing in the WebUI
-    this.expressApp.get('*', (req, res, next) => {
+    this.expressApp.get('/*splat', (req, res, next) => {
       // Skip if this looks like a file request with extension (handled by static middleware)
       if (path.extname(req.path) && req.path !== '/') {
         // File request that wasn't found by static middleware - return 404

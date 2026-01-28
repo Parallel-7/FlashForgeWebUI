@@ -104,7 +104,7 @@ jobs:
       - name: Verify binary size
         shell: bash
         run: |
-          if [[ "${{ runner.os }}" == "macOS" ]] || [[ "${{ runner.os }}" == "macos-latest" ]] || [[ "${{ runner.os }}" == "macos-15-intel" ]]; then
+          if [[ "${{ runner.os }}" == "macOS" ]]; then
             size=$(stat -f%z "dist/${{ matrix.output }}")
           elif [[ "${{ runner.os }}" == "Windows" ]]; then
             size=$(powershell -Command "(Get-Item 'dist/${{ matrix.output }}').length")
@@ -118,88 +118,179 @@ jobs:
           fi
           echo "✓ Binary size: $size bytes"
 
-      - name: Start binary in background
+      # Windows: use PowerShell Start-Process for reliable background process with log capture
+      - name: Start binary (Windows)
+        if: matrix.can_execute == true && runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $proc = Start-Process -FilePath ".\dist\${{ matrix.output }}" `
+            -ArgumentList "--no-printers" `
+            -RedirectStandardOutput "startup.log" `
+            -RedirectStandardError "startup-err.log" `
+            -NoNewWindow -PassThru
+          $proc.Id | Out-File -FilePath server.pid -Encoding ascii
+          Write-Host "Started server with PID: $($proc.Id)"
+
+      # Unix: use standard background process
+      - name: Start binary (Unix)
+        if: matrix.can_execute == true && runner.os != 'Windows'
+        shell: bash
+        run: |
+          chmod +x dist/${{ matrix.output }}
+          ./dist/${{ matrix.output }} --no-printers > startup.log 2>&1 &
+          echo $! > server.pid
+
+      - name: Wait for server to be ready
         if: matrix.can_execute == true
         shell: bash
         run: |
-          if [[ "${{ runner.os }}" == "Windows" ]]; then
-            powershell -Command "Start-Process -FilePath '.\dist\${{ matrix.output }}' -ArgumentList '--no-printers' -WindowStyle Hidden"
-          else
-            chmod +x dist/${{ matrix.output }}
-            ./dist/${{ matrix.output }} --no-printers > startup.log 2>&1 &
-            echo $! > binary.pid
-          fi
+          max_attempts=30
+          attempt=0
+          until curl -sf http://localhost:3000/ > /dev/null 2>&1; do
+            attempt=$((attempt + 1))
+            if [ $attempt -ge $max_attempts ]; then
+              echo "::error::Server failed to start after $max_attempts attempts (60s)"
+              echo "--- startup.log ---"
+              cat startup.log 2>/dev/null || echo "(no stdout log)"
+              echo "--- startup-err.log ---"
+              cat startup-err.log 2>/dev/null || echo "(no stderr log)"
+              exit 1
+            fi
+            echo "Waiting for server... (attempt $attempt/$max_attempts)"
+            sleep 2
+          done
+          echo "✓ Server is responding"
 
-      - name: Wait for startup
-        if: matrix.can_execute == true
-        shell: bash
-        run: sleep 15
-
-      - name: Validate startup
+      - name: Validate startup logs
         if: matrix.can_execute == true
         shell: bash
         run: |
-          if [[ "${{ runner.os }}" != "Windows" ]]; then
-            if grep -iE "\[Error\]|\[Fatal\]|exception" startup.log; then
-              echo "::error::Errors detected during startup"
+          if [ -f startup.log ]; then
+            if grep -iE "\[Error\]|\[Fatal\]|exception|EADDRINUSE" startup.log; then
+              echo "::error::Errors detected in startup log"
               cat startup.log
               exit 1
             fi
 
             if ! grep -q "\[Ready\] FlashForgeWebUI is ready" startup.log; then
               echo "::error::Startup did not complete - missing ready marker"
-              tail -n 50 startup.log
+              cat startup.log
               exit 1
             fi
-            echo "✓ Startup successful"
+            echo "✓ Startup log looks clean"
+          else
+            echo "::warning::No startup.log found"
           fi
+
+      - name: Test static file serving
+        if: matrix.can_execute == true
+        shell: bash
+        run: |
+          # Test index.html is served at root
+          status=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/)
+          if [ "$status" != "200" ]; then
+            echo "::error::GET / returned HTTP $status (expected 200)"
+            exit 1
+          fi
+
+          # Test index.html contains expected content
+          if ! curl -sf http://localhost:3000/ | grep -q "FlashForge Web UI"; then
+            echo "::error::GET / did not contain 'FlashForge Web UI'"
+            curl -s http://localhost:3000/ | head -20
+            exit 1
+          fi
+          echo "✓ Static file serving works"
 
       - name: Test API endpoints
         if: matrix.can_execute == true
         shell: bash
         run: |
-          response=$(curl -s http://localhost:3000/api/auth/status)
+          # Auth status endpoint
+          status=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/api/auth/status)
+          if [ "$status" != "200" ]; then
+            echo "::error::GET /api/auth/status returned HTTP $status (expected 200)"
+            exit 1
+          fi
+
+          response=$(curl -sf http://localhost:3000/api/auth/status)
           if ! echo "$response" | jq '.' > /dev/null 2>&1; then
             echo "::error::Auth status API returned invalid JSON: $response"
             exit 1
           fi
+          echo "✓ GET /api/auth/status - valid JSON response"
 
-          if ! curl -s http://localhost:3000/ | grep -q "FlashForge Web UI"; then
-            echo "::error::Failed to serve index.html"
-            exit 1
-          fi
-
-          login_response=$(curl -s -X POST http://localhost:3000/api/auth/login \
+          # Login endpoint
+          login_response=$(curl -s -w "\n%{http_code}" -X POST http://localhost:3000/api/auth/login \
             -H "Content-Type: application/json" \
             -d '{"password":"changeme"}')
-          success=$(echo "$login_response" | jq -r '.success')
-          if [ "$success" != "true" ]; then
-            echo "::error::Login API failed: $login_response"
+          login_body=$(echo "$login_response" | sed '$d')
+          login_status=$(echo "$login_response" | tail -1)
+
+          if [ "$login_status" != "200" ]; then
+            echo "::error::POST /api/auth/login returned HTTP $login_status (expected 200)"
+            echo "Response: $login_body"
             exit 1
           fi
+
+          success=$(echo "$login_body" | jq -r '.success')
+          if [ "$success" != "true" ]; then
+            echo "::error::Login API returned success=$success (expected true)"
+            echo "Response: $login_body"
+            exit 1
+          fi
+          echo "✓ POST /api/auth/login - login successful"
+
+          # 404 handler for unknown API routes
+          unknown_status=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/api/nonexistent)
+          if [ "$unknown_status" != "404" ]; then
+            echo "::error::GET /api/nonexistent returned HTTP $unknown_status (expected 404)"
+            exit 1
+          fi
+          echo "✓ GET /api/nonexistent - returns 404"
 
           echo "✓ All API tests passed"
 
-      - name: Stop binary
-        if: matrix.can_execute == true
+      # Windows cleanup
+      - name: Stop binary (Windows)
+        if: always() && matrix.can_execute == true && runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          if (Test-Path server.pid) {
+            $pid = Get-Content server.pid
+            $proc = Get-Process -Id $pid -ErrorAction SilentlyContinue
+            if ($proc) {
+              Stop-Process -Id $pid -Force
+              Write-Host "Stopped server (PID: $pid)"
+            } else {
+              Write-Host "Process already exited"
+            }
+          }
+          # Fallback: kill by image name
+          Get-Process -Name "flashforge-webui*" -ErrorAction SilentlyContinue | Stop-Process -Force
+          Start-Sleep -Seconds 3
+
+      # Unix cleanup
+      - name: Stop binary (Unix)
+        if: always() && matrix.can_execute == true && runner.os != 'Windows'
         shell: bash
         run: |
-          if [[ "${{ runner.os }}" == "Windows" ]]; then
-            taskkill /F /IM "${{ matrix.output }}" 2>/dev/null || true
-          else
-            if [ -f binary.pid ]; then
-              kill -TERM $(cat binary.pid) || true
-              rm binary.pid
-            fi
-            pkill -TERM -f "${{ matrix.output }}" || true
+          if [ -f server.pid ]; then
+            kill -TERM $(cat server.pid) 2>/dev/null || true
+            rm server.pid
           fi
+          pkill -TERM -f "${{ matrix.output }}" 2>/dev/null || true
           sleep 3
 
       - name: Verify cleanup
-        if: matrix.can_execute == true
+        if: always() && matrix.can_execute == true
         shell: bash
         run: |
-          if [[ "${{ runner.os }}" != "Windows" ]]; then
+          if [[ "${{ runner.os }}" == "Windows" ]]; then
+            if powershell -Command "Get-Process -Name 'flashforge-webui*' -ErrorAction SilentlyContinue"; then
+              echo "::error::Binary left zombie processes"
+              exit 1
+            fi
+          else
             if pgrep -f "${{ matrix.output }}"; then
               echo "::error::Binary left zombie processes"
               exit 1
@@ -215,6 +306,17 @@ jobs:
           path: dist/${{ matrix.output }}
           retention-days: 7
           compression-level: 6
+
+      - name: Upload startup logs
+        uses: actions/upload-artifact@v4
+        if: always() && matrix.can_execute == true
+        with:
+          name: logs-${{ matrix.platform }}-${{ matrix.arch }}
+          path: |
+            startup.log
+            startup-err.log
+          if-no-files-found: ignore
+          retention-days: 7
 
       - name: Generate summary
         if: always()
