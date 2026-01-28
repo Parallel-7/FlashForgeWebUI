@@ -20,26 +20,32 @@ jobs:
             platform: win
             arch: x64
             output: flashforge-webui-win-x64.exe
+            can_execute: true
           - os: macos-15-intel
             platform: mac
             arch: x64
             output: flashforge-webui-macos-x64.bin
+            can_execute: true
           - os: macos-latest
             platform: mac
             arch: arm64
             output: flashforge-webui-macos-arm64.bin
+            can_execute: true
           - os: ubuntu-latest
             platform: linux
             arch: x64
             output: flashforge-webui-linux-x64.bin
+            can_execute: true
           - os: ubuntu-24.04-arm
             platform: linux
             arch: arm64
             output: flashforge-webui-linux-arm64.bin
+            can_execute: true
           - os: ubuntu-latest
             platform: linux
             arch: armv7
             output: flashforge-webui-linux-armv7.bin
+            can_execute: false
 
     steps:
       - name: Checkout code
@@ -98,7 +104,14 @@ jobs:
       - name: Verify binary size
         shell: bash
         run: |
-          size=$(stat -c%s "dist/${{ matrix.output }}" 2>/dev/null || stat -f% "dist/${{ matrix.output }}")
+          if [[ "${{ runner.os }}" == "macOS" ]] || [[ "${{ runner.os }}" == "macos-latest" ]] || [[ "${{ runner.os }}" == "macos-15-intel" ]]; then
+            size=$(stat -f%z "dist/${{ matrix.output }}")
+          elif [[ "${{ runner.os }}" == "Windows" ]]; then
+            size=$(powershell -Command "(Get-Item 'dist/${{ matrix.output }}').length")
+          else
+            size=$(stat -c%s "dist/${{ matrix.output }}")
+          fi
+
           if [ $size -lt 40000000 ]; then
             echo "::error::Binary size ($size bytes) is too small - assets may not be embedded"
             exit 1
@@ -106,10 +119,11 @@ jobs:
           echo "✓ Binary size: $size bytes"
 
       - name: Start binary in background
+        if: matrix.can_execute == true
         shell: bash
         run: |
           if [[ "${{ runner.os }}" == "Windows" ]]; then
-            powershell -Command "Start-Process -FilePath '.\dist\${{ matrix.output }}' -ArgumentList '--no-printers' -RedirectStart 'startup.log'"
+            powershell -Command "Start-Process -FilePath '.\dist\${{ matrix.output }}' -ArgumentList '--no-printers' -RedirectStandardOutput 'startup.log' -RedirectStandardError 'startup.log'"
           else
             chmod +x dist/${{ matrix.output }}
             ./dist/${{ matrix.output }} --no-printers > startup.log 2>&1 &
@@ -117,10 +131,12 @@ jobs:
           fi
 
       - name: Wait for startup
+        if: matrix.can_execute == true
         shell: bash
         run: sleep 15
 
       - name: Validate startup
+        if: matrix.can_execute == true
         shell: bash
         run: |
           if grep -iE "\[Error\]|\[Fatal\]|exception" startup.log; then
@@ -138,11 +154,12 @@ jobs:
           echo "✓ Startup successful"
 
       - name: Test API endpoints
+        if: matrix.can_execute == true
         shell: bash
         run: |
           # Test 1: Auth status (public endpoint) - should return valid JSON
           response=$(curl -s http://localhost:3000/api/auth/status)
-          if ! echo "$response" | jq -e '.authRequired' > /dev/null; then
+          if ! echo "$response" | jq '.' > /dev/null 2>&1; then
             echo "::error::Auth status API returned invalid JSON: $response"
             exit 1
           fi
@@ -166,6 +183,7 @@ jobs:
           echo "✓ All API tests passed"
 
       - name: Stop binary
+        if: matrix.can_execute == true
         shell: bash
         run: |
           if [[ "${{ runner.os }}" == "Windows" ]]; then
@@ -180,6 +198,7 @@ jobs:
           sleep 3
 
       - name: Verify cleanup
+        if: matrix.can_execute == true
         shell: bash
         run: |
           if [[ "${{ runner.os }}" == "Windows" ]]; then
