@@ -123,8 +123,8 @@ jobs:
         shell: bash
         run: |
           if [[ "${{ runner.os }}" == "Windows" ]]; then
-            # Windows: Start process without log redirection (Git Bash doesn't handle it well)
-            start /b "" ".\dist\${{ matrix.output }}" --no-printers
+            # Windows: Use PowerShell to start process in background
+            powershell -Command "Start-Process -FilePath '.\dist\${{ matrix.output }}' -ArgumentList '--no-printers' -WindowStyle Hidden"
           else
             # Linux/macOS: Start with full log redirection
             chmod +x dist/${{ matrix.output }}
