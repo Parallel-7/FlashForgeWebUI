@@ -86,9 +86,10 @@ export class WebUIManager extends EventEmitter {
   // Server components (will be initialized later)
   private expressApp: express.Application | null = null;
   private httpServer: http.Server | null = null;
-  
+
   // Server state
   private isRunning: boolean = false;
+  private isStopping: boolean = false;
   private serverIP: string = 'localhost';
   private port: number = 3000;
   
@@ -423,34 +424,65 @@ export class WebUIManager extends EventEmitter {
   /**
    * Stop the web UI server
    */
-  public async stop(): Promise<boolean> {
+  public async stop(timeoutMs = 3000): Promise<boolean> {
+    // Guard against concurrent stop calls
+    if (this.isStopping) {
+      console.warn('[WebUI] Stop already in progress');
+      return false;
+    }
+    this.isStopping = true;
+
+    const startTime = Date.now();
+
     try {
-      
       if (this.httpServer) {
-        await new Promise<void>((resolve) => {
-          this.httpServer!.close(() => {
-            console.log('WebUI server stopped');
-            resolve();
-          });
-        });
-        
-        this.httpServer = null;
+        try {
+          // Race server close against timeout
+          await Promise.race([
+            new Promise<void>((resolve) => {
+              this.httpServer!.close(() => {
+                console.log('WebUI server stopped');
+                resolve();
+              });
+            }),
+            new Promise<void>((_, reject) =>
+              setTimeout(() => reject(new Error('Server close timeout')), timeoutMs)
+            )
+          ]);
+        } catch (error) {
+          if (error instanceof Error && error.message === 'Server close timeout') {
+            console.warn(`[WebUI] Server close timed out after ${timeoutMs}ms - forcing connections closed`);
+            // Force close all connections (Node.js >= 18.18.0, project requires >= 20.0.0)
+            this.httpServer.closeAllConnections();
+          } else {
+            throw error;
+          }
         }
-        
-        // Shutdown WebSocket server
-        this.webSocketManager.shutdown();
-        
-    this.expressApp = null;
-    this.isRunning = false;
-    this.connectedClients = 0;
-      
+
+        this.httpServer = null;
+      }
+
+      // Shutdown WebSocket server
+      this.webSocketManager.shutdown();
+
+      this.expressApp = null;
+      this.isRunning = false;
+      this.connectedClients = 0;
+
       this.emit('server-stopped');
-      
+
+      const duration = Date.now() - startTime;
+      if (duration > 1000) {
+        console.log(`[WebUI] Stop completed in ${duration}ms`);
+      }
+
       return true;
-      
+
     } catch (error) {
       console.error('Error stopping WebUI server:', error);
       return false;
+    } finally {
+      this.isStopping = false;
     }
   }
   
