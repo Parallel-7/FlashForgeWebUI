@@ -123,10 +123,8 @@ jobs:
         shell: bash
         run: |
           if [[ "${{ runner.os }}" == "Windows" ]]; then
-            # Windows: Use PowerShell to start process in background
             powershell -Command "Start-Process -FilePath '.\dist\${{ matrix.output }}' -ArgumentList '--no-printers' -WindowStyle Hidden"
           else
-            # Linux/macOS: Start with full log redirection
             chmod +x dist/${{ matrix.output }}
             ./dist/${{ matrix.output }} --no-printers > startup.log 2>&1 &
             echo $! > binary.pid
@@ -142,7 +140,6 @@ jobs:
         shell: bash
         run: |
           if [[ "${{ runner.os }}" != "Windows" ]]; then
-            # Linux/macOS: Validate log file contents (skip Windows - API tests are sufficient)
             if grep -iE "\[Error\]|\[Fatal\]|exception" startup.log; then
               echo "::error::Errors detected during startup"
               cat startup.log
@@ -161,20 +158,17 @@ jobs:
         if: matrix.can_execute == true
         shell: bash
         run: |
-          # Test 1: Auth status (public endpoint) - should return valid JSON
           response=$(curl -s http://localhost:3000/api/auth/status)
           if ! echo "$response" | jq '.' > /dev/null 2>&1; then
             echo "::error::Auth status API returned invalid JSON: $response"
             exit 1
           fi
 
-          # Test 2: Serve index.html
           if ! curl -s http://localhost:3000/ | grep -q "FlashForge Web UI"; then
             echo "::error::Failed to serve index.html"
             exit 1
           fi
 
-          # Test 3: Login endpoint
           login_response=$(curl -s -X POST http://localhost:3000/api/auth/login \
             -H "Content-Type: application/json" \
             -d '{"password":"changeme"}')
@@ -191,10 +185,8 @@ jobs:
         shell: bash
         run: |
           if [[ "${{ runner.os }}" == "Windows" ]]; then
-            # Windows: Kill process by executable name using taskkill
             taskkill /F /IM "${{ matrix.output }}" 2>/dev/null || true
           else
-            # Linux/macOS: Use PID file
             if [ -f binary.pid ]; then
               kill -TERM $(cat binary.pid) || true
               rm binary.pid
@@ -208,7 +200,6 @@ jobs:
         shell: bash
         run: |
           if [[ "${{ runner.os }}" != "Windows" ]]; then
-            # Linux/macOS: Check for zombie processes (skip Windows - taskkill is sufficient)
             if pgrep -f "${{ matrix.output }}"; then
               echo "::error::Binary left zombie processes"
               exit 1
