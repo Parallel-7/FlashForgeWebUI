@@ -1,0 +1,214 @@
+name: E2E Test Binaries
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: Test ${{ matrix.platform }} ${{ matrix.arch }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      max-parallel: 6
+      matrix:
+        include:
+          - os: windows-latest
+            platform: win
+            arch: x64
+            output: flashforge-webui-win-x64.exe
+          - os: macos-15-intel
+            platform: mac
+            arch: x64
+            output: flashforge-webui-macos-x64.bin
+          - os: macos-latest
+            platform: mac
+            arch: arm64
+            output: flashforge-webui-macos-arm64.bin
+          - os: ubuntu-latest
+            platform: linux
+            arch: x64
+            output: flashforge-webui-linux-x64.bin
+          - os: ubuntu-24.04-arm
+            platform: linux
+            arch: arm64
+            output: flashforge-webui-linux-arm64.bin
+          - os: ubuntu-latest
+            platform: linux
+            arch: armv7
+            output: flashforge-webui-linux-armv7.bin
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Cache pkg fetch
+        uses: actions/cache@v4
+        with:
+          path: ~/.pkg-cache
+          key: ${{ runner.os }}-pkg-${{ hashFiles('package.json') }}
+          restore-keys: |
+            ${{ runner.os }}-pkg-
+
+      - name: Configure GitHub Packages
+        shell: bash
+        run: |
+          echo "@ghosttypes:registry=https://npm.pkg.github.com" >> .npmrc
+          echo "@parallel-7:registry=https://npm.pkg.github.com" >> .npmrc
+          echo "//npm.pkg.github.com/:_authToken=${{ secrets.GITHUB_TOKEN }}" >> .npmrc
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install dependencies
+        run: npm ci
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Pre-download ARMv7 Node.js Binary
+        if: matrix.arch == 'armv7'
+        run: |
+          mkdir -p ~/.pkg-cache/v3.5
+          curl -L -o ~/.pkg-cache/v3.5/fetched-v20.18.0-linuxstatic-armv7 \
+            https://github.com/yao-pkg/pkg-binaries/releases/download/node20/node-v20.18.0-linuxstatic-armv7
+          chmod +x ~/.pkg-cache/v3.5/fetched-v20.18.0-linuxstatic-armv7
+
+      - name: Build application
+        shell: bash
+        run: |
+          npm run build
+          if [[ "${{ matrix.platform }}" == "win" ]]; then
+            npx @yao-pkg/pkg . --targets node20-win-${{ matrix.arch }} --output dist/${{ matrix.output }}
+          elif [[ "${{ matrix.platform }}" == "mac" ]]; then
+            npx @yao-pkg/pkg . --targets node20-macos-${{ matrix.arch }} --output dist/${{ matrix.output }}
+          elif [[ "${{ matrix.arch }}" == "armv7" ]]; then
+            npx @yao-pkg/pkg . --targets node20-linuxstatic-armv7 --output dist/${{ matrix.output }}
+          else
+            npx @yao-pkg/pkg . --targets node20-linux-${{ matrix.arch }} --output dist/${{ matrix.output }}
+          fi
+
+      - name: Verify binary size
+        shell: bash
+        run: |
+          size=$(stat -c%s "dist/${{ matrix.output }}" 2>/dev/null || stat -f% "dist/${{ matrix.output }}")
+          if [ $size -lt 40000000 ]; then
+            echo "::error::Binary size ($size bytes) is too small - assets may not be embedded"
+            exit 1
+          fi
+          echo "✓ Binary size: $size bytes"
+
+      - name: Start binary in background
+        shell: bash
+        run: |
+          if [[ "${{ runner.os }}" == "Windows" ]]; then
+            powershell -Command "Start-Process -FilePath '.\dist\${{ matrix.output }}' -ArgumentList '--no-printers' -RedirectStart 'startup.log'"
+          else
+            chmod +x dist/${{ matrix.output }}
+            ./dist/${{ matrix.output }} --no-printers > startup.log 2>&1 &
+            echo $! > binary.pid
+          fi
+
+      - name: Wait for startup
+        shell: bash
+        run: sleep 15
+
+      - name: Validate startup
+        shell: bash
+        run: |
+          if grep -iE "\[Error\]|\[Fatal\]|exception" startup.log; then
+            echo "::error::Errors detected during startup"
+            cat startup.log
+            exit 1
+          fi
+
+          if ! grep -q "\[Ready\] FlashForgeWebUI is ready" startup.log; then
+            echo "::error::Startup did not complete - missing ready marker"
+            tail -n 50 startup.log
+            exit 1
+          fi
+
+          echo "✓ Startup successful"
+
+      - name: Test API endpoints
+        shell: bash
+        run: |
+          # Test 1: Auth status (public endpoint)
+          response=$(curl -s http://localhost:3000/api/auth/status)
+          authenticated=$(echo "$response" | jq -r '.authenticated')
+          if [ "$authenticated" != "false" ]; then
+            echo "::error::Auth status API returned unexpected value: $authenticated"
+            exit 1
+          fi
+
+          # Test 2: Serve index.html
+          if ! curl -s http://localhost:3000/ | grep -q "FlashForge Web UI"; then
+            echo "::error::Failed to serve index.html"
+            exit 1
+          fi
+
+          # Test 3: Login endpoint
+          login_response=$(curl -s -X POST http://localhost:3000/api/auth/login \
+            -H "Content-Type: application/json" \
+            -d '{"password":"changeme"}')
+          success=$(echo "$login_response" | jq -r '.success')
+          if [ "$success" != "true" ]; then
+            echo "::error::Login API failed: $login_response"
+            exit 1
+          fi
+
+          echo "✓ All API tests passed"
+
+      - name: Stop binary
+        shell: bash
+        run: |
+          if [[ "${{ runner.os }}" == "Windows" ]]; then
+            powershell -Command "Stop-Process -Name '${{ matrix.output }}' -Force -ErrorAction SilentlyContinue"
+          else
+            if [ -f binary.pid ]; then
+              kill -TERM $(cat binary.pid) || true
+              rm binary.pid
+            fi
+            pkill -TERM -f "${{ matrix.output }}" || true
+          fi
+          sleep 3
+
+      - name: Verify cleanup
+        shell: bash
+        run: |
+          if [[ "${{ runner.os }}" == "Windows" ]]; then
+            powershell -Command "if (Get-Process -Name '${{ matrix.output }}' -ErrorAction SilentlyContinue) { exit 1 }"
+          else
+            if pgrep -f "${{ matrix.output }}"; then
+              echo "::error::Binary left zombie processes"
+              exit 1
+            fi
+          fi
+          echo "✓ Cleanup successful"
+
+      - name: Upload test binary
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ${{ matrix.output }}
+          path: dist/${{ matrix.output }}
+          retention-days: 7
+          compression-level: 6
+
+      - name: Generate summary
+        if: always()
+        run: |
+          echo "## ${{ matrix.platform }} ${{ matrix.arch }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [[ "${{ job.status }}" == "success" ]]; then
+            echo "✅ All tests passed" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ Tests failed" >> $GITHUB_STEP_SUMMARY
+          fi
