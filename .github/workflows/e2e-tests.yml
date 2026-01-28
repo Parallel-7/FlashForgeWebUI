@@ -118,16 +118,14 @@ jobs:
           fi
           echo "✓ Binary size: $size bytes"
 
-      # Windows: use PowerShell Start-Process for reliable background process with log capture
+      # Windows: use cmd wrapper to redirect output while keeping process detached
       - name: Start binary (Windows)
         if: matrix.can_execute == true && runner.os == 'Windows'
         shell: pwsh
         run: |
-          $proc = Start-Process -FilePath ".\dist\${{ matrix.output }}" `
-            -ArgumentList "--no-printers" `
-            -RedirectStandardOutput "startup.log" `
-            -RedirectStandardError "startup-err.log" `
-            -NoNewWindow -PassThru
+          $proc = Start-Process -FilePath "cmd.exe" `
+            -ArgumentList "/c .\dist\${{ matrix.output }} --no-printers > startup.log 2> startup-err.log" `
+            -WindowStyle Hidden -PassThru
           $proc.Id | Out-File -FilePath server.pid -Encoding ascii
           Write-Host "Started server with PID: $($proc.Id)"
 
