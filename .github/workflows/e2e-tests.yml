@@ -146,7 +146,7 @@ jobs:
         run: |
           max_attempts=30
           attempt=0
-          until curl -sf http://localhost:3000/ > /dev/null 2>&1; do
+          until curl -sf http://127.0.0.1:3000/ > /dev/null 2>&1; do
             attempt=$((attempt + 1))
             if [ $attempt -ge $max_attempts ]; then
               echo "::error::Server failed to start after $max_attempts attempts (60s)"
@@ -187,16 +187,16 @@ jobs:
         shell: bash
         run: |
           # Test index.html is served at root
-          status=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/)
+          status=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:3000/)
           if [ "$status" != "200" ]; then
             echo "::error::GET / returned HTTP $status (expected 200)"
             exit 1
           fi
 
           # Test index.html contains expected content
-          if ! curl -sf http://localhost:3000/ | grep -q "FlashForge Web UI"; then
+          if ! curl -sf http://127.0.0.1:3000/ | grep -q "FlashForge Web UI"; then
             echo "::error::GET / did not contain 'FlashForge Web UI'"
-            curl -s http://localhost:3000/ | head -20
+            curl -s http://127.0.0.1:3000/ | head -20
             exit 1
           fi
           echo "✓ Static file serving works"
@@ -206,13 +206,13 @@ jobs:
         shell: bash
         run: |
           # Auth status endpoint
-          status=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/api/auth/status)
+          status=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:3000/api/auth/status)
           if [ "$status" != "200" ]; then
             echo "::error::GET /api/auth/status returned HTTP $status (expected 200)"
             exit 1
           fi
 
-          response=$(curl -sf http://localhost:3000/api/auth/status)
+          response=$(curl -sf http://127.0.0.1:3000/api/auth/status)
           if ! echo "$response" | jq '.' > /dev/null 2>&1; then
             echo "::error::Auth status API returned invalid JSON: $response"
             exit 1
@@ -220,7 +220,7 @@ jobs:
           echo "✓ GET /api/auth/status - valid JSON response"
 
           # Login endpoint
-          login_response=$(curl -s -w "\n%{http_code}" -X POST http://localhost:3000/api/auth/login \
+          login_response=$(curl -s -w "\n%{http_code}" -X POST http://127.0.0.1:3000/api/auth/login \
             -H "Content-Type: application/json" \
             -d '{"password":"changeme"}')
           login_body=$(echo "$login_response" | sed '$d')
@@ -241,7 +241,7 @@ jobs:
           echo "✓ POST /api/auth/login - login successful"
 
           # 404 handler for unknown API routes
-          unknown_status=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/api/nonexistent)
+          unknown_status=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:3000/api/nonexistent)
           if [ "$unknown_status" != "404" ]; then
             echo "::error::GET /api/nonexistent returned HTTP $unknown_status (expected 404)"
             exit 1
@@ -256,11 +256,11 @@ jobs:
         shell: pwsh
         run: |
           if (Test-Path server.pid) {
-            $pid = Get-Content server.pid
-            $proc = Get-Process -Id $pid -ErrorAction SilentlyContinue
+            $serverPid = (Get-Content server.pid).Trim()
+            $proc = Get-Process -Id $serverPid -ErrorAction SilentlyContinue
             if ($proc) {
-              Stop-Process -Id $pid -Force
-              Write-Host "Stopped server (PID: $pid)"
+              Stop-Process -Id $serverPid -Force
+              Write-Host "Stopped server (PID: $serverPid)"
             } else {
               Write-Host "Process already exited"
             }
