@@ -1,6 +1,6 @@
 {
   "name": "flashforge-webui",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Standalone WebUI for FlashForge 3D Printers",
   "main": "dist/index.js",
   "bin": "dist/index.js",
@@ -35,7 +35,10 @@
     "lint": "eslint src/**/*.ts",
     "lint:fix": "eslint src/**/*.ts --fix",
     "type-check": "tsc --noEmit",
-    "test": "echo \"Tests not yet implemented\" && exit 0"
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "test:verbose": "jest --verbose"
   },
   "keywords": [
     "flashforge",
@@ -60,17 +63,23 @@
     "zod": "^4.0.5"
   },
   "devDependencies": {
+    "@jest/globals": "^30.2.0",
     "@types/express": "^4.17.21",
+    "@types/jest": "^30.0.0",
     "@types/node": "^20.17.9",
+    "@types/supertest": "^6.0.3",
     "@types/ws": "^8.5.13",
     "@typescript-eslint/eslint-plugin": "^8.14.0",
     "@typescript-eslint/parser": "^8.14.0",
+    "@yao-pkg/pkg": "^5.15.0",
     "concurrently": "^9.1.2",
     "eslint": "^9.16.0",
     "globals": "^16.5.0",
+    "jest": "^30.2.0",
     "nodemon": "^3.1.11",
-    "@yao-pkg/pkg": "^5.15.0",
     "rimraf": "^6.0.1",
+    "supertest": "^7.2.2",
+    "ts-jest": "^29.4.6",
     "tsx": "^4.19.2",
     "typescript": "^5.7.2",
     "typescript-eslint": "^8.47.0"
