@@ -263,8 +263,8 @@ jobs:
               Write-Host "Process already exited"
             }
           }
-          # Fallback: kill by image name
-          Get-Process -Name "flashforge-webui*" -ErrorAction SilentlyContinue | Stop-Process -Force
+          # Fallback: kill by exact image name
+          taskkill /F /IM "${{ matrix.output }}" 2>$null
           Start-Sleep -Seconds 3
 
       # Unix cleanup
@@ -284,7 +284,7 @@ jobs:
         shell: bash
         run: |
           if [[ "${{ runner.os }}" == "Windows" ]]; then
-            if powershell -Command "Get-Process -Name 'flashforge-webui*' -ErrorAction SilentlyContinue"; then
+            if tasklist /FI "IMAGENAME eq ${{ matrix.output }}" 2>/dev/null | grep -q "${{ matrix.output }}"; then
               echo "::error::Binary left zombie processes"
               exit 1
             fi
