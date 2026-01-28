@@ -140,11 +140,10 @@ jobs:
       - name: Test API endpoints
         shell: bash
         run: |
-          # Test 1: Auth status (public endpoint)
+          # Test 1: Auth status (public endpoint) - should return valid JSON
           response=$(curl -s http://localhost:3000/api/auth/status)
-          authenticated=$(echo "$response" | jq -r '.authenticated')
-          if [ "$authenticated" != "false" ]; then
-            echo "::error::Auth status API returned unexpected value: $authenticated"
+          if ! echo "$response" | jq -e '.authRequired' > /dev/null; then
+            echo "::error::Auth status API returned invalid JSON: $response"
             exit 1
           fi
 
