@@ -29,7 +29,7 @@ import { initializeSpoolmanIntegrationService } from './services/SpoolmanIntegra
 import { getSavedPrinterService } from './services/SavedPrinterService';
 import { parseHeadlessArguments, validateHeadlessConfig } from './utils/HeadlessArguments';
 import * as readline from 'readline';
-import { withTimeout, createHardDeadline } from './utils/ShutdownTimeout';
+import { createHardDeadline } from './utils/ShutdownTimeout';
 import type { HeadlessConfig, PrinterSpec } from './utils/HeadlessArguments';
 import type { PrinterDetails, PrinterClientType } from './types/printer';
 import { initializeDataDirectory } from './utils/setup';
@@ -339,13 +339,7 @@ async function shutdown(): Promise<void> {
     if (connectedContexts.length > 0) {
       const results = await Promise.allSettled(
         connectedContexts.map(contextId =>
-          withTimeout(
-            connectionManager.disconnectContext(contextId),
-            {
-              timeoutMs: SHUTDOWN_CONFIG.DISCONNECT_TIMEOUT_MS,
-              operation: `disconnectContext(${contextId})`
-            }
-          )
+          connectionManager.disconnectContext(contextId)
         )
       );
 

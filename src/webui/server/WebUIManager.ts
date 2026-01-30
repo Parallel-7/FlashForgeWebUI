@@ -225,7 +225,7 @@ export class WebUIManager extends EventEmitter {
     this.expressApp.use('/api/*splat', (req, res) => {
       const response: StandardAPIResponse = {
         success: false,
-        error: `API endpoint not found: ${req.method} ${req.path}`
+        error: `API endpoint not found: ${req.method} ${req.originalUrl}`
       };
       res.status(404).json(response);
     });

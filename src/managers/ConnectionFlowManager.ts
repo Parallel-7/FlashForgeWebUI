@@ -504,6 +504,8 @@ export class ConnectionFlowManager extends EventEmitter {
       } else {
         console.error(`Error during disconnect for context ${contextId}:`, error);
       }
+      // Re-throw to ensure Promise.allSettled sees this as a rejection
+      throw error;
     }
   }
 
