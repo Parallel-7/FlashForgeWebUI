@@ -28,6 +28,8 @@ import { getRtspStreamService } from './services/RtspStreamService';
 import { initializeSpoolmanIntegrationService } from './services/SpoolmanIntegrationService';
 import { getSavedPrinterService } from './services/SavedPrinterService';
 import { parseHeadlessArguments, validateHeadlessConfig } from './utils/HeadlessArguments';
+import * as readline from 'readline';
+import { createHardDeadline } from './utils/ShutdownTimeout';
 import type { HeadlessConfig, PrinterSpec } from './utils/HeadlessArguments';
 import type { PrinterDetails, PrinterClientType } from './types/printer';
 import { initializeDataDirectory } from './utils/setup';
@@ -46,6 +48,25 @@ const _cameraProxyService = getCameraProxyService();
 
 let connectedContexts: string[] = [];
 let isInitialized = false;
+let isShuttingDown = false;
+
+/**
+ * Shutdown timeout configuration
+ *
+ * Layered timeout strategy:
+ * 1. Per-operation timeouts (disconnect: 5s, webui: 3s)
+ * 2. Hard deadline (10s absolute maximum)
+ *
+ * This prevents hangs from unresponsive printers or stuck HTTP connections
+ */
+const SHUTDOWN_CONFIG = {
+  /** Hard deadline - forces process.exit(1) if exceeded */
+  HARD_DEADLINE_MS: 10000,
+  /** Per-printer disconnect timeout (parallelized, so 3 printers = ~5s total) */
+  DISCONNECT_TIMEOUT_MS: 5000,
+  /** WebUI server graceful close timeout */
+  WEBUI_STOP_TIMEOUT_MS: 3000
+} as const;
 
 /**
  * Apply configuration overrides from CLI arguments
@@ -247,7 +268,12 @@ async function initializeCameraProxies(): Promise<void> {
 function setupSignalHandlers(): void {
   // Handle Ctrl+C (works on all platforms including Windows)
   process.on('SIGINT', () => {
+    if (isShuttingDown) {
+      console.log('\n[Shutdown] Force exit (second Ctrl+C)');
+      process.exit(1);
+    }
     console.log('\n[Shutdown] Received SIGINT signal (Ctrl+C)');
+    isShuttingDown = true;
     void shutdown().then(() => {
       process.exit(0);
     }).catch((error) => {
@@ -269,7 +295,6 @@ function setupSignalHandlers(): void {
 
   // Windows-specific: Handle process termination
   if (process.platform === 'win32') {
-    const readline = require('readline');
     const rl = readline.createInterface({
       input: process.stdin,
       output: process.stdout
@@ -283,36 +308,69 @@ function setupSignalHandlers(): void {
 
 /**
  * Gracefully shutdown the application
+ *
+ * Implements a three-tier timeout strategy:
+ * 1. Hard deadline (10s) - ultimate fallback with process.exit(1)
+ * 2. Parallel disconnects (5s each, concurrent) - one hung printer doesn't block others
+ * 3. WebUI stop (3s) - force-close connections if timeout
+ *
+ * This ensures the application always exits within 10 seconds, even if
+ * printers are unresponsive or HTTP connections are stuck.
  */
 async function shutdown(): Promise<void> {
   if (!isInitialized) {
     return;
   }
 
-  console.log('[Shutdown] Stopping services...');
+  const startTime = Date.now();
+  console.log('[Shutdown] Starting graceful shutdown...');
+
+  // Set hard deadline - ultimate fallback to prevent indefinite hangs
+  const hardDeadline = createHardDeadline(SHUTDOWN_CONFIG.HARD_DEADLINE_MS);
 
   try {
-    // Stop all polling
+    // Step 1: Stop polling (immediate)
+    console.log('[Shutdown] Step 1/4: Stopping polling...');
     pollingCoordinator.stopAllPolling();
-    console.log('[Shutdown] Polling stopped');
+    console.log('[Shutdown] ✓ Polling stopped');
 
-    // Disconnect all printers
-    for (const contextId of connectedContexts) {
-      try {
-        await connectionManager.disconnectContext(contextId);
-        console.log(`[Shutdown] Disconnected context: ${contextId}`);
-      } catch (error) {
-        console.error(`[Shutdown] Error disconnecting context ${contextId}:`, error);
-      }
+    // Step 2: Parallel disconnects (all printers disconnect concurrently)
+    console.log(`[Shutdown] Step 2/4: Disconnecting ${connectedContexts.length} context(s)...`);
+    if (connectedContexts.length > 0) {
+      const results = await Promise.allSettled(
+        connectedContexts.map(contextId =>
+          connectionManager.disconnectContext(contextId)
+        )
+      );
+
+      const succeeded = results.filter(r => r.status === 'fulfilled').length;
+      const failed = results.filter(r => r.status === 'rejected').length;
+
+      console.log(`[Shutdown] ✓ Disconnect: ${succeeded} succeeded, ${failed} failed`);
+
+      // Log individual failures for debugging
+      results.forEach((result, index) => {
+        if (result.status === 'rejected') {
+          console.warn(`[Shutdown] Context ${connectedContexts[index]} failed:`, result.reason);
+        }
+      });
+    } else {
+      console.log('[Shutdown] ✓ No contexts to disconnect');
     }
 
-    // Stop WebUI
-    await webUIManager.stop();
-    console.log('[Shutdown] WebUI server stopped');
+    // Step 3: Stop WebUI (with timeout and force-close fallback)
+    console.log('[Shutdown] Step 3/4: Stopping WebUI...');
+    await webUIManager.stop(SHUTDOWN_CONFIG.WEBUI_STOP_TIMEOUT_MS);
+    console.log('[Shutdown] ✓ WebUI stopped');
 
-    console.log('[Shutdown] Graceful shutdown complete');
+    // Step 4: Complete (cancel hard deadline)
+    clearTimeout(hardDeadline);
+    const duration = Date.now() - startTime;
+    console.log(`[Shutdown] ✓ Complete (${duration}ms)`);
+
   } catch (error) {
-    console.error('[Shutdown] Error during shutdown:', error);
+    console.error('[Shutdown] Error:', error);
+    // Hard deadline will still fire if we exceed max time
   }
 }
 

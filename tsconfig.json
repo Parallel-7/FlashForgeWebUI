@@ -28,7 +28,9 @@
     "src/services/**/*.ts",
     "src/types/**/*.ts",
     "src/utils/**/*.ts",
-    "src/webui/**/*.ts"
+    "src/webui/**/*.ts",
+    "src/__tests__/**/*.ts",
+    "**/*.test.ts"
   ],
   "exclude": [
     "node_modules",

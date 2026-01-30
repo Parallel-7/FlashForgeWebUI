@@ -1,0 +1,329 @@
+name: E2E Test Binaries
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+    branches: ['**']
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: Test ${{ matrix.platform }} ${{ matrix.arch }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      max-parallel: 6
+      matrix:
+        include:
+          - os: windows-latest
+            platform: win
+            arch: x64
+            output: flashforge-webui-win-x64.exe
+            can_execute: true
+          - os: macos-15-intel
+            platform: mac
+            arch: x64
+            output: flashforge-webui-macos-x64.bin
+            can_execute: true
+          - os: macos-latest
+            platform: mac
+            arch: arm64
+            output: flashforge-webui-macos-arm64.bin
+            can_execute: true
+          - os: ubuntu-latest
+            platform: linux
+            arch: x64
+            output: flashforge-webui-linux-x64.bin
+            can_execute: true
+          - os: ubuntu-24.04-arm
+            platform: linux
+            arch: arm64
+            output: flashforge-webui-linux-arm64.bin
+            can_execute: true
+          - os: ubuntu-latest
+            platform: linux
+            arch: armv7
+            output: flashforge-webui-linux-armv7.bin
+            can_execute: false
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Cache pkg fetch
+        uses: actions/cache@v4
+        with:
+          path: ~/.pkg-cache
+          key: ${{ runner.os }}-pkg-${{ hashFiles('package.json') }}
+          restore-keys: |
+            ${{ runner.os }}-pkg-
+
+      - name: Configure GitHub Packages
+        shell: bash
+        run: |
+          echo "@ghosttypes:registry=https://npm.pkg.github.com" >> .npmrc
+          echo "@parallel-7:registry=https://npm.pkg.github.com" >> .npmrc
+          echo "//npm.pkg.github.com/:_authToken=${{ secrets.GITHUB_TOKEN }}" >> .npmrc
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install dependencies
+        run: npm ci
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Pre-download ARMv7 Node.js Binary
+        if: matrix.arch == 'armv7'
+        run: |
+          mkdir -p ~/.pkg-cache/v3.5
+          curl -L -o ~/.pkg-cache/v3.5/fetched-v20.18.0-linuxstatic-armv7 \
+            https://github.com/yao-pkg/pkg-binaries/releases/download/node20/node-v20.18.0-linuxstatic-armv7
+          chmod +x ~/.pkg-cache/v3.5/fetched-v20.18.0-linuxstatic-armv7
+
+      - name: Build application
+        shell: bash
+        run: |
+          npm run build
+          if [[ "${{ matrix.platform }}" == "win" ]]; then
+            npx @yao-pkg/pkg . --targets node20-win-${{ matrix.arch }} --output dist/${{ matrix.output }}
+          elif [[ "${{ matrix.platform }}" == "mac" ]]; then
+            npx @yao-pkg/pkg . --targets node20-macos-${{ matrix.arch }} --output dist/${{ matrix.output }}
+          elif [[ "${{ matrix.arch }}" == "armv7" ]]; then
+            npx @yao-pkg/pkg . --targets node20-linuxstatic-armv7 --output dist/${{ matrix.output }}
+          else
+            npx @yao-pkg/pkg . --targets node20-linux-${{ matrix.arch }} --output dist/${{ matrix.output }}
+          fi
+
+      - name: Verify binary size
+        shell: bash
+        run: |
+          if [[ "${{ runner.os }}" == "macOS" ]]; then
+            size=$(stat -f%z "dist/${{ matrix.output }}")
+          elif [[ "${{ runner.os }}" == "Windows" ]]; then
+            size=$(powershell -Command "(Get-Item 'dist/${{ matrix.output }}').length")
+          else
+            size=$(stat -c%s "dist/${{ matrix.output }}")
+          fi
+
+          if [ $size -lt 40000000 ]; then
+            echo "::error::Binary size ($size bytes) is too small - assets may not be embedded"
+            exit 1
+          fi
+          echo "✓ Binary size: $size bytes"
+
+      # Windows: use cmd wrapper to redirect output while keeping process detached
+      - name: Start binary (Windows)
+        if: matrix.can_execute == true && runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $proc = Start-Process -FilePath "cmd.exe" `
+            -ArgumentList "/c .\dist\${{ matrix.output }} --no-printers > startup.log 2> startup-err.log" `
+            -WindowStyle Hidden -PassThru
+          $proc.Id | Out-File -FilePath server.pid -Encoding ascii
+          Write-Host "Started server with PID: $($proc.Id)"
+
+      # Unix: use standard background process
+      - name: Start binary (Unix)
+        if: matrix.can_execute == true && runner.os != 'Windows'
+        shell: bash
+        run: |
+          chmod +x dist/${{ matrix.output }}
+          ./dist/${{ matrix.output }} --no-printers > startup.log 2>&1 &
+          echo $! > server.pid
+
+      - name: Wait for server to be ready
+        if: matrix.can_execute == true
+        shell: bash
+        run: |
+          max_attempts=30
+          attempt=0
+          until curl -sf http://127.0.0.1:3000/ > /dev/null 2>&1; do
+            attempt=$((attempt + 1))
+            if [ $attempt -ge $max_attempts ]; then
+              echo "::error::Server failed to start after $max_attempts attempts (60s)"
+              echo "--- startup.log ---"
+              cat startup.log 2>/dev/null || echo "(no stdout log)"
+              echo "--- startup-err.log ---"
+              cat startup-err.log 2>/dev/null || echo "(no stderr log)"
+              exit 1
+            fi
+            echo "Waiting for server... (attempt $attempt/$max_attempts)"
+            sleep 2
+          done
+          echo "✓ Server is responding"
+
+      - name: Validate startup logs
+        if: matrix.can_execute == true
+        shell: bash
+        run: |
+          if [ -f startup.log ]; then
+            if grep -iE "\[Error\]|\[Fatal\]|exception|EADDRINUSE" startup.log; then
+              echo "::error::Errors detected in startup log"
+              cat startup.log
+              exit 1
+            fi
+
+            if ! grep -q "\[Ready\] FlashForgeWebUI is ready" startup.log; then
+              echo "::error::Startup did not complete - missing ready marker"
+              cat startup.log
+              exit 1
+            fi
+            echo "✓ Startup log looks clean"
+          else
+            echo "::warning::No startup.log found"
+          fi
+
+      - name: Test static file serving
+        if: matrix.can_execute == true
+        shell: bash
+        run: |
+          # Test index.html is served at root
+          status=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:3000/)
+          if [ "$status" != "200" ]; then
+            echo "::error::GET / returned HTTP $status (expected 200)"
+            exit 1
+          fi
+
+          # Test index.html contains expected content
+          if ! curl -sf http://127.0.0.1:3000/ | grep -q "FlashForge Web UI"; then
+            echo "::error::GET / did not contain 'FlashForge Web UI'"
+            curl -s http://127.0.0.1:3000/ | head -20
+            exit 1
+          fi
+          echo "✓ Static file serving works"
+
+      - name: Test API endpoints
+        if: matrix.can_execute == true
+        shell: bash
+        run: |
+          # Auth status endpoint
+          status=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:3000/api/auth/status)
+          if [ "$status" != "200" ]; then
+            echo "::error::GET /api/auth/status returned HTTP $status (expected 200)"
+            exit 1
+          fi
+
+          response=$(curl -sf http://127.0.0.1:3000/api/auth/status)
+          if ! echo "$response" | jq '.' > /dev/null 2>&1; then
+            echo "::error::Auth status API returned invalid JSON: $response"
+            exit 1
+          fi
+          echo "✓ GET /api/auth/status - valid JSON response"
+
+          # Login endpoint
+          login_response=$(curl -s -w "\n%{http_code}" -X POST http://127.0.0.1:3000/api/auth/login \
+            -H "Content-Type: application/json" \
+            -d '{"password":"changeme"}')
+          login_body=$(echo "$login_response" | sed '$d')
+          login_status=$(echo "$login_response" | tail -1)
+
+          if [ "$login_status" != "200" ]; then
+            echo "::error::POST /api/auth/login returned HTTP $login_status (expected 200)"
+            echo "Response: $login_body"
+            exit 1
+          fi
+
+          success=$(echo "$login_body" | jq -r '.success')
+          if [ "$success" != "true" ]; then
+            echo "::error::Login API returned success=$success (expected true)"
+            echo "Response: $login_body"
+            exit 1
+          fi
+          echo "✓ POST /api/auth/login - login successful"
+
+          # 404 handler for unknown API routes
+          unknown_status=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:3000/api/nonexistent)
+          if [ "$unknown_status" != "404" ]; then
+            echo "::error::GET /api/nonexistent returned HTTP $unknown_status (expected 404)"
+            exit 1
+          fi
+          echo "✓ GET /api/nonexistent - returns 404"
+
+          echo "✓ All API tests passed"
+
+      # Windows cleanup
+      - name: Stop binary (Windows)
+        if: always() && matrix.can_execute == true && runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          if (Test-Path server.pid) {
+            $serverPid = (Get-Content server.pid).Trim()
+            $proc = Get-Process -Id $serverPid -ErrorAction SilentlyContinue
+            if ($proc) {
+              Stop-Process -Id $serverPid -Force
+              Write-Host "Stopped server (PID: $serverPid)"
+            } else {
+              Write-Host "Process already exited"
+            }
+          }
+          # Fallback: kill by exact image name
+          taskkill /F /IM "${{ matrix.output }}" 2>$null
+          Start-Sleep -Seconds 3
+
+      # Unix cleanup
+      - name: Stop binary (Unix)
+        if: always() && matrix.can_execute == true && runner.os != 'Windows'
+        shell: bash
+        run: |
+          if [ -f server.pid ]; then
+            kill -TERM $(cat server.pid) 2>/dev/null || true
+            rm server.pid
+          fi
+          pkill -TERM -f "${{ matrix.output }}" 2>/dev/null || true
+          sleep 3
+
+      - name: Verify cleanup
+        if: always() && matrix.can_execute == true
+        shell: bash
+        run: |
+          if [[ "${{ runner.os }}" == "Windows" ]]; then
+            if tasklist /FI "IMAGENAME eq ${{ matrix.output }}" 2>/dev/null | grep -q "${{ matrix.output }}"; then
+              echo "::error::Binary left zombie processes"
+              exit 1
+            fi
+          else
+            if pgrep -f "${{ matrix.output }}"; then
+              echo "::error::Binary left zombie processes"
+              exit 1
+            fi
+          fi
+          echo "✓ Cleanup successful"
+
+      - name: Upload test binary
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ${{ matrix.output }}
+          path: dist/${{ matrix.output }}
+          retention-days: 7
+          compression-level: 6
+
+      - name: Upload startup logs
+        uses: actions/upload-artifact@v4
+        if: always() && matrix.can_execute == true
+        with:
+          name: logs-${{ matrix.platform }}-${{ matrix.arch }}
+          path: |
+            startup.log
+            startup-err.log
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Generate summary
+        if: always()
+        shell: bash
+        run: |
+          echo "## ${{ matrix.platform }} ${{ matrix.arch }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [[ "${{ job.status }}" == "success" ]]; then
+            echo "✅ All tests passed" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ Tests failed" >> $GITHUB_STEP_SUMMARY
+          fi

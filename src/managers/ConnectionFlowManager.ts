@@ -33,6 +33,7 @@ import { getLoadingManager } from './LoadingManager';
 import { getPrinterBackendManager } from './PrinterBackendManager';
 import { getPrinterContextManager } from './PrinterContextManager';
 import { getPrinterDiscoveryService } from '../services/PrinterDiscoveryService';
+import { withTimeout, TimeoutError } from '../utils/ShutdownTimeout';
 import { getThumbnailRequestQueue } from '../services/ThumbnailRequestQueue';
 import { getSavedPrinterService } from '../services/SavedPrinterService';
 import { getAutoConnectService } from '../services/AutoConnectService';
@@ -451,7 +452,7 @@ export class ConnectionFlowManager extends EventEmitter {
   }
 
   /** Disconnect a specific printer context with proper cleanup */
-  public async disconnectContext(contextId: string): Promise<void> {
+  public async disconnectContext(contextId: string, timeoutMs = 5000): Promise<void> {
     const context = this.contextManager.getContext(contextId);
     if (!context) {
       console.warn(`Cannot disconnect - context ${contextId} not found`);
@@ -461,37 +462,50 @@ export class ConnectionFlowManager extends EventEmitter {
     const currentDetails = context.printerDetails;
 
     try {
-      console.log(`Starting disconnect sequence for context ${contextId}...`);
+      await withTimeout(
+        (async () => {
+          console.log(`Starting disconnect sequence for context ${contextId}...`);
 
-      // Stop polling first
-      this.emit('pre-disconnect', contextId);
-      await new Promise(resolve => setTimeout(resolve, 100));
+          // Stop polling first
+          this.emit('pre-disconnect', contextId);
+          await new Promise(resolve => setTimeout(resolve, 100));
 
-      // Get clients for disposal from connection state
-      const primaryClient = this.connectionStateManager.getPrimaryClient(contextId);
-      const secondaryClient = this.connectionStateManager.getSecondaryClient(contextId);
+          // Get clients for disposal from connection state
+          const primaryClient = this.connectionStateManager.getPrimaryClient(contextId);
+          const secondaryClient = this.connectionStateManager.getSecondaryClient(contextId);
 
-      // Dispose backend for this context
-      await this.backendManager.disposeContext(contextId);
+          // Dispose backend for this context
+          await this.backendManager.disposeContext(contextId);
 
-      // Dispose clients through connection service (handles logout)
-      await this.connectionService.disposeClients(
-        primaryClient,
-        secondaryClient,
-        currentDetails?.ClientType
+          // Dispose clients through connection service (handles logout)
+          await this.connectionService.disposeClients(
+            primaryClient,
+            secondaryClient,
+            currentDetails?.ClientType
+          );
+
+          // Update connection state
+          this.connectionStateManager.setDisconnected(contextId);
+
+          // Remove context from manager
+          this.contextManager.removeContext(contextId);
+
+          // Emit disconnected event
+          this.emit('disconnected', currentDetails?.Name);
+        })(),
+        { timeoutMs, operation: `disconnectContext(${contextId})` }
       );
-
-      // Update connection state
-      this.connectionStateManager.setDisconnected(contextId);
-
-      // Remove context from manager
-      this.contextManager.removeContext(contextId);
-
-      // Emit disconnected event
-      this.emit('disconnected', currentDetails?.Name);
-
     } catch (error) {
-      console.error(`Error during disconnect for context ${contextId}:`, error);
+      if (error instanceof TimeoutError) {
+        console.error(`[Shutdown] Context ${contextId} timed out, forcing cleanup`);
+        // Force cleanup on timeout
+        this.contextManager.removeContext(contextId);
+        this.connectionStateManager.setDisconnected(contextId);
+      } else {
+        console.error(`Error during disconnect for context ${contextId}:`, error);
+      }
+      // Re-throw to ensure Promise.allSettled sees this as a rejection
+      throw error;
     }
   }
 
