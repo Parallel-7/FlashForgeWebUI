@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.2] - 2026-01-31
+
 ### Added
 
 - Comprehensive test suite with 118 passing tests covering core functionality:
@@ -102,6 +104,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Optional password authentication
 - Configuration persistence in `data/config.json`
 
-[Unreleased]: https://github.com/Parallel-7/FlashForgeWebUI/compare/v1.0.1...HEAD
+[Unreleased]: https://github.com/Parallel-7/FlashForgeWebUI/compare/v1.0.2...HEAD
+[1.0.2]: https://github.com/Parallel-7/FlashForgeWebUI/compare/v1.0.1...v1.0.2
 [1.0.1]: https://github.com/Parallel-7/FlashForgeWebUI/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/Parallel-7/FlashForgeWebUI/releases/tag/v1.0.0
