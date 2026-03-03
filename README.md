@@ -38,8 +38,9 @@ FlashForge WebUI is a lightweight, standalone web interface for monitoring and c
 
 <div align="center">
   <h2>Supported Printers</h2>
-  <p>FlashForge WebUI supports a wide range of FlashForge printers through its adaptable backend architecture.</p>
 </div>
+
+FlashForge WebUI supports a wide range of FlashForge printers through its adaptable backend architecture.
 
 <div align="center">
 
@@ -70,8 +71,9 @@ FlashForge WebUI is a lightweight, standalone web interface for monitoring and c
 
 <div align="center">
   <h3>Pre-built Binaries</h3>
-  <p>Download the appropriate binary for your platform from the <a href="https://github.com/Parallel-7/FlashForgeWebUI/releases">Releases</a> page:</p>
 </div>
+
+Download the appropriate binary for your platform from the [Releases](https://github.com/Parallel-7/FlashForgeWebUI/releases) page:
 
 <div align="center">
 
@@ -85,6 +87,8 @@ FlashForge WebUI is a lightweight, standalone web interface for monitoring and c
 | **Linux ARMv7** | `flashforge-webui-linux-armv7` | Raspberry Pi 3/4 (32-bit OS) |
 
 </div>
+
+**Raspberry Pi Users:** Use `flashforge-webui-linux-arm64` for 64-bit Raspberry Pi OS, or `flashforge-webui-linux-armv7` for 32-bit.
 
 ```bash
 # Make the binary executable (Linux/macOS)
@@ -119,10 +123,7 @@ npm start
 npm start -- --last-used
 ```
 
-<div align="center">
-  <h3>Development Mode:</h3>
-</div>
-
+**Development Mode:**
 ```bash
 # Build and watch for changes with hot reload
 npm run dev
@@ -130,15 +131,15 @@ npm run dev
 
 <div align="center">
   <h2>Usage</h2>
-  <p>After starting the server, open your browser and navigate to:</p>
 </div>
+
+After starting the server, open your browser and navigate to:
 
 ```
 http://localhost:3000
 ```
-<div align="center">
-  <p>Or if accessing from another device on your network:</p>
-</div>
+
+Or if accessing from another device on your network:
 
 ```
 http://<server-ip>:3000
@@ -165,9 +166,9 @@ http://<server-ip>:3000
 
 <div align="center">
   <h2>Configuration</h2>
-  <p>The application automatically creates a configuration file at data/config.json on first run.</p>
 </div>
 
+The application automatically creates a configuration file at `data/config.json` on first run.
 
 <div align="center">
 
@@ -231,7 +232,7 @@ npm run build:mac-arm      # macOS ARM (Apple Silicon)
 | --- | --- |
 | **[ff-5mp-api-ts](https://github.com/GhostTypes/ff-5mp-api-ts)** | FlashForge API Client Library |
 | **[slicer-meta](https://github.com/Parallel-7/slicer-meta)** | Printer Metadata & Model Utilities |
-| **[FlashForgeUI-Electron](https://github.com/Parallel-7/FlashForgeUI-Electron)** | Original Desktop Application |
-| [**Spoolman**](https://github.com/Donkie/Spoolman) | Filament Management |
+| **FlashForgeUI-Electron** | Original Desktop Application |
+| **Spoolman** | Filament Management |
 
 </div>
