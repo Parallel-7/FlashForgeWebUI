@@ -1,64 +1,85 @@
 /**
- * @fileoverview Camera streaming helpers for the WebUI client.
+ * @fileoverview Camera streaming helpers for the WebUI client using go2rtc.
  *
- * Fetches camera proxy configuration, initializes MJPEG or RTSP (JSMpeg)
- * rendering, and provides teardown utilities so contexts can be switched
- * without stale DOM state. Keeps camera concerns isolated from the main app
- * orchestrator.
+ * Unified camera streaming uses go2rtc as the streaming gateway. All camera
+ * types (MJPEG and RTSP) are handled through go2rtc, which provides
+ * WebRTC/MSE/MJPEG fallback for browser playback.
  */
 
 import type { CameraProxyConfigResponse } from '../app.js';
-import type { JSMpegPlayerInstance, JSMpegStatic } from '../../../types/jsmpeg';
 import { state } from '../core/AppState.js';
 import { apiRequest } from '../core/Transport.js';
 import { $, hideElement, showElement } from '../shared/dom.js';
 
-declare const JSMpeg: JSMpegStatic;
+interface VideoRTCElement extends HTMLElement {
+  src: string;
+  mode: string;
+  media: string;
+}
 
-let jsmpegPlayer: JSMpegPlayerInstance | null = null;
+let videoRtcElement: VideoRTCElement | null = null;
+let showFpsOverlay = false;
 
-function destroyRtspPlayer(): void {
-  try {
-    jsmpegPlayer?.destroy();
-  } catch (error) {
-    console.warn('[Camera] Failed to destroy JSMpeg player:', error);
-  } finally {
-    jsmpegPlayer = null;
+function updateFpsDisplay(): void {
+  const overlay = $('camera-fps-overlay');
+  if (!overlay) {
+    return;
+  }
+
+  if (!showFpsOverlay) {
+    overlay.classList.add('hidden');
+    return;
+  }
+
+  overlay.classList.remove('hidden');
+  overlay.textContent = videoRtcElement ? 'Streaming' : 'Offline';
+}
+
+function destroyVideoRtcPlayer(): void {
+  if (videoRtcElement) {
+    try {
+      videoRtcElement.remove();
+    } catch (error) {
+      console.warn('[Camera] Failed to destroy video-rtc player:', error);
+    } finally {
+      videoRtcElement = null;
+    }
   }
 }
 
 export function teardownCameraStreamElements(): void {
-  destroyRtspPlayer();
-
-  const cameraStream = $('camera-stream') as HTMLImageElement | null;
-  if (cameraStream) {
-    cameraStream.src = '';
-    cameraStream.removeAttribute('src');
-    hideElement('camera-stream');
-  }
-
-  const canvas = $('camera-canvas') as HTMLCanvasElement | null;
-  if (canvas) {
-    const context = canvas.getContext('2d');
-    if (context) {
-      context.clearRect(0, 0, canvas.width, canvas.height);
-    }
-    hideElement('camera-canvas');
-  }
+  showFpsOverlay = false;
+  destroyVideoRtcPlayer();
 
   const placeholder = $('camera-placeholder');
   if (placeholder) {
     placeholder.textContent = 'Camera offline';
   }
   showElement('camera-placeholder');
+
+  updateFpsDisplay();
+}
+
+function createVideoRtcElement(wsUrl: string, mode: string): VideoRTCElement {
+  const element = document.createElement('video-rtc') as VideoRTCElement;
+
+  element.src = wsUrl;
+  element.mode = mode;
+  element.media = 'video';
+
+  element.style.width = '100%';
+  element.style.height = '100%';
+  element.style.objectFit = 'cover';
+  element.style.display = 'block';
+
+  return element;
 }
 
 export async function loadCameraStream(): Promise<void> {
   const cameraPlaceholder = $('camera-placeholder');
-  const cameraStream = $('camera-stream') as HTMLImageElement | null;
-  const cameraCanvas = $('camera-canvas') as HTMLCanvasElement | null;
+  const cameraContainer = $('camera-container');
 
-  if (!cameraPlaceholder || !cameraStream || !cameraCanvas) {
+  if (!cameraPlaceholder || !cameraContainer) {
     console.error('[Camera] Required DOM elements not found');
     return;
   }
@@ -73,85 +94,39 @@ export async function loadCameraStream(): Promise<void> {
     const config = await apiRequest<CameraProxyConfigResponse>('/api/camera/proxy-config');
 
     if (!config.success) {
-      showElement('camera-placeholder');
-      hideElement('camera-stream');
-      hideElement('camera-canvas');
-      cameraPlaceholder.textContent = config.error || 'Camera unavailable';
-      return;
+      throw new Error(config.error || 'Failed to get camera configuration');
     }
 
-    if (config.streamType === 'rtsp') {
-      if (config.ffmpegAvailable === false) {
-        showElement('camera-placeholder');
-        hideElement('camera-stream');
-        hideElement('camera-canvas');
-        cameraPlaceholder.textContent = 'RTSP Camera: ffmpeg required for browser viewing';
-        return;
-      }
-
-      if (!config.wsPort) {
-        throw new Error('No WebSocket port provided for RTSP stream');
-      }
-
-      destroyRtspPlayer();
-      hideElement('camera-stream');
-      showElement('camera-canvas');
-      hideElement('camera-placeholder');
-
-      const wsUrl = `ws://${window.location.hostname}:${config.wsPort}`;
-      jsmpegPlayer = new JSMpeg.Player(wsUrl, {
-        canvas: cameraCanvas,
-        autoplay: true,
-        audio: false,
-        onSourceEstablished: () => {
-          console.log('[Camera] RTSP stream connected');
-        },
-        onSourceCompleted: () => {
-          console.log('[Camera] RTSP stream completed');
-        },
-      });
-      return;
+    if (!config.wsUrl) {
+      throw new Error('No WebSocket URL provided for camera stream');
     }
 
-    if (!config.url) {
-      throw new Error('No camera URL provided by server');
-    }
+    destroyVideoRtcPlayer();
+    hideElement('camera-placeholder');
 
-    destroyRtspPlayer();
-    const cameraUrl = config.url;
-    cameraStream.src = cameraUrl;
+    showFpsOverlay = config.showCameraFps ?? false;
 
-    cameraStream.onload = () => {
-      hideElement('camera-placeholder');
-      hideElement('camera-canvas');
-      showElement('camera-stream');
-    };
+    const mode = config.mode || 'webrtc,mse,mjpeg';
+    videoRtcElement = createVideoRtcElement(config.wsUrl, mode);
+    cameraContainer.appendChild(videoRtcElement);
 
-    cameraStream.onerror = () => {
-      showElement('camera-placeholder');
-      hideElement('camera-stream');
-      hideElement('camera-canvas');
-      cameraPlaceholder.textContent = 'Camera Stream Error';
-
-      setTimeout(() => {
-        if (state.printerFeatures?.hasCamera) {
-          cameraStream.src = `${cameraUrl}?t=${Date.now()}`;
-        }
-      }, 5000);
-    };
+    console.log(`[Camera] go2rtc stream started: ${config.wsUrl} (mode: ${mode})`);
+    updateFpsDisplay();
   } catch (error) {
-    console.error('[Camera] Failed to load camera proxy configuration:', error);
-    showElement('camera-placeholder');
-    hideElement('camera-stream');
-    hideElement('camera-canvas');
+    console.error('[Camera] Failed to load camera stream:', error);
+
+    teardownCameraStreamElements();
+
     if (cameraPlaceholder) {
-      cameraPlaceholder.textContent = 'Camera Configuration Error';
+      const errorMessage = error instanceof Error ? error.message : 'Camera Configuration Error';
+      cameraPlaceholder.textContent = errorMessage;
     }
+    showElement('camera-placeholder');
   }
 }
 
 export function initializeCamera(): void {
-  if (state.printerFeatures && !state.printerFeatures.hasCamera) {
+  if (!state.printerFeatures?.hasCamera) {
     teardownCameraStreamElements();
     return;
   }

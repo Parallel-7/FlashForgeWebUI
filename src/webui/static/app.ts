@@ -4,7 +4,7 @@
  * Provides comprehensive browser interface for remote FlashForge printer control including
  * authentication with token persistence, real-time WebSocket communication for status updates,
  * printer control operations (temperature, job management, LED, filtration), multi-printer
- * context switching, camera stream viewing (MJPEG and RTSP with JSMpeg), file selection dialogs,
+ * context switching, camera stream viewing via go2rtc (WebRTC/MSE/MJPEG), file selection dialogs,
  * and responsive UI updates. Implements automatic reconnection logic, keep-alive ping mechanisms,
  * and graceful degradation when features are unavailable. All communication uses type-safe
  * interfaces with proper error handling and user feedback via toast notifications.
@@ -14,7 +14,7 @@
  * - WebSocket: Real-time status updates, command execution, automatic reconnection
  * - Printer control: Temperature set/off, job pause/resume/cancel, home axes, LED control
  * - Multi-printer: Context switching with dynamic UI updates and feature detection
- * - Camera: MJPEG proxy streaming and RTSP streaming via JSMpeg with WebSocket
+ * - Camera: Unified streaming via go2rtc with WebRTC/MSE/MJPEG fallback using video-rtc
  * - File management: Recent/local file browsing, file selection dialogs, job start with options
  * - Material matching: AD5X multi-color job mapping to material station slots prior to start
  * - UI updates: Real-time temperature, progress, layer info, ETA, lifetime statistics, thumbnails
@@ -122,6 +122,8 @@ export interface PrinterStatus {
   thumbnailData?: string | null; // Base64 encoded thumbnail
   cumulativeFilament?: number; // Total lifetime filament usage in meters
   cumulativePrintTime?: number; // Total lifetime print time in minutes
+  formattedEta?: string; // Firmware ETA string (e.g. "04:48" = 4h48m remaining)
+  elapsedTimeSeconds?: number; // Precise elapsed seconds for HH:MM:SS display
 }
 
 export interface PrinterFeatures {
@@ -170,12 +172,20 @@ export interface PrinterFeaturesResponse extends ApiResponse {
 }
 
 export interface CameraProxyConfigResponse extends ApiResponse {
+  /** go2rtc WebSocket URL for stream negotiation */
+  wsUrl?: string;
+  /** Original stream type (before go2rtc conversion) */
   streamType?: 'mjpeg' | 'rtsp';
-  port?: number;  // For MJPEG camera proxy
-  wsPort?: number;  // For RTSP WebSocket port
-  url?: string;
-  wsPath?: string;
-  ffmpegAvailable?: boolean;
+  /** Original source type */
+  sourceType?: 'builtin' | 'custom';
+  /** Stream name in go2rtc */
+  streamName?: string;
+  /** go2rtc API port */
+  apiPort?: number;
+  /** Preferred playback modes */
+  mode?: string;
+  /** Whether to show camera overlay info */
+  showCameraFps?: boolean;
 }
 
 export interface FileListResponse extends ApiResponse {

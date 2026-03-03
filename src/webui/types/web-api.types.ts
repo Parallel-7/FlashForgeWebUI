@@ -85,6 +85,8 @@ export interface PrinterStatusData {
   readonly thumbnailData: string | null; // Base64 encoded thumbnail, null if not available
   readonly cumulativeFilament?: number; // Total lifetime filament usage in meters
   readonly cumulativePrintTime?: number; // Total lifetime print time in minutes
+  readonly formattedEta?: string; // Firmware ETA string (e.g. "04:48" = 4h48m remaining)
+  readonly elapsedTimeSeconds?: number; // Precise elapsed seconds for HH:MM:SS display
 }
 
 /**

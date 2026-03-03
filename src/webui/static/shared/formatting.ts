@@ -119,3 +119,30 @@ export function formatLifetimeFilament(meters: number): string {
 
   return `${meters.toFixed(2)}m`;
 }
+
+/**
+ * Format elapsed time from seconds to H:MM:SS or MM:SS.
+ */
+export function formatElapsedSeconds(seconds: number): string {
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const remainingSeconds = Math.floor(seconds % 60);
+  const mm = String(minutes).padStart(2, '0');
+  const ss = String(remainingSeconds).padStart(2, '0');
+
+  return hours > 0 ? `${hours}:${mm}:${ss}` : `${mm}:${ss}`;
+}
+
+/**
+ * Convert a firmware ETA string (HH:MM remaining) to a wall-clock completion time.
+ */
+export function formatETAFromString(hhmm: string): string {
+  const [hours, minutes] = hhmm.split(':').map(Number);
+  const completionTime = new Date(Date.now() + (hours * 60 + minutes) * 60_000);
+
+  return completionTime.toLocaleTimeString('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  });
+}

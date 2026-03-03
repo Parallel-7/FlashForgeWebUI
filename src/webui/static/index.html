@@ -349,8 +349,11 @@
     </div>
   </div>
 
-  <!-- JSMpeg library for RTSP streaming (vendored locally) -->
-  <script src="jsmpeg.min.js"></script>
+  <!-- go2rtc video-rtc player for unified camera streaming (WebRTC/MSE/MJPEG) -->
+  <script type="module">
+    import { VideoRTC } from './lib/video-rtc.js';
+    customElements.define('video-rtc', VideoRTC);
+  </script>
 
   <!-- GridStack library for drag-and-drop layout management -->
   <script src="gridstack-all.js"></script>

@@ -27,9 +27,9 @@ describe('ConfigManager', () => {
       WebUIPort: 3000,
       WebUIPassword: 'testpass',
       WebUIPasswordRequired: true,
+      CameraProxyPort: 8181,
       SpoolmanEnabled: false,
-      SpoolmanServerUrl: '',
-      CameraProxyPort: 8181
+      SpoolmanServerUrl: ''
     }));
 
     // Mock fs.mkdirSync
@@ -75,9 +75,9 @@ describe('ConfigManager', () => {
       expect(config).toHaveProperty('WebUIPort');
       expect(config).toHaveProperty('WebUIPassword');
       expect(config).toHaveProperty('WebUIPasswordRequired');
+      expect(config).toHaveProperty('CameraProxyPort');
       expect(config).toHaveProperty('SpoolmanEnabled');
       expect(config).toHaveProperty('SpoolmanServerUrl');
-      expect(config).toHaveProperty('CameraProxyPort');
     });
 
     it('should return correct types for configuration values', () => {
@@ -87,9 +87,9 @@ describe('ConfigManager', () => {
       expect(typeof config.WebUIPort).toBe('number');
       expect(typeof config.WebUIPassword).toBe('string');
       expect(typeof config.WebUIPasswordRequired).toBe('boolean');
+      expect(typeof config.CameraProxyPort).toBe('number');
       expect(typeof config.SpoolmanEnabled).toBe('boolean');
       expect(typeof config.SpoolmanServerUrl).toBe('string');
-      expect(typeof config.CameraProxyPort).toBe('number');
     });
   });
 

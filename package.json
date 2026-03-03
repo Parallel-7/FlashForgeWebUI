@@ -6,6 +6,7 @@
   "bin": "dist/index.js",
   "type": "commonjs",
   "scripts": {
+    "postinstall": "node scripts/download-go2rtc.cjs",
     "dev": "npm run build && concurrently --names \"BACKEND,WEBUI,SERVER\" \"npm run build:backend:watch\" \"npm run build:webui:watch\" \"npm run start:dev\"",
     "start": "node dist/index.js",
     "start:dev": "nodemon --watch src --ext ts --exec \"node dist/index.js\"",
@@ -13,7 +14,7 @@
     "build:watch": "concurrently \"npm run build:backend:watch\" \"npm run build:webui:watch\"",
     "build:backend": "tsx scripts/build-backend.ts",
     "build:backend:watch": "tsx scripts/build-backend.ts --watch",
-    "build:webui": "tsc --project src/webui/static/tsconfig.json && npm run build:webui:copy",
+    "build:webui": "rimraf dist/webui/static && tsc --project src/webui/static/tsconfig.json && npm run build:webui:copy",
     "build:webui:watch": "tsc --project src/webui/static/tsconfig.json --watch",
     "build:webui:copy": "node scripts/copy-webui-assets.js",
     "build:linux": "npm run build && pkg . --targets node20-linux-x64 --output dist/flashforge-webui-linux-x64",
@@ -32,6 +33,7 @@
     "build:mac-arm:wrapped": "npm run build:wrapper -- --platform mac-arm",
     "build:all:wrapped": "npm run build:win:wrapped && npm run build:linux:wrapped && npm run build:linux-arm:wrapped && npm run build:linux-armv7:wrapped && npm run build:mac:wrapped && npm run build:mac-arm:wrapped",
     "clean": "rimraf dist",
+    "download:go2rtc": "node scripts/download-go2rtc.cjs",
     "lint": "biome lint .",
     "lint:fix": "biome lint --write .",
     "format": "biome format .",
@@ -54,7 +56,6 @@
   "author": "Parallel-7",
   "license": "MIT",
   "dependencies": {
-    "@cycjimmy/jsmpeg-player": "^6.1.2",
     "@ghosttypes/ff-api": "1.0.0-20251122000715",
     "@parallel-7/slicer-meta": "1.1.0-20251121155836",
     "axios": "^1.8.4",
@@ -62,7 +63,6 @@
     "form-data": "^4.0.0",
     "gridstack": "^12.3.3",
     "lucide": "^0.552.0",
-    "node-rtsp-stream": "^0.0.9",
     "ws": "^8.18.3",
     "zod": "^4.0.5"
   },
@@ -95,7 +95,8 @@
       "node_modules/zod/**/*.cjs"
     ],
     "assets": [
-      "dist/webui/**/*"
+      "dist/webui/**/*",
+      "resources/bin/**/*"
     ],
     "outputPath": "dist"
   }

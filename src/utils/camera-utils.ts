@@ -11,7 +11,6 @@
  * - Automatic URL generation for custom cameras without explicit URLs
  * - Comprehensive URL validation (protocol, hostname, format)
  * - Camera availability checking with detailed unavailability reasons
- * - Proxy URL formatting for client consumption
  *
  * Resolution Priority:
  * 1. Custom camera (if enabled): Uses user-provided URL or auto-generates default FlashForge URL
@@ -205,13 +204,6 @@ export function getCameraUserConfig(contextId?: string): CameraUserConfig {
     customCameraEnabled: configManager.get('CustomCamera') || false,
     customCameraUrl: configManager.get('CustomCameraUrl') || null
   };
-}
-
-/**
- * Format camera proxy URL for client consumption
- */
-export function formatCameraProxyUrl(port: number): string {
-  return `http://localhost:${port}/stream`;
 }
 
 /**

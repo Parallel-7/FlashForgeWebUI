@@ -4,7 +4,7 @@
  * The PrinterContextManager is a singleton service that coordinates multiple printer
  * connections by maintaining separate contexts for each printer. Each context contains
  * all the state needed for a complete printer connection: backend, polling service,
- * camera proxy, and connection state.
+ * and connection state.
  *
  * Key Responsibilities:
  * - Create and manage printer contexts with unique IDs
@@ -62,9 +62,6 @@ export interface PrinterContext {
 
   /** Notification coordinator for this context (null if not active) */
   notificationCoordinator: PrinterNotificationCoordinator | null;
-
-  /** Camera proxy port for this context (null if no camera) */
-  cameraProxyPort: number | null;
 
   /** Whether this is the active context */
   isActive: boolean;
@@ -146,7 +143,6 @@ export class PrinterContextManager extends EventEmitter {
       connectionState: 'connecting',
       pollingService: null,
       notificationCoordinator: null,
-      cameraProxyPort: null,
       isActive: false,
       createdAt: now,
       lastActivity: now,
@@ -400,20 +396,6 @@ export class PrinterContextManager extends EventEmitter {
   }
 
   /**
-   * Update context camera proxy port
-   *
-   * @param contextId - Context to update
-   * @param port - Camera proxy port or null
-   */
-  public updateCameraPort(contextId: string, port: number | null): void {
-    const context = this.contexts.get(contextId);
-    if (context) {
-      context.cameraProxyPort = port;
-      context.lastActivity = new Date();
-    }
-  }
-
-  /**
    * Convert internal context to serializable info
    * Safe to send over API/WebSocket
    *
@@ -421,10 +403,6 @@ export class PrinterContextManager extends EventEmitter {
    * @returns Serializable context info
    */
   private contextToInfo(context: PrinterContext): PrinterContextInfo {
-    const cameraUrl = context.cameraProxyPort
-      ? `http://localhost:${context.cameraProxyPort}/stream`
-      : undefined;
-
     return {
       id: context.id,
       name: context.name,
@@ -433,8 +411,6 @@ export class PrinterContextManager extends EventEmitter {
       serialNumber: context.printerDetails.SerialNumber || null,
       status: context.connectionState,
       isActive: context.isActive,
-      hasCamera: context.cameraProxyPort !== null,
-      cameraUrl,
       createdAt: context.createdAt.toISOString(),
       lastActivity: context.lastActivity.toISOString()
     };

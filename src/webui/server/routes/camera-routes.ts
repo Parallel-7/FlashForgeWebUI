@@ -1,45 +1,39 @@
 /**
  * @fileoverview Camera status and proxy configuration routes for the WebUI server.
+ *
+ * Provides endpoints for camera configuration using go2rtc as the streaming
+ * gateway. All camera types (MJPEG and RTSP) are handled through go2rtc, which
+ * provides unified WebRTC/MSE/MJPEG fallback for browser playback.
  */
 
 import type { Response, Router } from 'express';
-import { getCameraProxyService } from '../../../services/CameraProxyService';
-import { getRtspStreamService } from '../../../services/RtspStreamService';
+import { getGo2rtcService } from '../../../services/Go2rtcService';
 import { getCameraUserConfig, resolveCameraConfig } from '../../../utils/camera-utils';
 import { toAppError } from '../../../utils/error.utils';
 import type { CameraStatusResponse, StandardAPIResponse } from '../../types/web-api.types';
 import type { AuthenticatedRequest } from '../auth-middleware';
 import { type RouteDependencies, resolveContext, sendErrorResponse } from './route-helpers';
 
+function isGo2rtcSourceType(sourceType: string): sourceType is 'builtin' | 'custom' {
+  return sourceType === 'builtin' || sourceType === 'custom';
+}
+
 export function registerCameraRoutes(router: Router, deps: RouteDependencies): void {
   router.get('/camera/status', async (req: AuthenticatedRequest, res: Response) => {
     try {
       const contextResult = resolveContext(req, deps, { requireBackendReady: true });
       if (!contextResult.success) {
-        return sendErrorResponse<StandardAPIResponse>(
-          res,
-          contextResult.statusCode,
-          contextResult.error
-        );
+        return sendErrorResponse<StandardAPIResponse>(res, contextResult.statusCode, contextResult.error);
       }
 
-      const { contextId, context } = contextResult;
-      const features = deps.backendManager.getFeatures(contextId);
-      if (!features) {
-        return sendErrorResponse<StandardAPIResponse>(res, 500, 'Failed to get printer features');
-      }
-
-      const cameraConfig = resolveCameraConfig({
-        printerIpAddress: context.printerDetails.IPAddress,
-        printerFeatures: features,
-        userConfig: getCameraUserConfig(contextId),
-      });
-      const isAvailable = cameraConfig.isAvailable;
+      const isAvailable = deps.backendManager.isFeatureAvailable(contextResult.contextId, 'camera');
+      const go2rtcService = getGo2rtcService();
+      const hasStream = go2rtcService.hasStream(contextResult.contextId);
 
       const response: CameraStatusResponse = {
         available: isAvailable,
-        streaming: false,
-        url: isAvailable ? '/api/camera/stream' : undefined,
+        streaming: hasStream,
+        url: isAvailable ? '/api/camera/proxy-config' : undefined,
         clientCount: 0,
       };
 
@@ -57,11 +51,7 @@ export function registerCameraRoutes(router: Router, deps: RouteDependencies): v
         requireBackendInstance: true,
       });
       if (!contextResult.success) {
-        return sendErrorResponse<StandardAPIResponse>(
-          res,
-          contextResult.statusCode,
-          contextResult.error
-        );
+        return sendErrorResponse<StandardAPIResponse>(res, contextResult.statusCode, contextResult.error);
       }
 
       const { contextId, context, backend } = contextResult;
@@ -69,11 +59,6 @@ export function registerCameraRoutes(router: Router, deps: RouteDependencies): v
         return sendErrorResponse<StandardAPIResponse>(res, 503, 'Backend not available');
       }
 
-      // Use the standard camera resolution logic which handles all cases:
-      // - Custom camera with URL → uses provided URL
-      // - Custom camera without URL → auto-generates http://{IP}:8080/?action=stream
-      // - Built-in camera (5M Pro) → uses default URL
-      // - No camera → returns unavailable
       const backendStatus = backend.getBackendStatus();
       const cameraConfig = resolveCameraConfig({
         printerIpAddress: context.printerDetails.IPAddress,
@@ -81,94 +66,57 @@ export function registerCameraRoutes(router: Router, deps: RouteDependencies): v
         userConfig: getCameraUserConfig(contextId),
       });
 
-      if (!cameraConfig.isAvailable || !cameraConfig.streamUrl) {
-        return sendErrorResponse<StandardAPIResponse>(
-          res,
-          503,
-          'Camera not available for this printer'
-        );
+      if (!cameraConfig.isAvailable || !cameraConfig.streamUrl || !cameraConfig.streamType) {
+        return sendErrorResponse<StandardAPIResponse>(res, 503, 'Camera not available for this printer');
       }
 
-      if (cameraConfig.streamType === 'rtsp') {
-        const rtspStreamService = getRtspStreamService();
-        const ffmpegStatus = rtspStreamService.getFfmpegStatus();
-
-        if (!ffmpegStatus.available) {
-          return sendErrorResponse<
-            StandardAPIResponse & { streamType: 'rtsp'; ffmpegAvailable: boolean }
-          >(res, 503, 'ffmpeg required to view RTSP cameras in browser', {
-            streamType: 'rtsp',
-            ffmpegAvailable: false,
-          });
-        }
-
-        let streamStatus = rtspStreamService.getStreamStatus(contextId);
-        if (!streamStatus || streamStatus.rtspUrl !== cameraConfig.streamUrl) {
-          try {
-            const { rtspFrameRate, rtspQuality } = context.printerDetails;
-            await rtspStreamService.setupStream(contextId, cameraConfig.streamUrl, {
-              frameRate: rtspFrameRate,
-              quality: rtspQuality,
-            });
-            streamStatus = rtspStreamService.getStreamStatus(contextId);
-          } catch (streamError) {
-            console.error(
-              `[WebUI] Failed to setup RTSP stream for context ${contextId}:`,
-              streamError
-            );
-            return sendErrorResponse<StandardAPIResponse>(res, 503, 'RTSP stream not available');
-          }
-        }
-
-        if (!streamStatus) {
-          return sendErrorResponse<StandardAPIResponse>(res, 503, 'RTSP stream not available');
-        }
-
-        const response = {
-          success: true,
-          streamType: 'rtsp' as const,
-          wsPort: streamStatus.wsPort,
-          ffmpegAvailable: true,
-        };
-        return res.json(response);
+      if (!isGo2rtcSourceType(cameraConfig.sourceType)) {
+        return sendErrorResponse<StandardAPIResponse>(res, 503, 'Camera source type not supported');
       }
 
-      const cameraProxyService = getCameraProxyService();
-      let status = cameraProxyService.getStatusForContext(contextId);
+      const go2rtcService = getGo2rtcService();
 
-      if (!status || status.sourceUrl !== cameraConfig.streamUrl) {
+      if (!go2rtcService.isRunning()) {
         try {
-          await cameraProxyService.setStreamUrl(contextId, cameraConfig.streamUrl);
-          status = cameraProxyService.getStatusForContext(contextId);
-        } catch (proxyError) {
-          console.error(
-            `[WebUI] Failed to start camera proxy for context ${contextId}:`,
-            proxyError
-          );
-          return sendErrorResponse<StandardAPIResponse>(
-            res,
-            503,
-            'Camera proxy could not be started'
-          );
+          await go2rtcService.initialize();
+        } catch (initError) {
+          console.error('[WebUI] Failed to initialize go2rtc service:', initError);
+          return sendErrorResponse<StandardAPIResponse>(res, 503, 'Camera streaming service not available');
         }
       }
 
-      if (!status) {
-        return sendErrorResponse<StandardAPIResponse>(
-          res,
-          503,
-          'Camera proxy not available for this printer'
-        );
+      if (!go2rtcService.hasMatchingStream(contextId, cameraConfig.streamUrl, cameraConfig.sourceType, cameraConfig.streamType)) {
+        try {
+          await go2rtcService.addStream(
+            contextId,
+            cameraConfig.streamUrl,
+            cameraConfig.sourceType,
+            cameraConfig.streamType
+          );
+        } catch (streamError) {
+          console.error(`[WebUI] Failed to setup stream for context ${contextId}:`, streamError);
+          return sendErrorResponse<StandardAPIResponse>(res, 503, 'Failed to setup camera stream');
+        }
+      }
+
+      const streamConfig = go2rtcService.getStreamConfig(contextId);
+      if (!streamConfig) {
+        return sendErrorResponse<StandardAPIResponse>(res, 503, 'Camera stream not available');
       }
 
       const host = req.hostname || 'localhost';
-      const response = {
+      const wsUrl = `ws://${host}:${streamConfig.apiPort}/api/ws?src=${encodeURIComponent(streamConfig.streamName)}`;
+
+      return res.json({
         success: true,
-        streamType: 'mjpeg' as const,
-        port: status.port,
-        url: `http://${host}:${status.port}/stream`,
-      };
-      return res.json(response);
+        wsUrl,
+        streamType: cameraConfig.streamType,
+        sourceType: cameraConfig.sourceType,
+        streamName: streamConfig.streamName,
+        apiPort: streamConfig.apiPort,
+        mode: streamConfig.mode,
+        showCameraFps: false,
+      });
     } catch (error) {
       const appError = toAppError(error);
       return sendErrorResponse<StandardAPIResponse>(res, 500, appError.message);

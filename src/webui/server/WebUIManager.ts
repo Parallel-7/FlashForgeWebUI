@@ -108,7 +108,7 @@ export class WebUIManager extends EventEmitter {
   // WebSocket manager
   private readonly webSocketManager = getWebSocketManager();
 
-  // Note: RTSP stream service is initialized globally and accessed via getRtspStreamService() in routes
+  // Camera streaming is handled by the shared go2rtc service via the API routes.
 
   private constructor() {
     super();
@@ -182,8 +182,15 @@ export class WebUIManager extends EventEmitter {
       this.expressApp.use(express.static(webUIStaticPath, {
         // Enable fallthrough for SPA routing (handled separately)
         fallthrough: true,
-        // Set reasonable cache headers
-        maxAge: envInfo.isProduction ? '1d' : 0
+        // Do not cache static assets because the packaged app does not use hashed filenames.
+        etag: false,
+        lastModified: false,
+        maxAge: 0,
+        setHeaders: (res) => {
+          res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+          res.setHeader('Pragma', 'no-cache');
+          res.setHeader('Expires', '0');
+        },
       }));
       console.log('[WebUI] Static file middleware configured successfully');
 
@@ -395,9 +402,6 @@ export class WebUIManager extends EventEmitter {
       this.expressApp = express();
       this.port = config.WebUIPort;
 
-      // Note: RTSP stream service is now initialized globally in index.ts
-      // No need for conditional initialization here
-
       // Setup middleware and routes
       this.setupMiddleware();
       this.setupRoutes();
@@ -407,12 +411,12 @@ export class WebUIManager extends EventEmitter {
 
       // Create HTTP server
       this.httpServer = http.createServer(this.expressApp!);
-
-      // Initialize WebSocket server
-      this.webSocketManager.initialize(this.httpServer);
       
       // Start listening
       await this.startListening();
+
+      // Initialize WebSocket server only after the HTTP socket is bound.
+      this.webSocketManager.initialize(this.httpServer);
       
       this.isRunning = true;
       
@@ -424,8 +428,29 @@ export class WebUIManager extends EventEmitter {
       return true;
       
     } catch (error) {
+      await this.cleanupFailedStart();
       console.error('Failed to start WebUI server:', error);
       return false;
+    }
+  }
+
+  /**
+   * Reset partial server state when startup fails before the server is fully running.
+   */
+  private async cleanupFailedStart(): Promise<void> {
+    try {
+      this.webSocketManager.shutdown();
+
+      if (this.httpServer) {
+        await new Promise<void>((resolve) => {
+          this.httpServer!.close(() => resolve());
+        }).catch(() => {});
+      }
+    } finally {
+      this.httpServer = null;
+      this.expressApp = null;
+      this.isRunning = false;
+      this.connectedClients = 0;
     }
   }
   

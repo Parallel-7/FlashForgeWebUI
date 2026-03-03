@@ -23,8 +23,7 @@ import { getMultiContextPollingCoordinator } from './services/MultiContextPollin
 import { getMultiContextPrintStateMonitor } from './services/MultiContextPrintStateMonitor';
 import { getMultiContextTemperatureMonitor } from './services/MultiContextTemperatureMonitor';
 import { getMultiContextSpoolmanTracker } from './services/MultiContextSpoolmanTracker';
-import { getCameraProxyService } from './services/CameraProxyService';
-import { getRtspStreamService } from './services/RtspStreamService';
+import { getGo2rtcService } from './services/Go2rtcService';
 import { initializeSpoolmanIntegrationService } from './services/SpoolmanIntegrationService';
 import { getSavedPrinterService } from './services/SavedPrinterService';
 import { parseHeadlessArguments, validateHeadlessConfig } from './utils/HeadlessArguments';
@@ -32,6 +31,7 @@ import * as readline from 'readline';
 import { createHardDeadline } from './utils/ShutdownTimeout';
 import type { HeadlessConfig, PrinterSpec } from './utils/HeadlessArguments';
 import type { PrinterDetails, PrinterClientType } from './types/printer';
+import { getCameraUserConfig, resolveCameraConfig } from './utils/camera-utils';
 import { initializeDataDirectory } from './utils/setup';
 
 // Initialize global singleton services
@@ -42,9 +42,7 @@ const backendManager = getPrinterBackendManager();
 const pollingCoordinator = getMultiContextPollingCoordinator();
 const savedPrinterService = getSavedPrinterService();
 const webUIManager = getWebUIManager();
-// Camera proxy service is initialized but not directly used - proxies are created per-context
-// @ts-expect-error - cameraProxyService will be used for direct camera operations in future
-const _cameraProxyService = getCameraProxyService();
+const go2rtcService = getGo2rtcService();
 
 let connectedContexts: string[] = [];
 let isInitialized = false;
@@ -242,22 +240,67 @@ function setupEventForwarding(): void {
 }
 
 /**
- * Initialize camera proxies for all connected contexts
+ * Reconcile a context's camera stream against current printer details and features.
  */
-async function initializeCameraProxies(): Promise<void> {
-  for (const contextId of connectedContexts) {
-    try {
-      const context = contextManager.getContext(contextId);
-      if (!context) {
-        continue;
-      }
-
-      // Camera proxies are created automatically during connection
-      // Just log status
-      console.log(`[Camera] Proxy ready for context: ${contextId}`);
-    } catch (error) {
-      console.error(`[Camera] Failed to initialize for context ${contextId}:`, error);
+async function reconcileCameraStream(contextId: string): Promise<void> {
+  try {
+    const context = contextManager.getContext(contextId);
+    if (!context) {
+      await go2rtcService.removeStream(contextId);
+      return;
     }
+
+    const features = backendManager.getFeatures(contextId);
+    if (!features) {
+      await go2rtcService.removeStream(contextId);
+      return;
+    }
+
+    const cameraConfig = resolveCameraConfig({
+      printerIpAddress: context.printerDetails.IPAddress,
+      printerFeatures: features,
+      userConfig: getCameraUserConfig(contextId),
+    });
+
+    if (
+      !cameraConfig.isAvailable ||
+      !cameraConfig.streamUrl ||
+      !cameraConfig.streamType ||
+      (cameraConfig.sourceType !== 'builtin' && cameraConfig.sourceType !== 'custom')
+    ) {
+      await go2rtcService.removeStream(contextId);
+      return;
+    }
+
+    if (
+      go2rtcService.hasMatchingStream(
+        contextId,
+        cameraConfig.streamUrl,
+        cameraConfig.sourceType,
+        cameraConfig.streamType
+      )
+    ) {
+      return;
+    }
+
+    await go2rtcService.addStream(
+      contextId,
+      cameraConfig.streamUrl,
+      cameraConfig.sourceType,
+      cameraConfig.streamType
+    );
+    console.log(`[Camera] Stream ready for context: ${contextId}`);
+  } catch (error) {
+    console.error(`[Camera] Failed to reconcile stream for context ${contextId}:`, error);
+  }
+}
+
+/**
+ * Initialize camera streams for all currently connected contexts.
+ */
+async function reconcileConnectedCameraStreams(): Promise<void> {
+  for (const contextId of connectedContexts) {
+    await reconcileCameraStream(contextId);
   }
 }
 
@@ -331,21 +374,17 @@ async function shutdown(): Promise<void> {
     // Step 1: Stop polling (immediate)
     console.log('[Shutdown] Step 1/4: Stopping polling...');
     pollingCoordinator.stopAllPolling();
-    console.log('[Shutdown] ✓ Polling stopped');
+    console.log('[Shutdown] Polling stopped');
 
     // Step 2: Parallel disconnects (all printers disconnect concurrently)
     console.log(`[Shutdown] Step 2/4: Disconnecting ${connectedContexts.length} context(s)...`);
     if (connectedContexts.length > 0) {
-      const results = await Promise.allSettled(
-        connectedContexts.map(contextId =>
-          connectionManager.disconnectContext(contextId)
-        )
-      );
+      const results = await Promise.allSettled(connectedContexts.map((contextId) => connectionManager.disconnectContext(contextId)));
 
-      const succeeded = results.filter(r => r.status === 'fulfilled').length;
-      const failed = results.filter(r => r.status === 'rejected').length;
+      const succeeded = results.filter((result) => result.status === 'fulfilled').length;
+      const failed = results.filter((result) => result.status === 'rejected').length;
 
-      console.log(`[Shutdown] ✓ Disconnect: ${succeeded} succeeded, ${failed} failed`);
+      console.log(`[Shutdown] Disconnect: ${succeeded} succeeded, ${failed} failed`);
 
       // Log individual failures for debugging
       results.forEach((result, index) => {
@@ -354,18 +393,22 @@ async function shutdown(): Promise<void> {
         }
       });
     } else {
-      console.log('[Shutdown] ✓ No contexts to disconnect');
+      console.log('[Shutdown] No contexts to disconnect');
     }
 
-    // Step 3: Stop WebUI (with timeout and force-close fallback)
-    console.log('[Shutdown] Step 3/4: Stopping WebUI...');
-    await webUIManager.stop(SHUTDOWN_CONFIG.WEBUI_STOP_TIMEOUT_MS);
-    console.log('[Shutdown] ✓ WebUI stopped');
+    // Step 3: Stop go2rtc camera streaming service
+    console.log('[Shutdown] Step 3/4: Stopping camera streaming...');
+    await go2rtcService.shutdown();
+    console.log('[Shutdown] Camera streaming stopped');
 
-    // Step 4: Complete (cancel hard deadline)
+    // Step 4: Stop WebUI (with timeout and force-close fallback)
+    console.log('[Shutdown] Step 4/4: Stopping WebUI...');
+    await webUIManager.stop(SHUTDOWN_CONFIG.WEBUI_STOP_TIMEOUT_MS);
+    console.log('[Shutdown] WebUI stopped');
+
     clearTimeout(hardDeadline);
     const duration = Date.now() - startTime;
-    console.log(`[Shutdown] ✓ Complete (${duration}ms)`);
+    console.log(`[Shutdown] Complete (${duration}ms)`);
 
   } catch (error) {
     console.error('[Shutdown] Error:', error);
@@ -410,10 +453,9 @@ async function main(): Promise<void> {
       }
     });
 
-    // 5. Initialize RTSP stream service (before config changes)
-    const rtspStreamService = getRtspStreamService();
-    await rtspStreamService.initialize();
-    console.log('[Init] RTSP stream service initialized');
+    // 5. Initialize go2rtc camera streaming service
+    await go2rtcService.initialize();
+    console.log('[Init] go2rtc camera streaming service initialized');
 
     // 6. Initialize Spoolman integration service (before config changes)
     initializeSpoolmanIntegrationService(configManager, contextManager, backendManager);
@@ -447,7 +489,7 @@ async function main(): Promise<void> {
     });
     console.log('[Events] Post-connection hook configured');
 
-    // 10c. Setup backend-initialized hook to start polling and create monitors
+    // 10c. Setup backend-initialized hook to start polling, create monitors, and reconcile camera streams
     // This is critical for Spoolman deduction and print state monitoring
     // IMPORTANT: This handles both startup connections AND dynamic connections (API reconnect/discovery)
     connectionManager.on('backend-initialized', (event: unknown) => {
@@ -487,12 +529,28 @@ async function main(): Promise<void> {
         spoolmanTracker.createTrackerForContext(contextId, stateMonitor);
 
         console.log(`[Events] Created SpoolmanTracker for context ${contextId}`);
+        void reconcileCameraStream(contextId);
         console.log(`[Events] All services initialized for context ${contextId}`);
       } catch (error) {
         console.error(`[Events] Failed to initialize services for context ${contextId}:`, error);
       }
     });
     console.log('[Events] Backend-initialized hook configured');
+
+    contextManager.on('context-updated', (contextId: string) => {
+      void reconcileCameraStream(contextId);
+    });
+    console.log('[Events] Context-updated hook configured');
+
+    connectionManager.on('pre-disconnect', (contextId: string) => {
+      void go2rtcService.removeStream(contextId);
+    });
+    console.log('[Events] Pre-disconnect hook configured');
+
+    contextManager.on('context-removed', (event: { contextId: string }) => {
+      void go2rtcService.removeStream(event.contextId);
+    });
+    console.log('[Events] Context-removed hook configured');
 
     // 11. Connect to printers (handlers are now ready to receive backend-initialized events)
     console.log('[Init] Connecting to printers...');
@@ -515,15 +573,15 @@ async function main(): Promise<void> {
     // 12. Start WebUI server
     await startWebUI();
 
-    // 13. Note: Polling and monitors are initialized by backend-initialized handler
+    // 13. Note: Polling, monitors, and camera streams are initialized by backend-initialized handler
     // This handler fires for both startup connections AND dynamic connections
     if (connectedContexts.length > 0) {
       console.log(`[Init] Services initialized for ${connectedContexts.length} printer(s) via backend-initialized handler`);
     }
 
-    // 14. Initialize camera proxies
+    // 14. Reconcile camera streams for any contexts already connected
     if (connectedContexts.length > 0) {
-      await initializeCameraProxies();
+      await reconcileConnectedCameraStreams();
     }
 
     // 15. Setup signal handlers

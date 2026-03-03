@@ -52,10 +52,6 @@ export interface PrinterDetails {
   // WebUI settings (per-printer overrides)
   webUIEnabled?: boolean;
 
-  // RTSP streaming settings (per-printer)
-  rtspFrameRate?: number;    // 1-60 fps, default: 30
-  rtspQuality?: number;       // 1-5 (1=best, 5=worst), default: 3
-
   // Spoolman integration (per-printer)
   activeSpoolData?: import('./spoolman').ActiveSpoolData | null;
 }
@@ -235,12 +231,6 @@ export interface PrinterContextInfo {
 
   /** Whether this context is the active one */
   readonly isActive: boolean;
-
-  /** Whether this printer has camera support */
-  readonly hasCamera: boolean;
-
-  /** Local camera proxy URL if available */
-  readonly cameraUrl?: string;
 
   /** When this context was created */
   readonly createdAt: string; // ISO date string

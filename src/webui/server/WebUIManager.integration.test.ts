@@ -80,9 +80,9 @@ describe('WebUIManager Integration Tests', () => {
         WebUIPort: 3001,
         WebUIPassword: 'testpass',
         WebUIPasswordRequired: true,
+        CameraProxyPort: 8181,
         SpoolmanEnabled: false,
-        SpoolmanServerUrl: '',
-        CameraProxyPort: 8181
+        SpoolmanServerUrl: ''
       }),
       get: jest.fn().mockReturnValue(true),
       on: jest.fn()

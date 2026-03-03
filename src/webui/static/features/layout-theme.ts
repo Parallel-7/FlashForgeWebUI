@@ -32,6 +32,7 @@ import {
 import type { ApiResponse, PrinterFeatures, PrinterStatus, WebUISettings } from '../app.js';
 import { apiRequest, apiRequestWithMetadata } from '../core/Transport.js';
 import { $, showToast } from '../shared/dom.js';
+import { teardownCameraStreamElements } from './camera.js';
 import { updateEditModeToggle } from '../ui/header.js';
 
 export interface LayoutUiHooks {
@@ -673,25 +674,3 @@ function isThemeColors(value: unknown): value is ThemeColors {
   );
 }
 
-function teardownCameraStreamElements(): void {
-  const cameraPlaceholder = $('camera-placeholder');
-  if (cameraPlaceholder) {
-    cameraPlaceholder.classList.remove('hidden');
-    cameraPlaceholder.textContent = 'Camera Unavailable';
-  }
-
-  const cameraStream = $('camera-stream') as HTMLImageElement | null;
-  if (cameraStream) {
-    cameraStream.src = '';
-    cameraStream.onload = null;
-    cameraStream.onerror = null;
-  }
-
-  const cameraCanvas = $('camera-canvas') as HTMLCanvasElement | null;
-  if (cameraCanvas) {
-    const ctx = cameraCanvas.getContext('2d');
-    if (ctx) {
-      ctx.clearRect(0, 0, cameraCanvas.width, cameraCanvas.height);
-    }
-  }
-}

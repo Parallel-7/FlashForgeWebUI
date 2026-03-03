@@ -6,7 +6,6 @@
  */
 
 import type { Response, Router } from 'express';
-import { getCameraUserConfig, resolveCameraConfig } from '../../../utils/camera-utils';
 import { toAppError } from '../../../utils/error.utils';
 import type {
   MaterialStationStatusResponse,
@@ -45,6 +44,7 @@ interface ExtendedPrinterStatus {
   readonly estimatedRightWeight?: number;
   readonly cumulativeFilament?: number;
   readonly cumulativePrintTime?: number;
+  readonly printEta?: string;
 }
 
 export function registerPrinterStatusRoutes(router: Router, deps: RouteDependencies): void {
@@ -76,6 +76,8 @@ export function registerPrinterStatusRoutes(router: Router, deps: RouteDependenc
       let estimatedWeight: number | undefined;
       let estimatedLength: number | undefined;
       let timeElapsed: number | undefined;
+      let elapsedTimeSeconds: number | undefined;
+      let formattedEta: string | undefined;
       let cumulativeFilament: number | undefined;
       let cumulativePrintTime: number | undefined;
 
@@ -94,7 +96,11 @@ export function registerPrinterStatusRoutes(router: Router, deps: RouteDependenc
         estimatedLength = statusResult.status.estimatedRightLen
           ? statusResult.status.estimatedRightLen / 1000
           : undefined;
-        timeElapsed = statusResult.status.printDuration;
+        timeElapsed = statusResult.status.printDuration !== undefined
+          ? Math.round(statusResult.status.printDuration / 60)
+          : undefined;
+        elapsedTimeSeconds = statusResult.status.printDuration;
+        formattedEta = statusResult.status.printEta;
 
         if ('cumulativeFilament' in statusResult.status) {
           cumulativeFilament = statusResult.status.cumulativeFilament as number;
@@ -123,6 +129,8 @@ export function registerPrinterStatusRoutes(router: Router, deps: RouteDependenc
           estimatedLength,
           cumulativeFilament,
           cumulativePrintTime,
+          formattedEta,
+          elapsedTimeSeconds,
         },
       };
 
@@ -144,21 +152,15 @@ export function registerPrinterStatusRoutes(router: Router, deps: RouteDependenc
         );
       }
 
-      const { contextId, context } = contextResult;
+      const { contextId } = contextResult;
       const features = deps.backendManager.getFeatures(contextId);
 
       if (!features) {
         return sendErrorResponse<StandardAPIResponse>(res, 500, 'Failed to get printer features');
       }
 
-      const cameraConfig = resolveCameraConfig({
-        printerIpAddress: context.printerDetails.IPAddress,
-        printerFeatures: features,
-        userConfig: getCameraUserConfig(contextId),
-      });
-
       const featureResponse: PrinterFeatures = {
-        hasCamera: cameraConfig.isAvailable,
+        hasCamera: deps.backendManager.isFeatureAvailable(contextId, 'camera'),
         hasLED: deps.backendManager.isFeatureAvailable(contextId, 'led-control'),
         hasFiltration: deps.backendManager.isFeatureAvailable(contextId, 'filtration'),
         hasMaterialStation: deps.backendManager.isFeatureAvailable(contextId, 'material-station'),

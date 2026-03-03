@@ -69,6 +69,57 @@ export class PrinterDetailsManager {
   }
 
   /**
+   * Remove unsupported per-printer keys while preserving current behavior.
+   */
+  private sanitizePrinterDetails(details: PrinterDetails): PrinterDetails {
+    return {
+      Name: details.Name,
+      IPAddress: details.IPAddress,
+      SerialNumber: details.SerialNumber,
+      CheckCode: details.CheckCode,
+      ClientType: details.ClientType,
+      printerModel: details.printerModel,
+      ...(details.modelType ? { modelType: details.modelType } : {}),
+      ...(details.customCameraEnabled !== undefined
+        ? { customCameraEnabled: details.customCameraEnabled }
+        : {}),
+      ...(details.customCameraUrl !== undefined
+        ? { customCameraUrl: details.customCameraUrl }
+        : {}),
+      ...(details.customLedsEnabled !== undefined
+        ? { customLedsEnabled: details.customLedsEnabled }
+        : {}),
+      ...(details.forceLegacyMode !== undefined
+        ? { forceLegacyMode: details.forceLegacyMode }
+        : {}),
+      ...(details.webUIEnabled !== undefined
+        ? { webUIEnabled: details.webUIEnabled }
+        : {}),
+      ...(details.activeSpoolData !== undefined
+        ? { activeSpoolData: details.activeSpoolData }
+        : {}),
+    };
+  }
+
+  /**
+   * Remove unsupported stored-printer keys while preserving metadata.
+   */
+  private sanitizeStoredPrinterDetails(details: StoredPrinterDetails): StoredPrinterDetails {
+    return {
+      ...this.sanitizePrinterDetails(details),
+      lastConnected: details.lastConnected,
+    };
+  }
+
+  /**
+   * Check whether sanitization would change the persisted printer record.
+   */
+  private storedPrinterNeedsResave(details: StoredPrinterDetails): boolean {
+    const sanitizedDetails = this.sanitizeStoredPrinterDetails(details);
+    return JSON.stringify(details) !== JSON.stringify(sanitizedDetails);
+  }
+
+  /**
    * Validate PrinterDetails structure
    * Ensures all required fields are present and properly formatted
    */
@@ -273,7 +324,20 @@ export class PrinterDetailsManager {
 
       // Validate new format
       if (this.validateMultiPrinterConfig(parsedData)) {
-        this.currentConfig = parsedData;
+        let needsResave = false;
+        const sanitizedPrinters: MultiPrinterConfig['printers'] = {};
+
+        for (const [serialNumber, printerData] of Object.entries(parsedData.printers)) {
+          if (this.storedPrinterNeedsResave(printerData)) {
+            needsResave = true;
+          }
+          sanitizedPrinters[serialNumber] = this.sanitizeStoredPrinterDetails(printerData);
+        }
+
+        this.currentConfig = {
+          lastUsedPrinterSerial: parsedData.lastUsedPrinterSerial,
+          printers: sanitizedPrinters,
+        };
 
         // Validate lastUsedPrinterSerial integrity
         if (this.currentConfig.lastUsedPrinterSerial &&
@@ -287,6 +351,12 @@ export class PrinterDetailsManager {
 
         const printerCount = Object.keys(this.currentConfig.printers).length;
         console.log(`Loaded multi-printer configuration with ${printerCount} saved printers`);
+
+        if (needsResave) {
+          void this.saveConfigToFile().catch((error) => {
+            console.warn('Failed to save sanitized printer configuration:', error);
+          });
+        }
       } else {
         console.warn('Invalid printer configuration found - starting fresh');
         this.currentConfig = {
@@ -325,8 +395,9 @@ export class PrinterDetailsManager {
    * Convert PrinterDetails to StoredPrinterDetails with current timestamp
    */
   private toStoredPrinterDetails(details: PrinterDetails): StoredPrinterDetails {
+    const sanitizedDetails = this.sanitizePrinterDetails(details);
     return {
-      ...details,
+      ...sanitizedDetails,
       lastConnected: new Date().toISOString()
     };
   }
