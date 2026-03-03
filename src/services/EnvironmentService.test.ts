@@ -3,13 +3,22 @@
  * Tests environment detection, path resolution, and static file serving paths
  */
 
-import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
+import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals';
+import * as fs from 'fs';
+import * as os from 'os';
 import * as path from 'path';
 import { EnvironmentService, getEnvironmentService } from './EnvironmentService';
+
+type PkgProcess = NodeJS.Process & {
+  pkg?: {
+    entrypoint?: string;
+  };
+};
 
 // Mock process.cwd
 const originalCwd = process.cwd;
 const mockEnv = { ...process.env };
+const processWithPkg = process as PkgProcess;
 
 describe('EnvironmentService', () => {
   let service: EnvironmentService;
@@ -21,6 +30,8 @@ describe('EnvironmentService', () => {
   });
 
   afterEach(() => {
+    jest.restoreAllMocks();
+    processWithPkg.pkg = undefined;
     // Restore original values
     process.cwd = originalCwd;
   });
@@ -52,19 +63,19 @@ describe('EnvironmentService', () => {
 
     it('should detect packaged environment via process.pkg', () => {
       // Mock process.pkg
-      (process as any).pkg = { entrypoint: '/test' };
+      processWithPkg.pkg = { entrypoint: '/test' };
 
       const packagedService = new EnvironmentService();
       expect(packagedService.isPackaged()).toBe(true);
 
       // Cleanup
-      (process as any).pkg = undefined;
+      processWithPkg.pkg = undefined;
     });
 
     it('should not detect packaged environment when no indicators present', () => {
       // Ensure no pkg indicators
       delete process.env.PKG_EXECPATH;
-      (process as any).pkg = undefined;
+      processWithPkg.pkg = undefined;
 
       const devService = new EnvironmentService();
       // In normal test environment, this should be false
@@ -84,10 +95,10 @@ describe('EnvironmentService', () => {
     });
 
     it('should return true for isProduction when packaged', () => {
-      (process as any).pkg = { entrypoint: '/test' };
+      processWithPkg.pkg = { entrypoint: '/test' };
       const packagedService = new EnvironmentService();
       expect(packagedService.isProduction()).toBe(true);
-      (process as any).pkg = undefined;
+      processWithPkg.pkg = undefined;
     });
 
     it('should return false for isProduction when in development', () => {
@@ -156,17 +167,37 @@ describe('EnvironmentService', () => {
     });
 
     it('should return packaged static path when packaged', () => {
+      const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ffwui-env-service-'));
+      const bundledDistDir = path.join(tempDir, 'dist');
+      const bundledStaticPath = path.join(bundledDistDir, 'webui', 'static');
+      fs.mkdirSync(bundledStaticPath, { recursive: true });
+
       // Simulate packaged environment
-      (process as any).pkg = { entrypoint: '/test' };
+      processWithPkg.pkg = { entrypoint: path.join(bundledDistDir, 'index.js') };
 
       const packagedService = new EnvironmentService();
       const staticPath = packagedService.getWebUIStaticPath();
 
-      // In packaged mode, should use __dirname and contain webui/static
-      expect(staticPath).toBeTruthy();
-      expect(typeof staticPath).toBe('string');
+      expect(staticPath).toBe(bundledStaticPath);
 
-      (process as any).pkg = undefined;
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    });
+
+    it('should fall back to the legacy packaged static path when needed', () => {
+      const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ffwui-env-service-'));
+      const bundledDistDir = path.join(tempDir, 'dist');
+      const bundledStaticPath = path.join(bundledDistDir, 'webui', 'static');
+      const legacyStaticPath = path.join(tempDir, 'webui', 'static');
+      fs.mkdirSync(legacyStaticPath, { recursive: true });
+
+      processWithPkg.pkg = { entrypoint: path.join(bundledDistDir, 'index.js') };
+
+      const packagedService = new EnvironmentService();
+
+      expect(packagedService.getWebUIStaticPath()).toBe(legacyStaticPath);
+      expect(bundledStaticPath).not.toBe(legacyStaticPath);
+
+      fs.rmSync(tempDir, { recursive: true, force: true });
     });
   });
 
@@ -212,11 +243,7 @@ describe('EnvironmentService', () => {
     });
 
     it('should maintain singleton across multiple calls', () => {
-      const instances = [
-        getEnvironmentService(),
-        getEnvironmentService(),
-        getEnvironmentService()
-      ];
+      const instances = [getEnvironmentService(), getEnvironmentService(), getEnvironmentService()];
 
       expect(instances[0]).toBe(instances[1]);
       expect(instances[1]).toBe(instances[2]);
@@ -236,7 +263,7 @@ describe('EnvironmentService', () => {
     it('should handle various NODE_ENV values', () => {
       const envValues = ['production', 'development', 'test', 'staging'];
 
-      envValues.forEach(envValue => {
+      envValues.forEach((envValue) => {
         process.env.NODE_ENV = envValue;
         const testService = new EnvironmentService();
 
@@ -250,12 +277,12 @@ describe('EnvironmentService', () => {
 
     it('should prioritize packaged detection over NODE_ENV', () => {
       process.env.NODE_ENV = 'development';
-      (process as any).pkg = { entrypoint: '/test' };
+      processWithPkg.pkg = { entrypoint: '/test' };
 
       const testService = new EnvironmentService();
       expect(testService.isProduction()).toBe(true); // Packaged takes precedence
 
-      (process as any).pkg = undefined;
+      processWithPkg.pkg = undefined;
     });
   });
 });

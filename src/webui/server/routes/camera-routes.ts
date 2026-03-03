@@ -2,11 +2,14 @@
  * @fileoverview Camera status and proxy configuration routes for the WebUI server.
  */
 
-import type { Router, Response } from 'express';
-import type { AuthenticatedRequest } from '../auth-middleware';
-import type { CameraStatusResponse, StandardAPIResponse } from '../../types/web-api.types';
+import type { Response, Router } from 'express';
+import { getCameraProxyService } from '../../../services/CameraProxyService';
+import { getRtspStreamService } from '../../../services/RtspStreamService';
+import { getCameraUserConfig, resolveCameraConfig } from '../../../utils/camera-utils';
 import { toAppError } from '../../../utils/error.utils';
-import { resolveContext, sendErrorResponse, type RouteDependencies } from './route-helpers';
+import type { CameraStatusResponse, StandardAPIResponse } from '../../types/web-api.types';
+import type { AuthenticatedRequest } from '../auth-middleware';
+import { type RouteDependencies, resolveContext, sendErrorResponse } from './route-helpers';
 
 export function registerCameraRoutes(router: Router, deps: RouteDependencies): void {
   router.get('/camera/status', async (req: AuthenticatedRequest, res: Response) => {
@@ -23,20 +26,13 @@ export function registerCameraRoutes(router: Router, deps: RouteDependencies): v
       const { contextId, context } = contextResult;
       const features = deps.backendManager.getFeatures(contextId);
       if (!features) {
-        return sendErrorResponse<StandardAPIResponse>(
-          res,
-          500,
-          'Failed to get printer features'
-        );
+        return sendErrorResponse<StandardAPIResponse>(res, 500, 'Failed to get printer features');
       }
 
-      const { resolveCameraConfig, getCameraUserConfig } = await import(
-        '../../../utils/camera-utils'
-      );
       const cameraConfig = resolveCameraConfig({
         printerIpAddress: context.printerDetails.IPAddress,
         printerFeatures: features,
-        userConfig: getCameraUserConfig(contextId)
+        userConfig: getCameraUserConfig(contextId),
       });
       const isAvailable = cameraConfig.isAvailable;
 
@@ -44,7 +40,7 @@ export function registerCameraRoutes(router: Router, deps: RouteDependencies): v
         available: isAvailable,
         streaming: false,
         url: isAvailable ? '/api/camera/stream' : undefined,
-        clientCount: 0
+        clientCount: 0,
       };
 
       return res.json(response);
@@ -58,7 +54,7 @@ export function registerCameraRoutes(router: Router, deps: RouteDependencies): v
     try {
       const contextResult = resolveContext(req, deps, {
         requireBackendReady: true,
-        requireBackendInstance: true
+        requireBackendInstance: true,
       });
       if (!contextResult.success) {
         return sendErrorResponse<StandardAPIResponse>(
@@ -73,10 +69,6 @@ export function registerCameraRoutes(router: Router, deps: RouteDependencies): v
         return sendErrorResponse<StandardAPIResponse>(res, 503, 'Backend not available');
       }
 
-      const { resolveCameraConfig, getCameraUserConfig } = await import(
-        '../../../utils/camera-utils'
-      );
-
       // Use the standard camera resolution logic which handles all cases:
       // - Custom camera with URL → uses provided URL
       // - Custom camera without URL → auto-generates http://{IP}:8080/?action=stream
@@ -86,7 +78,7 @@ export function registerCameraRoutes(router: Router, deps: RouteDependencies): v
       const cameraConfig = resolveCameraConfig({
         printerIpAddress: context.printerDetails.IPAddress,
         printerFeatures: backendStatus.features,
-        userConfig: getCameraUserConfig(contextId)
+        userConfig: getCameraUserConfig(contextId),
       });
 
       if (!cameraConfig.isAvailable || !cameraConfig.streamUrl) {
@@ -98,7 +90,6 @@ export function registerCameraRoutes(router: Router, deps: RouteDependencies): v
       }
 
       if (cameraConfig.streamType === 'rtsp') {
-        const { getRtspStreamService } = await import('../../../services/RtspStreamService');
         const rtspStreamService = getRtspStreamService();
         const ffmpegStatus = rtspStreamService.getFfmpegStatus();
 
@@ -107,7 +98,7 @@ export function registerCameraRoutes(router: Router, deps: RouteDependencies): v
             StandardAPIResponse & { streamType: 'rtsp'; ffmpegAvailable: boolean }
           >(res, 503, 'ffmpeg required to view RTSP cameras in browser', {
             streamType: 'rtsp',
-            ffmpegAvailable: false
+            ffmpegAvailable: false,
           });
         }
 
@@ -117,7 +108,7 @@ export function registerCameraRoutes(router: Router, deps: RouteDependencies): v
             const { rtspFrameRate, rtspQuality } = context.printerDetails;
             await rtspStreamService.setupStream(contextId, cameraConfig.streamUrl, {
               frameRate: rtspFrameRate,
-              quality: rtspQuality
+              quality: rtspQuality,
             });
             streamStatus = rtspStreamService.getStreamStatus(contextId);
           } catch (streamError) {
@@ -137,12 +128,11 @@ export function registerCameraRoutes(router: Router, deps: RouteDependencies): v
           success: true,
           streamType: 'rtsp' as const,
           wsPort: streamStatus.wsPort,
-          ffmpegAvailable: true
+          ffmpegAvailable: true,
         };
         return res.json(response);
       }
 
-      const { getCameraProxyService } = await import('../../../services/CameraProxyService');
       const cameraProxyService = getCameraProxyService();
       let status = cameraProxyService.getStatusForContext(contextId);
 
@@ -176,7 +166,7 @@ export function registerCameraRoutes(router: Router, deps: RouteDependencies): v
         success: true,
         streamType: 'mjpeg' as const,
         port: status.port,
-        url: `http://${host}:${status.port}/stream`
+        url: `http://${host}:${status.port}/stream`,
       };
       return res.json(response);
     } catch (error) {

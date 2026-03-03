@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
     "target": "ES2022",
-    "module": "commonjs",
+    "module": "ESNext",
     "lib": ["ES2022"],
     "outDir": "./dist",
     "rootDir": "./src",
@@ -9,7 +9,7 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
-    "moduleResolution": "node",
+    "moduleResolution": "bundler",
     "resolveJsonModule": true,
     "declaration": true,
     "declarationMap": true,
@@ -32,11 +32,5 @@
     "src/__tests__/**/*.ts",
     "**/*.test.ts"
   ],
-  "exclude": [
-    "node_modules",
-    "dist",
-    ".dependencies",
-    "FlashForgeUI-Electron",
-    "src/webui/static"
-  ]
+  "exclude": ["node_modules", "dist", ".dependencies", "FlashForgeUI-Electron", "src/webui/static"]
 }

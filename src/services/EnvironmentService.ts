@@ -5,8 +5,16 @@
  * Standalone implementation without Electron dependencies.
  */
 
-import * as path from 'path';
 import * as fs from 'fs';
+import * as path from 'path';
+
+interface PkgRuntimeMetadata {
+  entrypoint?: string;
+}
+
+type PkgProcess = NodeJS.Process & {
+  pkg?: PkgRuntimeMetadata;
+};
 
 /**
  * Environment service for determining runtime environment and paths
@@ -27,6 +35,8 @@ export class EnvironmentService {
    * Uses multiple detection methods for reliability
    */
   private detectPackagedEnvironment(): boolean {
+    const pkgProcess = process as PkgProcess;
+
     // Method 1: Check for PKG_EXECPATH environment variable (set by pkg)
     if (process.env.PKG_EXECPATH) {
       return true;
@@ -38,11 +48,44 @@ export class EnvironmentService {
     }
 
     // Method 3: Check if running from a binary (process.pkg exists in pkg binaries)
-    if ((process as any).pkg) {
+    if (pkgProcess.pkg) {
       return true;
     }
 
     return false;
+  }
+
+  /**
+   * Resolve the packaged entry directory from pkg metadata when available.
+   * Falls back to the current module directory for compatibility with older output layouts.
+   */
+  private getPackagedEntrypointDir(): string {
+    const pkgProcess = process as PkgProcess;
+    const packagedEntrypoint = pkgProcess.pkg?.entrypoint;
+
+    if (typeof packagedEntrypoint === 'string' && packagedEntrypoint.length > 0) {
+      return path.dirname(packagedEntrypoint);
+    }
+
+    return __dirname;
+  }
+
+  /**
+   * Resolve WebUI static assets inside a pkg snapshot.
+   *
+   * We support both layouts:
+   * - bundled backend:   /snapshot/.../dist/index.js -> /snapshot/.../dist/webui/static
+   * - legacy tsc output: /snapshot/.../dist/services/*.js -> /snapshot/.../dist/webui/static
+   */
+  private getPackagedStaticPath(): string {
+    const packagedEntrypointDir = this.getPackagedEntrypointDir();
+    const candidatePaths = [
+      path.join(packagedEntrypointDir, 'webui', 'static'),
+      path.join(packagedEntrypointDir, '..', 'webui', 'static'),
+    ];
+
+    const existingPath = candidatePaths.find((candidatePath) => fs.existsSync(candidatePath));
+    return existingPath ?? candidatePaths[0];
   }
 
   /**
@@ -90,10 +133,7 @@ export class EnvironmentService {
    */
   public getWebUIStaticPath(): string {
     if (this._isPackaged) {
-      // In pkg binaries, static files are embedded and accessible via __dirname
-      // __dirname points to the snapshot filesystem where assets are bundled
-      const pkgStaticPath = path.join(__dirname, '../webui/static');
-      return pkgStaticPath;
+      return this.getPackagedStaticPath();
     }
 
     // In development or running via node directly, use process.cwd()
@@ -141,7 +181,7 @@ export class EnvironmentService {
       dirname: __dirname,
       cwd: process.cwd(),
       staticPath: this.getWebUIStaticPath(),
-      dataPath: this.getDataPath()
+      dataPath: this.getDataPath(),
     };
   }
 }

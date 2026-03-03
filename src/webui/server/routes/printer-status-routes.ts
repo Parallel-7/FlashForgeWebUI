@@ -5,16 +5,17 @@
  * shared context resolution so browser clients can query different printers independently.
  */
 
-import type { Router, Response } from 'express';
-import type { AuthenticatedRequest } from '../auth-middleware';
-import type {
-  PrinterStatusResponse,
-  PrinterFeatures,
-  MaterialStationStatusResponse,
-  StandardAPIResponse
-} from '../../types/web-api.types';
+import type { Response, Router } from 'express';
+import { getCameraUserConfig, resolveCameraConfig } from '../../../utils/camera-utils';
 import { toAppError } from '../../../utils/error.utils';
-import { resolveContext, sendErrorResponse, type RouteDependencies } from './route-helpers';
+import type {
+  MaterialStationStatusResponse,
+  PrinterFeatures,
+  PrinterStatusResponse,
+  StandardAPIResponse,
+} from '../../types/web-api.types';
+import type { AuthenticatedRequest } from '../auth-middleware';
+import { type RouteDependencies, resolveContext, sendErrorResponse } from './route-helpers';
 
 interface ExtendedPrinterStatus {
   readonly printerState: string;
@@ -121,8 +122,8 @@ export function registerPrinterStatusRoutes(router: Router, deps: RouteDependenc
           estimatedWeight,
           estimatedLength,
           cumulativeFilament,
-          cumulativePrintTime
-        }
+          cumulativePrintTime,
+        },
       };
 
       return res.json(response);
@@ -147,20 +148,13 @@ export function registerPrinterStatusRoutes(router: Router, deps: RouteDependenc
       const features = deps.backendManager.getFeatures(contextId);
 
       if (!features) {
-        return sendErrorResponse<StandardAPIResponse>(
-          res,
-          500,
-          'Failed to get printer features'
-        );
+        return sendErrorResponse<StandardAPIResponse>(res, 500, 'Failed to get printer features');
       }
 
-      const { resolveCameraConfig, getCameraUserConfig } = await import(
-        '../../../utils/camera-utils'
-      );
       const cameraConfig = resolveCameraConfig({
         printerIpAddress: context.printerDetails.IPAddress,
         printerFeatures: features,
-        userConfig: getCameraUserConfig(contextId)
+        userConfig: getCameraUserConfig(contextId),
       });
 
       const featureResponse: PrinterFeatures = {
@@ -172,12 +166,12 @@ export function registerPrinterStatusRoutes(router: Router, deps: RouteDependenc
         canResume: features.jobManagement.pauseResume,
         canCancel: features.jobManagement.cancelJobs,
         ledUsesLegacyAPI:
-          features.ledControl.customControlEnabled || features.ledControl.usesLegacyAPI
+          features.ledControl.customControlEnabled || features.ledControl.usesLegacyAPI,
       };
 
       return res.json({
         success: true,
-        features: featureResponse
+        features: featureResponse,
       });
     } catch (error) {
       const appError = toAppError(error);
@@ -200,14 +194,14 @@ export function registerPrinterStatusRoutes(router: Router, deps: RouteDependenc
       if (!deps.backendManager.isFeatureAvailable(contextId, 'material-station')) {
         return res.status(200).json({
           success: false,
-          error: 'Material station not available on this printer'
+          error: 'Material station not available on this printer',
         } satisfies MaterialStationStatusResponse);
       }
 
       const status = deps.backendManager.getMaterialStationStatus(contextId);
       const response: MaterialStationStatusResponse = {
         success: true,
-        status: status ?? null
+        status: status ?? null,
       };
       return res.json(response);
     } catch (error) {

@@ -29,27 +29,15 @@
  * - camera-preview component: JSMpeg player for RTSP streams
  */
 
-import { EventEmitter } from '../utils/EventEmitter';
-import { exec } from 'child_process';
-import { promisify } from 'util';
 import type { ChildProcess } from 'child_process';
+import { exec } from 'child_process';
+import NodeRtspStream from 'node-rtsp-stream';
+import { promisify } from 'util';
+import { EventEmitter } from '../utils/EventEmitter';
 
 const execAsync = promisify(exec);
 
-// node-rtsp-stream doesn't have official TypeScript types.
-// Using dynamic require with type casting.
-
-// Stream type from node-rtsp-stream
-interface Stream {
-  mpeg1Muxer?: {
-    stream?: ChildProcess;
-  };
-  on(event: string, callback: (...args: unknown[]) => void): void;
-  stop(): void;
-}
-
-// Import node-rtsp-stream library (no official types)
-const StreamConstructor = require('node-rtsp-stream') as { new(...args: unknown[]): Stream };
+type Stream = InstanceType<typeof NodeRtspStream>;
 
 // ============================================================================
 // TYPES
@@ -62,9 +50,9 @@ interface RtspStreamConfig {
   contextId: string;
   rtspUrl: string;
   wsPort: number;
-  stream: Stream;  // Stream instance from node-rtsp-stream
+  stream: Stream; // Stream instance from node-rtsp-stream
   isActive: boolean;
-  ffmpegProcess?: ChildProcess;  // Reference to ffmpeg child process
+  ffmpegProcess?: ChildProcess; // Reference to ffmpeg child process
 }
 
 /**
@@ -156,16 +144,16 @@ export class RtspStreamService extends EventEmitter<RtspStreamEventMap> {
       'ffmpeg', // Try PATH first
 
       // ===== macOS =====
-      '/opt/homebrew/bin/ffmpeg',        // Homebrew on Apple Silicon (M1/M2/M3)
-      '/usr/local/bin/ffmpeg',           // Homebrew on Intel Mac
-      '/opt/local/bin/ffmpeg',           // MacPorts
+      '/opt/homebrew/bin/ffmpeg', // Homebrew on Apple Silicon (M1/M2/M3)
+      '/usr/local/bin/ffmpeg', // Homebrew on Intel Mac
+      '/opt/local/bin/ffmpeg', // MacPorts
 
       // ===== Linux =====
-      '/usr/bin/ffmpeg',                 // apt, yum/dnf, pacman
-      '/snap/bin/ffmpeg',                // Snap packages
-      '/var/lib/flatpak/exports/bin/ffmpeg',      // Flatpak system-wide
+      '/usr/bin/ffmpeg', // apt, yum/dnf, pacman
+      '/snap/bin/ffmpeg', // Snap packages
+      '/var/lib/flatpak/exports/bin/ffmpeg', // Flatpak system-wide
       '~/.local/share/flatpak/exports/bin/ffmpeg', // Flatpak user install
-      '~/bin/ffmpeg',                    // User home bin directory
+      '~/bin/ffmpeg', // User home bin directory
 
       // ===== Windows =====
       'C:\\ffmpeg\\bin\\ffmpeg.exe',
@@ -179,7 +167,10 @@ export class RtspStreamService extends EventEmitter<RtspStreamEventMap> {
     for (const ffmpegPath of ffmpegPaths) {
       try {
         // Expand ~ to home directory if present
-        const expandedPath = ffmpegPath.replace(/^~/, process.env.HOME || process.env.USERPROFILE || '');
+        const expandedPath = ffmpegPath.replace(
+          /^~/,
+          process.env.HOME || process.env.USERPROFILE || ''
+        );
 
         // Quote the path to handle spaces
         const { stdout } = await execAsync(`"${expandedPath}" -version`);
@@ -188,11 +179,12 @@ export class RtspStreamService extends EventEmitter<RtspStreamEventMap> {
 
         this.ffmpegStatus = {
           available: true,
-          version
+          version,
         };
 
         // Add ffmpeg directory to PATH so node-rtsp-stream can spawn it
-        if (expandedPath !== 'ffmpeg') {  // Only for explicit paths, not PATH-based
+        if (expandedPath !== 'ffmpeg') {
+          // Only for explicit paths, not PATH-based
           const lastSlashIndex = expandedPath.lastIndexOf('/');
           const lastBackslashIndex = expandedPath.lastIndexOf('\\');
           const separatorIndex = Math.max(lastSlashIndex, lastBackslashIndex);
@@ -218,7 +210,7 @@ export class RtspStreamService extends EventEmitter<RtspStreamEventMap> {
     // If we get here, ffmpeg wasn't found in any location
     this.ffmpegStatus = {
       available: false,
-      error: `ffmpeg not found in any common location. Last error: ${lastError}`
+      error: `ffmpeg not found in any common location. Last error: ${lastError}`,
     };
 
     console.warn('[RtspStreamService] ffmpeg not found in any location');
@@ -285,17 +277,17 @@ export class RtspStreamService extends EventEmitter<RtspStreamEventMap> {
 
     try {
       // Create node-rtsp-stream instance
-      const stream = new StreamConstructor({
+      const stream = new NodeRtspStream({
         name: contextId,
         streamUrl: rtspUrl,
         wsPort,
         ffmpegOptions: {
           // DO NOT include '-stats' - it enables verbose output
-          '-nostats': '',  // Disable progress statistics output
-          '-loglevel': 'quiet',  // Suppress ffmpeg banner and info
-          '-r': frameRate,    // Use configurable frame rate
-          '-q:v': String(quality)      // Use configurable quality
-        }
+          '-nostats': '', // Disable progress statistics output
+          '-loglevel': 'quiet', // Suppress ffmpeg banner and info
+          '-r': frameRate, // Use configurable frame rate
+          '-q:v': String(quality), // Use configurable quality
+        },
       });
 
       // Suppress ffmpeg stderr output (node-rtsp-stream emits it as 'ffmpegStderr' event)
@@ -313,12 +305,14 @@ export class RtspStreamService extends EventEmitter<RtspStreamEventMap> {
         wsPort,
         stream,
         isActive: true,
-        ffmpegProcess
+        ffmpegProcess,
       };
 
       this.streams.set(contextId, streamConfig);
 
-      console.log(`[RtspStreamService] RTSP stream active for context ${contextId} on ws://localhost:${wsPort}`);
+      console.log(
+        `[RtspStreamService] RTSP stream active for context ${contextId} on ws://localhost:${wsPort}`
+      );
       this.emit('stream-started', { contextId, wsPort });
 
       return wsPort;
@@ -361,7 +355,9 @@ export class RtspStreamService extends EventEmitter<RtspStreamEventMap> {
           // Timeout after 2 seconds
           setTimeout(() => {
             if (!ffmpegProcess.killed) {
-              console.warn('[RtspStreamService] ffmpeg process did not exit cleanly, force killing');
+              console.warn(
+                '[RtspStreamService] ffmpeg process did not exit cleanly, force killing'
+              );
               ffmpegProcess.kill('SIGKILL');
             }
             resolve();
@@ -441,9 +437,7 @@ export class RtspStreamService extends EventEmitter<RtspStreamEventMap> {
    * Finds the next available port starting from BASE_WS_PORT
    */
   private allocatePort(): number {
-    const usedPorts = new Set(
-      Array.from(this.streams.values()).map(s => s.wsPort)
-    );
+    const usedPorts = new Set(Array.from(this.streams.values()).map((s) => s.wsPort));
 
     for (let i = 0; i < this.MAX_STREAMS; i++) {
       const port = this.BASE_WS_PORT + i;
