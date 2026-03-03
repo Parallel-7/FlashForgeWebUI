@@ -4,7 +4,7 @@
 
 import type { Router, Response } from 'express';
 import type { AuthenticatedRequest } from '../auth-middleware';
-import { CameraStatusResponse, StandardAPIResponse } from '../../types/web-api.types';
+import type { CameraStatusResponse, StandardAPIResponse } from '../../types/web-api.types';
 import { toAppError } from '../../../utils/error.utils';
 import { resolveContext, sendErrorResponse, type RouteDependencies } from './route-helpers';
 
@@ -20,10 +20,25 @@ export function registerCameraRoutes(router: Router, deps: RouteDependencies): v
         );
       }
 
-      const isAvailable = deps.backendManager.isFeatureAvailable(
-        contextResult.contextId,
-        'camera'
+      const { contextId, context } = contextResult;
+      const features = deps.backendManager.getFeatures(contextId);
+      if (!features) {
+        return sendErrorResponse<StandardAPIResponse>(
+          res,
+          500,
+          'Failed to get printer features'
+        );
+      }
+
+      const { resolveCameraConfig, getCameraUserConfig } = await import(
+        '../../../utils/camera-utils'
       );
+      const cameraConfig = resolveCameraConfig({
+        printerIpAddress: context.printerDetails.IPAddress,
+        printerFeatures: features,
+        userConfig: getCameraUserConfig(contextId)
+      });
+      const isAvailable = cameraConfig.isAvailable;
 
       const response: CameraStatusResponse = {
         available: isAvailable,
@@ -97,7 +112,7 @@ export function registerCameraRoutes(router: Router, deps: RouteDependencies): v
         }
 
         let streamStatus = rtspStreamService.getStreamStatus(contextId);
-        if (!streamStatus) {
+        if (!streamStatus || streamStatus.rtspUrl !== cameraConfig.streamUrl) {
           try {
             const { rtspFrameRate, rtspQuality } = context.printerDetails;
             await rtspStreamService.setupStream(contextId, cameraConfig.streamUrl, {
@@ -131,7 +146,7 @@ export function registerCameraRoutes(router: Router, deps: RouteDependencies): v
       const cameraProxyService = getCameraProxyService();
       let status = cameraProxyService.getStatusForContext(contextId);
 
-      if (!status) {
+      if (!status || status.sourceUrl !== cameraConfig.streamUrl) {
         try {
           await cameraProxyService.setStreamUrl(contextId, cameraConfig.streamUrl);
           status = cameraProxyService.getStatusForContext(contextId);

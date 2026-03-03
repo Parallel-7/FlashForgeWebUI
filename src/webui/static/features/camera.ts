@@ -72,6 +72,14 @@ export async function loadCameraStream(): Promise<void> {
   try {
     const config = await apiRequest<CameraProxyConfigResponse>('/api/camera/proxy-config');
 
+    if (!config.success) {
+      showElement('camera-placeholder');
+      hideElement('camera-stream');
+      hideElement('camera-canvas');
+      cameraPlaceholder.textContent = config.error || 'Camera unavailable';
+      return;
+    }
+
     if (config.streamType === 'rtsp') {
       if (config.ffmpegAvailable === false) {
         showElement('camera-placeholder');
@@ -143,7 +151,7 @@ export async function loadCameraStream(): Promise<void> {
 }
 
 export function initializeCamera(): void {
-  if (!state.printerFeatures?.hasCamera) {
+  if (state.printerFeatures && !state.printerFeatures.hasCamera) {
     teardownCameraStreamElements();
     return;
   }

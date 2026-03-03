@@ -7,7 +7,7 @@
 
 import type { Router, Response } from 'express';
 import type { AuthenticatedRequest } from '../auth-middleware';
-import {
+import type {
   PrinterStatusResponse,
   PrinterFeatures,
   MaterialStationStatusResponse,
@@ -143,7 +143,7 @@ export function registerPrinterStatusRoutes(router: Router, deps: RouteDependenc
         );
       }
 
-      const { contextId } = contextResult;
+      const { contextId, context } = contextResult;
       const features = deps.backendManager.getFeatures(contextId);
 
       if (!features) {
@@ -154,8 +154,17 @@ export function registerPrinterStatusRoutes(router: Router, deps: RouteDependenc
         );
       }
 
+      const { resolveCameraConfig, getCameraUserConfig } = await import(
+        '../../../utils/camera-utils'
+      );
+      const cameraConfig = resolveCameraConfig({
+        printerIpAddress: context.printerDetails.IPAddress,
+        printerFeatures: features,
+        userConfig: getCameraUserConfig(contextId)
+      });
+
       const featureResponse: PrinterFeatures = {
-        hasCamera: deps.backendManager.isFeatureAvailable(contextId, 'camera'),
+        hasCamera: cameraConfig.isAvailable,
         hasLED: deps.backendManager.isFeatureAvailable(contextId, 'led-control'),
         hasFiltration: deps.backendManager.isFeatureAvailable(contextId, 'filtration'),
         hasMaterialStation: deps.backendManager.isFeatureAvailable(contextId, 'material-station'),
