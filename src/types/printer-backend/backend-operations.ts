@@ -14,8 +14,8 @@
  * - BackendEvent: Event system for backend state changes
  */
 
-import { FiveMClient, FlashForgeClient, FFGcodeToolData } from '@ghosttypes/ff-api';
-import { PrinterFeatureSet, MaterialStationStatus } from './printer-features';
+import type { FiveMClient, FlashForgeClient, FFGcodeToolData } from '@ghosttypes/ff-api';
+import type { PrinterFeatureSet, MaterialStationStatus } from './printer-features';
 
 /**
  * Printer model types supported by the backend system

@@ -4,13 +4,13 @@
  */
 
 import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach, jest } from '@jest/globals';
-import express, { Express } from 'express';
+import express, { type Express } from 'express';
 import * as fs from 'fs';
 import * as path from 'path';
 import request from 'supertest';
-import { EnvironmentService } from '../../services/EnvironmentService';
-import { ConfigManager } from '../../managers/ConfigManager';
-import { StandardAPIResponse } from '../types/web-api.types';
+import type { EnvironmentService } from '../../services/EnvironmentService';
+import type { ConfigManager } from '../../managers/ConfigManager';
+import type { StandardAPIResponse } from '../types/web-api.types';
 
 // Mock the singleton dependencies
 jest.mock('../../services/EnvironmentService');

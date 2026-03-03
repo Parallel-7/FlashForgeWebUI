@@ -19,8 +19,8 @@
  */
 
 import { EventEmitter } from 'events';
-import { FiveMClient, FlashForgeClient } from '@ghosttypes/ff-api';
-import { PrinterDetails, PrinterConnectionState } from '../types/printer';
+import type { FiveMClient, FlashForgeClient } from '@ghosttypes/ff-api';
+import type { PrinterDetails, PrinterConnectionState } from '../types/printer';
 import { getPrinterContextManager } from '../managers/PrinterContextManager';
 
 /**

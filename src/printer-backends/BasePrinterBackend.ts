@@ -26,7 +26,7 @@
 import { EventEmitter } from 'events';
 import { FiveMClient, FlashForgeClient } from '@ghosttypes/ff-api';
 import { getConfigManager } from '../managers/ConfigManager';
-import {
+import type {
   PrinterModelType,
   PrinterFeatureSet,
   BackendInitOptions,

@@ -54,10 +54,6 @@ interface MultiContextPrintStateMonitorEventMap extends Record<string, unknown[]
 export class MultiContextPrintStateMonitor extends EventEmitter<MultiContextPrintStateMonitorEventMap> {
   private readonly monitors: Map<string, PrintStateMonitor> = new Map();
 
-  constructor() {
-    super();
-  }
-
   /**
    * Create a print state monitor for a specific context
    */

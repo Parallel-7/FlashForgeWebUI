@@ -4,7 +4,7 @@
 
 import type { Router, Response } from 'express';
 import type { AuthenticatedRequest } from '../auth-middleware';
-import { StandardAPIResponse } from '../../types/web-api.types';
+import type { StandardAPIResponse } from '../../types/web-api.types';
 import { toAppError } from '../../../utils/error.utils';
 import type { RouteDependencies } from './route-helpers';
 

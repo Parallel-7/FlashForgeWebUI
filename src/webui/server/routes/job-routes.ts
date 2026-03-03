@@ -7,7 +7,7 @@ import type { AuthenticatedRequest } from '../auth-middleware';
 import { JobStartRequestSchema } from '../../schemas/web-api.schemas';
 import { createValidationError } from '../../schemas/web-api.schemas';
 import { toAppError } from '../../../utils/error.utils';
-import { StandardAPIResponse } from '../../types/web-api.types';
+import type { StandardAPIResponse } from '../../types/web-api.types';
 import { isAD5XJobInfo } from '../../../printer-backends/ad5x/ad5x-utils';
 import type { AD5XJobInfo, BasicJobInfo } from '../../../types/printer-backend/backend-operations';
 import { resolveContext, sendErrorResponse, type RouteDependencies } from './route-helpers';

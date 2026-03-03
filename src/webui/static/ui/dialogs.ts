@@ -146,7 +146,9 @@ export function showFileModal(files: WebUIJobFile[], source: 'recent' | 'local')
     }
 
     item.addEventListener('click', () => {
-      fileList.querySelectorAll('.file-item').forEach((el) => el.classList.remove('selected'));
+      fileList.querySelectorAll('.file-item').forEach((el) => {
+        el.classList.remove('selected');
+      });
       item.classList.add('selected');
       state.selectedFile = file.fileName;
 

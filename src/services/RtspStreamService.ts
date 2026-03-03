@@ -36,9 +36,8 @@ import type { ChildProcess } from 'child_process';
 
 const execAsync = promisify(exec);
 
-// node-rtsp-stream doesn't have official TypeScript types
-// Using dynamic require with type casting
-/* eslint-disable @typescript-eslint/no-require-imports */
+// node-rtsp-stream doesn't have official TypeScript types.
+// Using dynamic require with type casting.
 
 // Stream type from node-rtsp-stream
 interface Stream {

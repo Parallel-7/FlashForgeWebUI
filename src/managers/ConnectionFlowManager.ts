@@ -26,7 +26,7 @@
  */
 
 import { EventEmitter } from 'events';
-import { FiveMClient, FlashForgeClient } from '@ghosttypes/ff-api';
+import type { FiveMClient, FlashForgeClient } from '@ghosttypes/ff-api';
 
 import { getConfigManager } from './ConfigManager';
 import { getLoadingManager } from './LoadingManager';
@@ -41,7 +41,7 @@ import { getConnectionStateManager } from '../services/ConnectionStateManager';
 import { getDialogIntegrationService } from '../services/DialogIntegrationService';
 import { getConnectionEstablishmentService } from '../services/ConnectionEstablishmentService';
 
-import {
+import type {
   PrinterDetails,
   DiscoveredPrinter,
   ConnectionResult,

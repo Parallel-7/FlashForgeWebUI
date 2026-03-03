@@ -16,9 +16,9 @@
  * - AuthenticatedRequest: Extended Request interface with auth property
  */
 
-import { Request, Response, NextFunction } from 'express';
+import type { Request, Response, NextFunction } from 'express';
 import { getAuthManager } from './AuthManager';
-import { StandardAPIResponse } from '../types/web-api.types';
+import type { StandardAPIResponse } from '../types/web-api.types';
 
 /**
  * Extended Express Request with auth info

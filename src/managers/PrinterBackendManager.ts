@@ -26,8 +26,8 @@
  */
 
 import { EventEmitter } from 'events';
-import { FiveMClient, FlashForgeClient, AD5XMaterialMapping } from '@ghosttypes/ff-api';
-import { BasePrinterBackend } from '../printer-backends/BasePrinterBackend';
+import type { FiveMClient, FlashForgeClient, AD5XMaterialMapping } from '@ghosttypes/ff-api';
+import type { BasePrinterBackend } from '../printer-backends/BasePrinterBackend';
 import { GenericLegacyBackend } from '../printer-backends/GenericLegacyBackend';
 import { Adventurer5MBackend } from '../printer-backends/Adventurer5MBackend';
 import { Adventurer5MProBackend } from '../printer-backends/Adventurer5MProBackend';
@@ -35,8 +35,8 @@ import { AD5XBackend } from '../printer-backends/AD5XBackend';
 import { getConfigManager } from './ConfigManager';
 import { getLoadingManager } from './LoadingManager';
 import { getPrinterContextManager } from './PrinterContextManager';
-import { PrinterDetails } from '../types/printer';
-import {
+import type { PrinterDetails } from '../types/printer';
+import type {
   PrinterModelType,
   PrinterFeatureType,
   PrinterFeatureSet,

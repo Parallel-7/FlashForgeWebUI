@@ -20,11 +20,11 @@
  */
 
 import {
-  AD5XJobInfo,
-  FFGcodeToolData,
-  SlotInfo,
+  type AD5XJobInfo,
+  type FFGcodeToolData,
+  type SlotInfo,
   hasValidMaterialStationInfo,
-  MaterialStationStatus,
+  type MaterialStationStatus,
   isAD5XMachineInfo
 } from './ad5x-types';
 import { transformMaterialStation, createEmptyMaterialStation } from './ad5x-transforms';

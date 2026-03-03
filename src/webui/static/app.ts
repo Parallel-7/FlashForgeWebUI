@@ -62,7 +62,7 @@ import {
 import { loadSpoolmanConfig, setupSpoolmanHandlers } from './features/spoolman.js';
 import { initializeCamera } from './features/camera.js';
 import { initializeDiscovery } from './features/printer-discovery.js';
-import { DialogHandlers, setupDialogEventHandlers } from './ui/dialogs.js';
+import { type DialogHandlers, setupDialogEventHandlers } from './ui/dialogs.js';
 import {
   updateConnectionStatus,
   updatePrinterStatus,

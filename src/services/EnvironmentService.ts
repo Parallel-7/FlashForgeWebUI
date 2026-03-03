@@ -38,7 +38,6 @@ export class EnvironmentService {
     }
 
     // Method 3: Check if running from a binary (process.pkg exists in pkg binaries)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     if ((process as any).pkg) {
       return true;
     }

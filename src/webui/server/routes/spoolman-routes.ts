@@ -4,7 +4,7 @@
 
 import type { Router, Response } from 'express';
 import type { AuthenticatedRequest } from '../auth-middleware';
-import {
+import type {
   SpoolmanConfigResponse,
   SpoolSearchResponse,
   ActiveSpoolResponse,

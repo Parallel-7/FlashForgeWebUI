@@ -47,7 +47,7 @@
 import express from 'express';
 import * as http from 'http';
 import { EventEmitter } from '../utils/EventEmitter';
-import {
+import type {
   CameraProxyConfig,
   CameraProxyStatus,
   CameraProxyClient,

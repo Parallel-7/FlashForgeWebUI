@@ -205,7 +205,10 @@ function handleWebSocketMessage(message: WebSocketMessage): void {
 
     case 'STATUS_UPDATE':
       if (message.status) {
-        statusUpdateCallbacks.forEach((callback) => callback(message.status!));
+        const status = message.status;
+        statusUpdateCallbacks.forEach((callback) => {
+          callback(status);
+        });
       }
       break;
 
@@ -227,9 +230,10 @@ function handleWebSocketMessage(message: WebSocketMessage): void {
 
     case 'SPOOLMAN_UPDATE':
       if (message.contextId) {
-        spoolmanUpdateCallbacks.forEach((callback) =>
-          callback(message.contextId!, message.spool ?? null),
-        );
+        const contextId = message.contextId;
+        spoolmanUpdateCallbacks.forEach((callback) => {
+          callback(contextId, message.spool ?? null);
+        });
       }
       break;
   }

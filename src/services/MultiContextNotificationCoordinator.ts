@@ -80,10 +80,6 @@ interface NotificationCoordinatorEventMap extends Record<string, unknown[]> {
 export class MultiContextNotificationCoordinator extends EventEmitter<NotificationCoordinatorEventMap> {
   private isInitialized = false;
 
-  constructor() {
-    super();
-  }
-
   /**
    * Initialize the notification coordinator
    * Sets up event listeners for print state events

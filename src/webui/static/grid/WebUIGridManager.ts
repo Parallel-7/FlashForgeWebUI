@@ -275,7 +275,9 @@ export class WebUIGridManager {
     });
 
     const hidden = layout.hiddenComponents ?? [];
-    hidden.forEach((componentId) => this.hideComponent(componentId));
+    hidden.forEach((componentId) => {
+      this.hideComponent(componentId);
+    });
   }
 
   public onChange(callback: WebUIGridChangeCallback): () => void {

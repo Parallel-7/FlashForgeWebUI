@@ -6,7 +6,7 @@ import type { Router, Response } from 'express';
 import type { AuthenticatedRequest } from '../auth-middleware';
 import type { RouteDependencies } from './route-helpers';
 import { sanitizeTheme } from '../../../types/config';
-import { StandardAPIResponse } from '../../types/web-api.types';
+import type { StandardAPIResponse } from '../../types/web-api.types';
 import { toAppError } from '../../../utils/error.utils';
 
 export function registerPublicThemeRoutes(router: Router, deps: RouteDependencies): void {

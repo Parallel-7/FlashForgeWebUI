@@ -343,7 +343,6 @@ body {
 .logout-button:hover {
   background-color: var(--button-hover);
 }
-}
 
 /* Main Layout */
 .main-layout {

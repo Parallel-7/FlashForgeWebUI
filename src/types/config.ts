@@ -228,11 +228,9 @@ export function sanitizeConfig(config: Partial<AppConfig>): AppConfig {
               // Validate port numbers
               if (numValue >= 1 && numValue <= 65535) {
                 // Type assertion is safe here because we've validated it's a valid port number
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 (sanitized as any)[key] = numValue;
               }
             } else {
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
               (sanitized as any)[key] = numValue;
             }
           }

@@ -19,7 +19,7 @@
  */
 
 import { DualAPIBackend } from './DualAPIBackend';
-import {
+import type {
   PrinterFeatureSet,
   MaterialStationStatus
 } from '../types/printer-backend';

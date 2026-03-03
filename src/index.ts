@@ -231,7 +231,6 @@ function setupEventForwarding(): void {
   // Forward polling data to WebUI for real-time updates
   // For WebUI (single-printer or multi-printer), forward all context data
   // The WebUI/WebSocket layer will handle filtering if needed
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   pollingCoordinator.on('polling-data', (contextId: string, data: any) => {
     // Forward all polling data regardless of active context
     // This ensures data reaches the WebUI even if active context isn't set yet
@@ -395,7 +394,9 @@ async function main(): Promise<void> {
     const validation = validateHeadlessConfig(config);
     if (!validation.valid) {
       console.error('[Init] Configuration validation failed:');
-      validation.errors.forEach((error) => console.error(`  - ${error}`));
+      validation.errors.forEach((error) => {
+        console.error(`  - ${error}`);
+      });
       process.exit(1);
     }
 

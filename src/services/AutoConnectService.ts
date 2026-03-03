@@ -17,12 +17,9 @@
  */
 
 import { EventEmitter } from 'events';
-import { getConfigManager } from '../managers/ConfigManager';
-import { SavedPrinterMatch, AutoConnectDecision } from '../types/printer';
+import type { SavedPrinterMatch, AutoConnectDecision } from '../types/printer';
 export class AutoConnectService extends EventEmitter {
   private static instance: AutoConnectService | null = null;
-  // @ts-expect-error - ConfigManager will be used when config options are added
-  private readonly _configManager = getConfigManager();
 
   private constructor() {
     super();

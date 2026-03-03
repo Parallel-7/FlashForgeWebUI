@@ -49,8 +49,8 @@
  * and UI components for printer-specific behavior.
  */
 
-import { PrinterFamilyInfo, PrinterClientType } from '../types/printer';
-import { PrinterModelType } from '../types/printer-backend';
+import type { PrinterFamilyInfo, PrinterClientType } from '../types/printer';
+import type { PrinterModelType } from '../types/printer-backend';
 
 /**
  * Enhanced printer family info with specific model type

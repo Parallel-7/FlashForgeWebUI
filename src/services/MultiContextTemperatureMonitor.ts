@@ -78,10 +78,6 @@ export class MultiContextTemperatureMonitor extends EventEmitter<MultiContextTem
   private readonly monitors = new Map<string, TemperatureMonitoringService>();
   private isInitialized = false;
 
-  constructor() {
-    super();
-  }
-
   /**
    * Initialize the multi-context temperature monitor
    * Sets up event listeners for context lifecycle events

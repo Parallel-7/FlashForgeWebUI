@@ -35,11 +35,11 @@
  */
 
 import {
-  CameraUrlResolutionParams,
-  ResolvedCameraConfig,
-  CameraUrlValidationResult,
-  CameraUserConfig,
-  CameraStreamType,
+  type CameraUrlResolutionParams,
+  type ResolvedCameraConfig,
+  type CameraUrlValidationResult,
+  type CameraUserConfig,
+  type CameraStreamType,
   DEFAULT_CAMERA_PATTERNS
 } from '../types/camera';
 import { getConfigManager } from '../managers/ConfigManager';

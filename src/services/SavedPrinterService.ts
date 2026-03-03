@@ -22,7 +22,7 @@
 
 import { EventEmitter } from 'events';
 import { getPrinterDetailsManager } from '../managers/PrinterDetailsManager';
-import {
+import type {
   PrinterDetails,
   StoredPrinterDetails,
   SavedPrinterMatch,

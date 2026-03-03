@@ -6,7 +6,7 @@
  * cameras (MJPEG/RTSP) and custom camera URLs with proper validation and type guards.
  */
 
-import { PrinterFeatureSet } from './printer-backend';
+import type { PrinterFeatureSet } from './printer-backend';
 
 /**
  * Camera source types

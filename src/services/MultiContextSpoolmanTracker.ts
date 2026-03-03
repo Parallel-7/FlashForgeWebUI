@@ -66,10 +66,6 @@ export class MultiContextSpoolmanTracker extends EventEmitter<MultiContextSpoolm
   private readonly trackers = new Map<string, SpoolmanUsageTracker>();
   private isInitialized = false;
 
-  constructor() {
-    super();
-  }
-
   /**
    * Initialize the multi-context Spoolman tracker
    * Sets up event listeners for context lifecycle events

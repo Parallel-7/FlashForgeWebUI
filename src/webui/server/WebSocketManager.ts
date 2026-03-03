@@ -18,8 +18,8 @@
  * - Message types: AUTH_SUCCESS, STATUS_UPDATE, ERROR, COMMAND_RESULT, PONG
  */
 
-import { WebSocketServer, WebSocket, RawData } from 'ws';
-import * as http from 'http';
+import { WebSocketServer, type WebSocket, type RawData } from 'ws';
+import type * as http from 'http';
 import { EventEmitter } from 'events';
 import { getAuthManager } from './AuthManager';
 import { getWebUIManager } from './WebUIManager';
@@ -32,7 +32,7 @@ import {
   WebSocketCommandSchema,
   createValidationError
 } from '../schemas/web-api.schemas';
-import {
+import type {
   WebSocketMessage,
   WebSocketCommand,
   PrinterStatusData

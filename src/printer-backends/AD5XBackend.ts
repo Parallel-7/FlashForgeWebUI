@@ -20,7 +20,7 @@
  */
 
 import { DualAPIBackend } from './DualAPIBackend';
-import {
+import type {
   PrinterFeatureSet,
   MaterialStationStatus,
   AD5XJobInfo,

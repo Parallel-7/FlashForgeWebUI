@@ -76,7 +76,9 @@ function setupDiscoveryModal(): void {
       if (!tabName) return;
 
       // Update active tab button
-      tabBtns.forEach(b => b.classList.remove('active'));
+      tabBtns.forEach(b => {
+        b.classList.remove('active');
+      });
       btn.classList.add('active');
 
       // Update active tab pane

@@ -20,7 +20,7 @@
 
 import { EventEmitter } from 'events';
 import { FiveMClient, FlashForgeClient } from '@ghosttypes/ff-api';
-import {
+import type {
   DiscoveredPrinter,
   TemporaryConnectionResult,
   ExtendedPrinterInfo

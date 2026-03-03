@@ -18,9 +18,9 @@
  * commands and legacy status parsing, ensuring compatibility with all FlashForge printers.
  */
 
-import { FlashForgeClient, TempInfo, TempData, EndstopStatus, MachineStatus, PrintStatus } from '@ghosttypes/ff-api';
+import { FlashForgeClient, type TempInfo, type TempData, type EndstopStatus, MachineStatus, type PrintStatus } from '@ghosttypes/ff-api';
 import { BasePrinterBackend } from './BasePrinterBackend';
-import {
+import type {
   PrinterFeatureSet,
   CommandResult,
   GCodeCommandResult,

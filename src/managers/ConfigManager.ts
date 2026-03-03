@@ -19,10 +19,10 @@ import { EventEmitter } from 'events';
 import * as fs from 'fs';
 import * as path from 'path';
 import {
-  AppConfig,
-  MutableAppConfig,
+  type AppConfig,
+  type MutableAppConfig,
   DEFAULT_CONFIG,
-  ConfigUpdateEvent,
+  type ConfigUpdateEvent,
   sanitizeConfig,
   isValidConfig,
   isValidConfigKey
@@ -242,7 +242,7 @@ export class ConfigManager extends EventEmitter {
     }
 
     for (const key of Object.keys(DEFAULT_CONFIG) as Array<keyof AppConfig>) {
-      if (!Object.prototype.hasOwnProperty.call(loadedData, key)) {
+      if (!Object.hasOwn(loadedData, key)) {
         return true;
       }
 

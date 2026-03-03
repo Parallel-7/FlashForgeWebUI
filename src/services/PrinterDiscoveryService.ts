@@ -21,10 +21,10 @@
 import { EventEmitter } from 'events';
 import { 
   FlashForgePrinterDiscovery, 
-  FlashForgePrinter
+  type FlashForgePrinter
 } from '@ghosttypes/ff-api';
 
-import { DiscoveredPrinter } from '../types/printer';
+import type { DiscoveredPrinter } from '../types/printer';
 
 /**
  * Service responsible for discovering printers on the network

@@ -39,7 +39,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Express 5 wildcard route compatibility** - Changed unnamed wildcards to named wildcards (`/*splat`)
 - **Local build scripts** - Corrected binary name from `yao-pkg` to `pkg`
 - **Missing index.html error handling** - Returns proper 500 server error with debugging context instead of misleading 404
-- **ESLint configuration** - Split configuration for backend (CommonJS) and frontend (ES modules) with appropriate tsconfig references
+- **Lint configuration** - Split configuration for backend (CommonJS) and frontend (ES modules) with appropriate tsconfig references
 - **404 error reporting** - Fixed catch-all route to use `req.originalUrl` instead of `req.path`
 - **Windows E2E process management**:
   - Use `taskkill /F /IM` and `tasklist /FI` for reliable process matching

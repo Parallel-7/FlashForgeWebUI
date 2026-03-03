@@ -20,9 +20,9 @@
  * and AD5XBackend, reducing code duplication while maintaining model-specific feature differentiation.
  */
 
-import { FiveMClient, FlashForgeClient, Product } from '@ghosttypes/ff-api';
+import { FiveMClient, FlashForgeClient, type Product } from '@ghosttypes/ff-api';
 import { BasePrinterBackend } from './BasePrinterBackend';
-import {
+import type {
   BackendInitOptions,
   CommandResult,
   GCodeCommandResult,
@@ -373,7 +373,7 @@ export abstract class DualAPIBackend extends BasePrinterBackend {
         status,
         timestamp: new Date()
       };
-    } catch (fallbackError) { // eslint-disable-line @typescript-eslint/no-unused-vars
+    } catch {
       return {
         success: false,
         error: originalError instanceof Error ? originalError.message : String(originalError),
@@ -553,7 +553,7 @@ export abstract class DualAPIBackend extends BasePrinterBackend {
           data: 'Job paused (via legacy API)',
           timestamp: new Date()
         };
-      } catch (fallbackError) { // eslint-disable-line @typescript-eslint/no-unused-vars
+      } catch {
         return {
           success: false,
           error: error instanceof Error ? error.message : String(error),
@@ -588,7 +588,7 @@ export abstract class DualAPIBackend extends BasePrinterBackend {
           data: 'Job resumed (via legacy API)',
           timestamp: new Date()
         };
-      } catch (fallbackError) { // eslint-disable-line @typescript-eslint/no-unused-vars
+      } catch {
         return {
           success: false,
           error: error instanceof Error ? error.message : String(error),
@@ -623,7 +623,7 @@ export abstract class DualAPIBackend extends BasePrinterBackend {
           data: 'Job cancelled (via legacy API)',
           timestamp: new Date()
         };
-      } catch (fallbackError) { // eslint-disable-line @typescript-eslint/no-unused-vars
+      } catch {
         return {
           success: false,
           error: error instanceof Error ? error.message : String(error),

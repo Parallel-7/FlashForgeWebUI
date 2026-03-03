@@ -34,12 +34,12 @@ import {
   createErrorMiddleware,
   createRequestLogger,
   createLoginRateLimiter,
-  AuthenticatedRequest
+  type AuthenticatedRequest
 } from './auth-middleware';
 import { 
   WebUILoginRequestSchema
 } from '../schemas/web-api.schemas';
-import { StandardAPIResponse } from '../types/web-api.types';
+import type { StandardAPIResponse } from '../types/web-api.types';
 import { createAPIRoutes, buildRouteDependencies } from './api-routes';
 import { getWebSocketManager } from './WebSocketManager';
 import type { PollingData } from '../../types/polling';

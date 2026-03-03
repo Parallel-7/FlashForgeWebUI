@@ -20,7 +20,7 @@
  * - Error state creation with appropriate default values
  */
 
-import {
+import type {
   MatlStationInfo,
   SlotInfo,
   MaterialStationStatus,

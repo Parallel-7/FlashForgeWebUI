@@ -17,7 +17,7 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import {
+import type {
   PrinterDetails,
   StoredPrinterDetails,
   MultiPrinterConfig,
@@ -435,7 +435,6 @@ export class PrinterDetailsManager {
       throw new Error(`Printer with serial ${serialNumber} not found`);
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { [serialNumber]: _removed, ...remainingPrinters } = this.currentConfig.printers;
 
     let newLastUsed = this.currentConfig.lastUsedPrinterSerial;
@@ -544,7 +543,6 @@ export class PrinterDetailsManager {
     }
 
     // Convert StoredPrinterDetails back to PrinterDetails (remove lastConnected)
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { lastConnected: _lastConnected, ...printerDetails } = lastUsed;
     return printerDetails;
   }

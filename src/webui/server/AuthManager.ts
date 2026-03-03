@@ -19,7 +19,7 @@
 
 import * as crypto from 'crypto';
 import { getConfigManager } from '../../managers/ConfigManager';
-import { 
+import type { 
   WebUILoginRequest, 
   WebUILoginResponse, 
   WebUIAuthStatus

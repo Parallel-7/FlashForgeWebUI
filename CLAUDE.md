@@ -40,8 +40,10 @@ npm run build:all          # Build for all platforms
 
 ### Code Quality
 ```bash
-npm run lint           # Run ESLint on all TypeScript files
-npm run lint:fix       # Auto-fix ESLint issues
+npm run lint           # Run Biome lint checks
+npm run lint:fix       # Auto-fix Biome lint issues
+npm run format         # Preview Biome formatting changes
+npm run format:fix     # Apply Biome formatting changes
 npm run type-check     # TypeScript type checking without emit
 npm test               # Tests (not yet implemented)
 npm run clean          # Remove dist directory
@@ -169,7 +171,7 @@ Default config values are in `ConfigManager.ts`.
 - `lucide` - Icon library
 
 **Dev**:
-- TypeScript 5.7, ESLint 9 with TypeScript ESLint
+- TypeScript 5.7, Biome 2 for linting and formatting
 - `concurrently` - Parallel build tasks
 - `nodemon` - Dev server hot reload
 - `pkg` - Executable packaging
