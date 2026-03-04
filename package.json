@@ -41,6 +41,8 @@
     "check": "biome check .",
     "check:fix": "biome check --write .",
     "type-check": "tsc --noEmit",
+    "docs:check": "go run scripts/check-fileoverview.go",
+    "docs:check:debug": "go run scripts/check-fileoverview.go -debug",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
