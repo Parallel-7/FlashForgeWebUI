@@ -23,6 +23,7 @@ import { getMultiContextPollingCoordinator } from './services/MultiContextPollin
 import { getMultiContextPrintStateMonitor } from './services/MultiContextPrintStateMonitor';
 import { getMultiContextTemperatureMonitor } from './services/MultiContextTemperatureMonitor';
 import { getMultiContextSpoolmanTracker } from './services/MultiContextSpoolmanTracker';
+import { getDiscordNotificationService } from './services/discord';
 import { getGo2rtcService } from './services/Go2rtcService';
 import { initializeSpoolmanIntegrationService } from './services/SpoolmanIntegrationService';
 import { getSavedPrinterService } from './services/SavedPrinterService';
@@ -43,6 +44,7 @@ const pollingCoordinator = getMultiContextPollingCoordinator();
 const savedPrinterService = getSavedPrinterService();
 const webUIManager = getWebUIManager();
 const go2rtcService = getGo2rtcService();
+const discordService = getDiscordNotificationService();
 
 let connectedContexts: string[] = [];
 let isInitialized = false;
@@ -230,6 +232,10 @@ function setupEventForwarding(): void {
   // For WebUI (single-printer or multi-printer), forward all context data
   // The WebUI/WebSocket layer will handle filtering if needed
   pollingCoordinator.on('polling-data', (contextId: string, data: any) => {
+    if (data?.printerStatus) {
+      discordService.updatePrinterStatus(contextId, data.printerStatus);
+    }
+
     // Forward all polling data regardless of active context
     // This ensures data reaches the WebUI even if active context isn't set yet
     webUIManager.handlePollingUpdate(data);
@@ -372,12 +378,17 @@ async function shutdown(): Promise<void> {
 
   try {
     // Step 1: Stop polling (immediate)
-    console.log('[Shutdown] Step 1/4: Stopping polling...');
+    console.log('[Shutdown] Step 1/5: Stopping polling...');
     pollingCoordinator.stopAllPolling();
     console.log('[Shutdown] Polling stopped');
 
-    // Step 2: Parallel disconnects (all printers disconnect concurrently)
-    console.log(`[Shutdown] Step 2/4: Disconnecting ${connectedContexts.length} context(s)...`);
+    // Step 2: Stop Discord notifications
+    console.log('[Shutdown] Step 2/5: Stopping Discord notifications...');
+    discordService.dispose();
+    console.log('[Shutdown] Discord notifications stopped');
+
+    // Step 3: Parallel disconnects (all printers disconnect concurrently)
+    console.log(`[Shutdown] Step 3/5: Disconnecting ${connectedContexts.length} context(s)...`);
     if (connectedContexts.length > 0) {
       const results = await Promise.allSettled(connectedContexts.map((contextId) => connectionManager.disconnectContext(contextId)));
 
@@ -396,13 +407,13 @@ async function shutdown(): Promise<void> {
       console.log('[Shutdown] No contexts to disconnect');
     }
 
-    // Step 3: Stop go2rtc camera streaming service
-    console.log('[Shutdown] Step 3/4: Stopping camera streaming...');
+    // Step 4: Stop go2rtc camera streaming service
+    console.log('[Shutdown] Step 4/5: Stopping camera streaming...');
     await go2rtcService.shutdown();
     console.log('[Shutdown] Camera streaming stopped');
 
-    // Step 4: Stop WebUI (with timeout and force-close fallback)
-    console.log('[Shutdown] Step 4/4: Stopping WebUI...');
+    // Step 5: Stop WebUI (with timeout and force-close fallback)
+    console.log('[Shutdown] Step 5/5: Stopping WebUI...');
     await webUIManager.stop(SHUTDOWN_CONFIG.WEBUI_STOP_TIMEOUT_MS);
     console.log('[Shutdown] WebUI stopped');
 
@@ -473,6 +484,9 @@ async function main(): Promise<void> {
     getMultiContextPrintStateMonitor();
     console.log('[Init] Print state monitor initialized');
 
+    discordService.initialize();
+    console.log('[Init] Discord notification service initialized');
+
     // 9. Initialize Spoolman usage tracking
     const multiContextSpoolmanTracker = getMultiContextSpoolmanTracker();
     multiContextSpoolmanTracker.initialize();
@@ -524,11 +538,26 @@ async function main(): Promise<void> {
 
         console.log(`[Events] Created PrintStateMonitor for context ${contextId}`);
 
-        // STEP 4: Create SpoolmanTracker for this context (depends on PrintStateMonitor)
+        // STEP 4: Create TemperatureMonitor for this context
+        const temperatureMonitor = getMultiContextTemperatureMonitor();
+        temperatureMonitor.createMonitorForContext(contextId, pollingService, stateMonitor);
+        const contextTemperatureMonitor = temperatureMonitor.getMonitor(contextId);
+
+        if (!contextTemperatureMonitor) {
+          console.error('[Events] Failed to create temperature monitor');
+          return;
+        }
+
+        console.log(`[Events] Created TemperatureMonitor for context ${contextId}`);
+
+        // STEP 5: Create SpoolmanTracker for this context (depends on PrintStateMonitor)
         const spoolmanTracker = getMultiContextSpoolmanTracker();
         spoolmanTracker.createTrackerForContext(contextId, stateMonitor);
 
         console.log(`[Events] Created SpoolmanTracker for context ${contextId}`);
+        discordService.registerContext(contextId);
+        discordService.attachContextMonitors(contextId, stateMonitor, contextTemperatureMonitor);
+        console.log(`[Events] Registered Discord notifications for context ${contextId}`);
         void reconcileCameraStream(contextId);
         console.log(`[Events] All services initialized for context ${contextId}`);
       } catch (error) {

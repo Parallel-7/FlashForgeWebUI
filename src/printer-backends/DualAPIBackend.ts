@@ -175,8 +175,7 @@ export abstract class DualAPIBackend extends BasePrinterBackend {
       const hasFiltration = this.productInfo.internalFanCtrlState !== 0 ||
                            this.productInfo.externalFanCtrlState !== 0;
 
-      // For AD5X, respect the child's LED settings (don't auto-detect)
-      // AD5X requires CustomLeds to be enabled for any LED control
+      // For AD5X, respect the child's per-printer LED override instead of auto-detecting.
       const ledBuiltin = this.modelType === 'ad5x'
         ? childFeatures.ledControl.builtin
         : this.productInfo.lightCtrlState !== 0;

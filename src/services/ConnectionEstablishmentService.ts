@@ -234,12 +234,12 @@ export class ConnectionEstablishmentService extends EventEmitter {
     typeName: string,
     is5MFamily: boolean,
     checkCode: string,
-    ForceLegacyAPI: boolean
+    forceLegacyMode: boolean
   ): Promise<ConnectionClients | null> {
     this.emit('final-connection-started', { printer, typeName });
 
     try {
-      if (is5MFamily && !ForceLegacyAPI) {
+      if (is5MFamily && !forceLegacyMode) {
         return await this.establishDualAPIConnection(printer, checkCode);
       } else {
         return await this.establishLegacyConnection(printer);

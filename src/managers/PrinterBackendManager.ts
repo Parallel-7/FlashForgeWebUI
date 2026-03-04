@@ -32,7 +32,6 @@ import { GenericLegacyBackend } from '../printer-backends/GenericLegacyBackend';
 import { Adventurer5MBackend } from '../printer-backends/Adventurer5MBackend';
 import { Adventurer5MProBackend } from '../printer-backends/Adventurer5MProBackend';
 import { AD5XBackend } from '../printer-backends/AD5XBackend';
-import { getConfigManager } from './ConfigManager';
 import { getLoadingManager } from './LoadingManager';
 import { getPrinterContextManager } from './PrinterContextManager';
 import type { PrinterDetails } from '../types/printer';
@@ -70,7 +69,6 @@ interface BackendInitializationOptions {
   readonly printerDetails: PrinterDetails;
   readonly primaryClient: FiveMClient | FlashForgeClient;
   readonly secondaryClient?: FlashForgeClient;
-  readonly ForceLegacyAPI?: boolean;
 }
 
 /**
@@ -90,7 +88,6 @@ interface BackendInitializationResult {
 export class PrinterBackendManager extends EventEmitter {
   private static instance: PrinterBackendManagerInstance | null = null;
 
-  private readonly configManager = getConfigManager();
   private readonly loadingManager = getLoadingManager();
   private readonly contextManager = getPrinterContextManager();
 
@@ -118,38 +115,10 @@ export class PrinterBackendManager extends EventEmitter {
    * Setup event handlers for configuration changes
    */
   private setupEventHandlers(): void {
-    // Monitor configuration changes that affect backend features
-    this.configManager.on('configUpdated', (event: { changedKeys: string[] }) => {
-      this.handleConfigurationChange(event.changedKeys);
-    });
-
     // Monitor loading manager for UI coordination
     this.loadingManager.on('loadingStateChanged', (state: string) => {
       this.emit('loading-state-changed', state);
     });
-  }
-
-  /**
-   * Handle configuration changes that affect backend features
-   */
-  private handleConfigurationChange(changedKeys: string[]): void {
-    const featureKeys = ['CustomCamera', 'CustomCameraUrl', 'CustomLeds', 'ForceLegacyAPI'];
-    const hasFeatureChanges = changedKeys.some(key => featureKeys.includes(key));
-
-    if (hasFeatureChanges) {
-      const activeContextId = this.contextManager.getActiveContextId();
-      if (activeContextId) {
-        const backend = this.contextBackends.get(activeContextId);
-        if (backend) {
-          console.log('Configuration changes detected, backend features may be affected');
-          this.emit('backend-features-changed', {
-            backend,
-            contextId: activeContextId,
-            changedKeys
-          });
-        }
-      }
-    }
   }
   
   /**
@@ -212,8 +181,8 @@ export class PrinterBackendManager extends EventEmitter {
       // Detect printer model from details
       let modelType = detectPrinterModelType(options.printerDetails.printerModel);
       
-      // Override to generic legacy if ForceLegacyAPI is enabled
-      if (options.ForceLegacyAPI) {
+      // Force legacy mode uses the generic legacy backend regardless of printer family.
+      if (options.printerDetails.forceLegacyMode) {
         console.log('Force legacy mode enabled - using GenericLegacyBackend regardless of printer type');
         modelType = 'generic-legacy';
       }
@@ -785,14 +754,10 @@ export class PrinterBackendManager extends EventEmitter {
     try {
       console.log(`PrinterBackendManager: Connection established for context ${contextId}, initializing backend...`);
 
-      // Check if ForceLegacyAPI mode is enabled
-      const ForceLegacyAPI = this.configManager.get('ForceLegacyAPI') || false;
-
       const initResult = await this.initializeBackend(contextId, {
         printerDetails,
         primaryClient,
         secondaryClient,
-        ForceLegacyAPI
       });
 
       if (initResult.success) {

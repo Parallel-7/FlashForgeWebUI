@@ -22,8 +22,7 @@
  * - RTSP (Real-Time Streaming Protocol)
  *
  * Context Awareness:
- * - Supports per-printer camera settings when contextId is provided
- * - Falls back to global configuration for backward compatibility
+ * - Uses per-printer camera settings from printer_details.json
  * - Integrates with PrinterContextManager for multi-printer camera configurations
  *
  * Usage:
@@ -41,7 +40,6 @@ import {
   type CameraStreamType,
   DEFAULT_CAMERA_PATTERNS
 } from '../types/camera';
-import { getConfigManager } from '../managers/ConfigManager';
 import { getPrinterContextManager } from '../managers/PrinterContextManager';
 
 /**
@@ -171,17 +169,12 @@ export function resolveCameraConfig(params: CameraUrlResolutionParams): Resolved
 }
 
 /**
- * Get camera configuration from user settings
- * Now context-aware: reads from per-printer settings if contextId provided,
- * otherwise falls back to global config (for backward compatibility)
+ * Get camera configuration from per-printer settings.
  *
  * @param contextId - Optional context ID to get per-printer camera settings
  * @returns Camera user configuration
  */
 export function getCameraUserConfig(contextId?: string): CameraUserConfig {
-  const configManager = getConfigManager();
-
-  // If contextId provided, try to get per-printer settings first
   if (contextId) {
     const contextManager = getPrinterContextManager();
     const context = contextManager.getContext(contextId);
@@ -199,10 +192,9 @@ export function getCameraUserConfig(contextId?: string): CameraUserConfig {
     }
   }
 
-  // Fall back to global config
   return {
-    customCameraEnabled: configManager.get('CustomCamera') || false,
-    customCameraUrl: configManager.get('CustomCameraUrl') || null
+    customCameraEnabled: false,
+    customCameraUrl: null
   };
 }
 

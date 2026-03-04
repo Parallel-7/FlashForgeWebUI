@@ -80,7 +80,9 @@ describe('WebUIManager Integration Tests', () => {
         WebUIPort: 3001,
         WebUIPassword: 'testpass',
         WebUIPasswordRequired: true,
-        CameraProxyPort: 8181,
+        DiscordSync: false,
+        WebhookUrl: '',
+        DiscordUpdateIntervalMinutes: 5,
         SpoolmanEnabled: false,
         SpoolmanServerUrl: ''
       }),

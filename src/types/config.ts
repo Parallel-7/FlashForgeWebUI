@@ -1,8 +1,10 @@
 /**
  * @fileoverview Application configuration type definitions for standalone WebUI
  *
- * Simplified configuration schema focused on WebUI, Spoolman, and camera features.
- * Removes Electron-specific properties (desktop UI, notifications, auto-update).
+ * Simplified configuration schema focused on WebUI, Discord webhooks, Spoolman,
+ * and shared application behavior.
+ * Removes Electron-specific properties (desktop UI, notifications, auto-update)
+ * and keeps printer-specific overrides out of config.json.
  *
  * Key Features:
  * - AppConfig interface with readonly properties for immutability
@@ -15,9 +17,9 @@
  *
  * Configuration Categories:
  * - WebUI Server: WebUIEnabled, WebUIPort, WebUIPassword, WebUIPasswordRequired
- * - Camera: CustomCamera, CustomCameraUrl, CameraProxyPort
+ * - Discord: DiscordSync, WebhookUrl, DiscordUpdateIntervalMinutes
  * - Spoolman: SpoolmanEnabled, SpoolmanServerUrl, SpoolmanUpdateMode
- * - Advanced: CustomLeds, ForceLegacyAPI, DebugMode
+ * - Advanced: DebugMode
  * - Theme: WebUITheme
  *
  * @module types/config
@@ -46,10 +48,10 @@ export interface AppConfig {
   readonly WebUIPassword: string;
   readonly WebUIPasswordRequired: boolean;
 
-  // Camera
-  readonly CustomCamera: boolean;
-  readonly CustomCameraUrl: string;
-  readonly CameraProxyPort: number;
+  // Discord Webhooks
+  readonly DiscordSync: boolean;
+  readonly WebhookUrl: string;
+  readonly DiscordUpdateIntervalMinutes: number;
 
   // Spoolman Integration
   readonly SpoolmanEnabled: boolean;
@@ -57,8 +59,6 @@ export interface AppConfig {
   readonly SpoolmanUpdateMode: 'length' | 'weight';
 
   // Advanced
-  readonly CustomLeds: boolean;
-  readonly ForceLegacyAPI: boolean;
   readonly DebugMode: boolean;
 
   // Theme
@@ -73,14 +73,12 @@ export interface MutableAppConfig {
   WebUIPort: number;
   WebUIPassword: string;
   WebUIPasswordRequired: boolean;
-  CustomCamera: boolean;
-  CustomCameraUrl: string;
-  CameraProxyPort: number;
+  DiscordSync: boolean;
+  WebhookUrl: string;
+  DiscordUpdateIntervalMinutes: number;
   SpoolmanEnabled: boolean;
   SpoolmanServerUrl: string;
   SpoolmanUpdateMode: 'length' | 'weight';
-  CustomLeds: boolean;
-  ForceLegacyAPI: boolean;
   DebugMode: boolean;
   WebUITheme: ThemeColors;
 }
@@ -106,10 +104,10 @@ export const DEFAULT_CONFIG: AppConfig = {
   WebUIPassword: 'changeme',
   WebUIPasswordRequired: true,
 
-  // Camera
-  CustomCamera: false,
-  CustomCameraUrl: '',
-  CameraProxyPort: 8181,
+  // Discord
+  DiscordSync: false,
+  WebhookUrl: '',
+  DiscordUpdateIntervalMinutes: 5,
 
   // Spoolman
   SpoolmanEnabled: false,
@@ -117,8 +115,6 @@ export const DEFAULT_CONFIG: AppConfig = {
   SpoolmanUpdateMode: 'weight',
 
   // Advanced
-  CustomLeds: false,
-  ForceLegacyAPI: false,
   DebugMode: false,
 
   // Theme
@@ -224,7 +220,7 @@ export function sanitizeConfig(config: Partial<AppConfig>): AppConfig {
           // Ensure numbers are valid and within reasonable bounds
           const numValue = value as number;
           if (Number.isFinite(numValue) && numValue >= 0) {
-            if (key === 'WebUIPort' || key === 'CameraProxyPort') {
+            if (key === 'WebUIPort') {
               // Validate port numbers
               if (numValue >= 1 && numValue <= 65535) {
                 // Type assertion is safe here because we've validated it's a valid port number

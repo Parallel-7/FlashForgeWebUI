@@ -27,7 +27,9 @@ describe('ConfigManager', () => {
       WebUIPort: 3000,
       WebUIPassword: 'testpass',
       WebUIPasswordRequired: true,
-      CameraProxyPort: 8181,
+      DiscordSync: false,
+      WebhookUrl: '',
+      DiscordUpdateIntervalMinutes: 5,
       SpoolmanEnabled: false,
       SpoolmanServerUrl: ''
     }));
@@ -75,7 +77,9 @@ describe('ConfigManager', () => {
       expect(config).toHaveProperty('WebUIPort');
       expect(config).toHaveProperty('WebUIPassword');
       expect(config).toHaveProperty('WebUIPasswordRequired');
-      expect(config).toHaveProperty('CameraProxyPort');
+      expect(config).toHaveProperty('DiscordSync');
+      expect(config).toHaveProperty('WebhookUrl');
+      expect(config).toHaveProperty('DiscordUpdateIntervalMinutes');
       expect(config).toHaveProperty('SpoolmanEnabled');
       expect(config).toHaveProperty('SpoolmanServerUrl');
     });
@@ -87,7 +91,9 @@ describe('ConfigManager', () => {
       expect(typeof config.WebUIPort).toBe('number');
       expect(typeof config.WebUIPassword).toBe('string');
       expect(typeof config.WebUIPasswordRequired).toBe('boolean');
-      expect(typeof config.CameraProxyPort).toBe('number');
+      expect(typeof config.DiscordSync).toBe('boolean');
+      expect(typeof config.WebhookUrl).toBe('string');
+      expect(typeof config.DiscordUpdateIntervalMinutes).toBe('number');
       expect(typeof config.SpoolmanEnabled).toBe('boolean');
       expect(typeof config.SpoolmanServerUrl).toBe('string');
     });
@@ -163,8 +169,7 @@ describe('ConfigManager', () => {
 
       expect(config.WebUIPort).toBeGreaterThanOrEqual(1);
       expect(config.WebUIPort).toBeLessThanOrEqual(65535);
-      expect(config.CameraProxyPort).toBeGreaterThanOrEqual(1);
-      expect(config.CameraProxyPort).toBeLessThanOrEqual(65535);
+      expect(config.DiscordUpdateIntervalMinutes).toBeGreaterThanOrEqual(0);
     });
 
     it('should have valid URL format for SpoolmanServerUrl', () => {

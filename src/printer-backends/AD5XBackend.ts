@@ -55,7 +55,7 @@ export class AD5XBackend extends DualAPIBackend {
         customEnabled: false
       },
       ledControl: {
-        builtin: false,  // AD5X requires CustomLeds to be enabled for any LED control
+        builtin: false,  // AD5X requires the per-printer LED override for TCP LED control
         customControlEnabled: false, // Will be overridden by settings
         usesLegacyAPI: true
       },

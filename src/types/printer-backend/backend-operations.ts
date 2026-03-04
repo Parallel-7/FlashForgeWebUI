@@ -255,6 +255,6 @@ export interface BackendFactoryOptions {
     readonly customCameraEnabled: boolean;
     readonly customCameraUrl: string;
     readonly customLEDControlEnabled: boolean;
-    readonly ForceLegacyAPI: boolean;
+    readonly forceLegacyMode: boolean;
   };
 }

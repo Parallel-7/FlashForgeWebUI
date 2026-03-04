@@ -271,7 +271,7 @@ class Service extends EventEmitter<EventMap> {
 
 1. **Dual Build System**: Backend and frontend have separate `tsconfig.json` files with different module systems (CommonJS vs ES modules)
 2. **Data Directory**: Not in git but can be manually accessed for debugging. Default location is `<project>/data/`
-3. **Port Allocation**: Camera proxies dynamically allocate ports starting from config value (`CameraProxyPort`)
+3. **Camera Streams**: go2rtc manages camera streams per context; there is no user-facing global `CameraProxyPort` setting anymore
 4. **Polling Frequency**: All contexts poll at 3 seconds (changed from 30s for inactive contexts to prevent TCP keep-alive failures)
 5. **Context IDs**: UUID-based, generated during connection. Not tied to IP or serial number
 6. **Backend Lifecycle**: Backends are created per context, not shared. Each context has its own TCP connection

@@ -209,9 +209,9 @@ export const canOverrideFeature = (feature: string, modelType: PrinterModelType)
 export const getFeatureOverrideSettingsKey = (feature: string): string | null => {
   switch (feature) {
     case 'camera':
-      return 'CustomCameraEnabled';
+      return 'printerDetails.customCameraEnabled';
     case 'led-control':
-      return 'CustomLEDControl';
+      return 'printerDetails.customLedsEnabled';
     default:
       return null;
   }
@@ -400,9 +400,9 @@ export const getConnectionTimeout = (is5MFamily: boolean): number => {
 export const shouldPromptForCheckCode = (
   is5MFamily: boolean,
   savedCheckCode?: string,
-  ForceLegacyAPI: boolean = false
+  forceLegacyMode: boolean = false
 ): boolean => {
-  if (ForceLegacyAPI) {
+  if (forceLegacyMode) {
     return false; // Legacy API mode doesn't need check codes
   }
 
