@@ -180,7 +180,6 @@ The application automatically creates a configuration file at `data/config.json`
 | **WebUIPasswordRequired** | `true` | Require password to access |
 | **SpoolmanEnabled** | `false` | Enable Spoolman integration |
 | **SpoolmanServerUrl** | `""` | Your Spoolman server URL (e.g., `http://192.168.1.100:7912`) |
-| **CameraProxyPort** | `8181` | Starting port for camera proxies |
 
 </div>
 

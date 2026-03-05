@@ -20,7 +20,7 @@ npm run start:dev        # Run with nodemon (watches for changes)
 
 ### Build Components
 ```bash
-npm run build:backend           # Compile TypeScript backend (tsc)
+npm run build:backend           # Bundle backend with esbuild (scripts/build-backend.ts)
 npm run build:backend:watch     # Watch backend files
 npm run build:webui             # Compile frontend TS + copy static assets
 npm run build:webui:watch       # Watch frontend files
@@ -44,8 +44,11 @@ npm run lint           # Run Biome lint checks
 npm run lint:fix       # Auto-fix Biome lint issues
 npm run format         # Preview Biome formatting changes
 npm run format:fix     # Apply Biome formatting changes
+npm run check          # Run Biome check (lint + format combined)
+npm run check:fix      # Auto-fix Biome check issues
 npm run type-check     # TypeScript type checking without emit
-npm test               # Tests (not yet implemented)
+npm test               # Run Jest tests
+npm run test:watch     # Run tests in watch mode
 npm run clean          # Remove dist directory
 ```
 
@@ -110,7 +113,6 @@ src/index.ts                    # Entry point - initializes all singletons, conn
 - Backend instance (AD5XBackend, Adventurer5MBackend, GenericLegacyBackend, etc.)
 - Polling service instance
 - Connection state
-- Camera proxy port
 - Spoolman spool assignment
 
 **Backends**: Abstraction layer over printer APIs (all extend `BasePrinterBackend`):
@@ -125,8 +127,10 @@ src/index.ts                    # Entry point - initializes all singletons, conn
 - `MultiContextPrintStateMonitor` - Track print progress, emit notifications
 - `MultiContextTemperatureMonitor` - Temperature anomaly detection
 - `MultiContextSpoolmanTracker` - Filament usage tracking
-- `CameraProxyService` - MJPEG camera proxying
-- `RtspStreamService` - RTSP stream management
+- `MultiContextNotificationCoordinator` - Coordinates Discord notifications across contexts
+- `Go2rtcService` - Unified camera streaming via go2rtc (WebRTC/MSE/MJPEG)
+- `Go2rtcBinaryManager` - Manages go2rtc binary lifecycle (download, start/stop)
+- `DiscordNotificationService` - Discord webhook notifications for print events
 - `SavedPrinterService` - Persistent printer storage (`data/printer_details.json`)
 
 **WebUI**:
@@ -134,7 +138,7 @@ src/index.ts                    # Entry point - initializes all singletons, conn
 - `WebSocketManager` - Real-time bidirectional communication with frontend
 - `AuthManager` - Optional password authentication
 - API routes organized by feature (printer-control, job, camera, spoolman, etc.)
-- Frontend uses GridStack for draggable dashboard, JSMpeg for video streaming
+- Frontend uses GridStack for draggable dashboard, go2rtc video-rtc player for camera streaming (WebRTC/MSE/MJPEG)
 
 ### Data Directory
 
@@ -146,15 +150,33 @@ Default config values are in `ConfigManager.ts`.
 
 ### Build System
 
-**Dual TypeScript Compilation**:
-1. **Backend** (`tsconfig.json`): Compiles `src/` → `dist/` as CommonJS (Node.js target)
-2. **Frontend** (`src/webui/static/tsconfig.json`): Compiles frontend TS → `dist/webui/static/` as ES modules (browser target)
+**Backend Bundling** (esbuild via `scripts/build-backend.ts`):
+- Bundles `src/index.ts` → `dist/index.js` as a single CommonJS file
+- Uses `packages: 'external'` to keep node_modules separate for pkg compatibility
+- tsc is still used for type checking (`npm run type-check`)
+
+**Frontend Compilation** (`src/webui/static/tsconfig.json`):
+- Compiles frontend TS → `dist/webui/static/` as ES modules (browser target)
 
 **Asset Pipeline** (`scripts/copy-webui-assets.js`):
-- Copies `index.html`, `webui.css`, `gridstack-extra.min.css` from `src/webui/static/`
-- Copies vendor libraries from `node_modules/` (jsmpeg, gridstack, lucide)
+- Copies `index.html`, `webui.css`, `gridstack-extra.min.css`, `favicon.png` from `src/webui/static/`
+- Copies vendor libraries from `node_modules/` (gridstack, lucide, video-rtc)
 
-**pkg Bundling**: Production builds use `pkg` to create standalone executables with embedded assets (`dist/webui/**/*`)
+**go2rtc Binary** (`scripts/download-go2rtc.cjs`):
+- Runs at `npm install` time via postinstall hook
+- Downloads platform-specific go2rtc binary to `resources/bin/`
+
+**pkg Bundling**: Production builds use `@yao-pkg/pkg` to create standalone executables with embedded assets (`dist/webui/**/*`, `resources/bin/**/*`)
+
+**Why @yao-pkg/pkg instead of official pkg?** The official `pkg` package is no longer maintained and lacks support for newer Node.js versions and ARMv7 targets. We use `@yao-pkg/pkg` (a community-maintained fork) specifically because:
+- It supports `node20-linuxstatic-armv7` target for Raspberry Pi 4 (32-bit OS)
+- The original pkg dropped ARMv7 support, leaving no path for 32-bit Pi builds
+- It maintains API compatibility with the original pkg configuration
+
+**Why esbuild instead of tsc for backend?** The build process bundles the backend with esbuild before pkg packaging because:
+- pkg requires CJS format and has issues with dynamic imports/ESM interop
+- esbuild produces a single bundled file that pkg can reliably package
+- The `packages: 'external'` option keeps node_modules outside the bundle so pkg can include them as bytecode
 
 ## Dependencies
 
@@ -164,17 +186,21 @@ Default config values are in `ConfigManager.ts`.
 - `express` - HTTP server
 - `ws` - WebSocket server
 - `zod` - Schema validation
+- `axios` - HTTP client (for go2rtc API calls)
+- `form-data` - Multipart form handling
 
 **Frontend**:
 - `gridstack` - Dashboard layout system
-- `@cycjimmy/jsmpeg-player` - Video streaming
 - `lucide` - Icon library
+- `video-rtc` - go2rtc video player (WebRTC/MSE/MJPEG) - bundled in static
 
 **Dev**:
 - TypeScript 5.7, Biome 2 for linting and formatting
+- `esbuild` - Backend bundling
+- `jest`, `ts-jest`, `supertest` - Testing framework
 - `concurrently` - Parallel build tasks
 - `nodemon` - Dev server hot reload
-- `pkg` - Executable packaging
+- `@yao-pkg/pkg` - Executable packaging
 
 ## Printer API Integration
 
@@ -200,7 +226,7 @@ Some printers support **both** (dual-API). The backend system abstracts these di
    - Initialize data directory
    - Parse CLI arguments
    - Load config
-   - Initialize services (RTSP, Spoolman, monitoring)
+   - Initialize services (go2rtc, Spoolman, Discord, monitoring)
    - Connect to printers (creates contexts + backends)
    - Start WebUI server
    - Setup event forwarding (polling data → WebUI)
@@ -269,14 +295,16 @@ class Service extends EventEmitter<EventMap> {
 
 ## Gotchas
 
-1. **Dual Build System**: Backend and frontend have separate `tsconfig.json` files with different module systems (CommonJS vs ES modules)
+1. **Dual Build System**: Backend uses esbuild bundling, frontend uses tsc with separate tsconfig
 2. **Data Directory**: Not in git but can be manually accessed for debugging. Default location is `<project>/data/`
-3. **Camera Streams**: go2rtc manages camera streams per context; there is no user-facing global `CameraProxyPort` setting anymore
-4. **Polling Frequency**: All contexts poll at 3 seconds (changed from 30s for inactive contexts to prevent TCP keep-alive failures)
-5. **Context IDs**: UUID-based, generated during connection. Not tied to IP or serial number
-6. **Backend Lifecycle**: Backends are created per context, not shared. Each context has its own TCP connection
-7. **Graceful Shutdown**: SIGINT/SIGTERM handlers stop polling, disconnect contexts, and stop WebUI before exit
-8. **Windows Compatibility**: Special handling for Ctrl+C via readline interface (see `index.ts`)
+3. **Camera Streams**: go2rtc manages camera streams per context; there is no user-facing global `CameraProxyPort` setting
+4. **go2rtc Binary**: Downloaded at `npm install` time via postinstall script. The binary lives in `resources/bin/` and is platform-specific. If binary download fails, camera streaming won't work
+5. **Polling Frequency**: All contexts poll at 3 seconds (changed from 30s for inactive contexts to prevent TCP keep-alive failures)
+6. **Context IDs**: UUID-based, generated during connection. Not tied to IP or serial number
+7. **Backend Lifecycle**: Backends are created per context, not shared. Each context has its own TCP connection
+8. **Graceful Shutdown**: SIGINT/SIGTERM handlers stop polling, disconnect contexts, and stop WebUI before exit
+9. **Windows Compatibility**: Special handling for Ctrl+C via readline interface (see `index.ts`)
+10. **ARMv7 Builds**: Target `node20-linuxstatic-armv7` for Raspberry Pi 4 with 32-bit OS. This requires `@yao-pkg/pkg` as the official pkg lacks ARMv7 support.
 
 ## Testing Notes
 
@@ -288,9 +316,9 @@ Core functionality has been tested and verified:
 - Static file serving in packaged binaries
 
 Areas for continued testing:
-- Camera proxy stability under extended load
-- RTSP streaming for all supported printers
+- go2rtc binary download across all platforms
 - Temperature anomaly detection edge cases
+- Discord notification reliability
 
 ## Related Projects
 
