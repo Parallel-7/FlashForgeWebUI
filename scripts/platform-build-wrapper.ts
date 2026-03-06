@@ -98,7 +98,6 @@ function parseArgs(): ParsedArgs {
 
     if (!arg.startsWith('--') && !platform) {
       platform = arg;
-      continue;
     }
   }
 
@@ -155,7 +154,9 @@ async function main(): Promise<void> {
 
   if (!platform) {
     const supported = Object.keys(PLATFORM_CONFIG).join('|');
-    logError(`Missing or invalid platform argument. Usage: tsx scripts/platform-build-wrapper.ts --platform <${supported}>`);
+    logError(
+      `Missing or invalid platform argument. Usage: tsx scripts/platform-build-wrapper.ts --platform <${supported}>`
+    );
     process.exit(1);
     return;
   }

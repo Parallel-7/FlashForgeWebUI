@@ -1,14 +1,14 @@
 /**
  * @fileoverview
  * AutoConnectService.ts
- * 
+ *
  * Provides automated printer connection functionality for the FlashForgeUI-Electron application.
- * This service handles the logic for determining when and how to automatically connect to 
+ * This service handles the logic for determining when and how to automatically connect to
  * previously saved printers based on network discovery results. It implements decision-making
  * algorithms for selecting the appropriate printer when multiple matches are found, and manages
  * auto-connect preferences and retry logic. The service follows a singleton pattern and extends
  * EventEmitter to provide event-based communication with other components.
- * 
+ *
  * Key responsibilities:
  * - Determine when auto-connection should be attempted
  * - Make decisions about which printer to connect to when multiple options exist
@@ -17,7 +17,7 @@
  */
 
 import { EventEmitter } from 'events';
-import type { SavedPrinterMatch, AutoConnectDecision } from '../types/printer';
+import type { AutoConnectDecision, SavedPrinterMatch } from '../types/printer';
 export class AutoConnectService extends EventEmitter {
   private static instance: AutoConnectService | null = null;
 
@@ -55,21 +55,21 @@ export class AutoConnectService extends EventEmitter {
       // No saved printers found on network
       return {
         action: 'none',
-        reason: 'No saved printers found on network'
+        reason: 'No saved printers found on network',
       };
     } else if (matches.length === 1) {
       // Single saved printer found - auto-connect
       return {
         action: 'connect',
         selectedMatch: matches[0],
-        reason: 'Single saved printer found'
+        reason: 'Single saved printer found',
       };
     } else {
       // Multiple saved printers found - need user selection
       return {
         action: 'select',
         matches,
-        reason: 'Multiple saved printers found'
+        reason: 'Multiple saved printers found',
       };
     }
   }
@@ -140,4 +140,3 @@ export class AutoConnectService extends EventEmitter {
 export const getAutoConnectService = (): AutoConnectService => {
   return AutoConnectService.getInstance();
 };
-

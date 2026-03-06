@@ -23,31 +23,31 @@
  * regardless of the underlying API implementation.
  */
 
-import { EventEmitter } from 'events';
 import { FiveMClient, FlashForgeClient } from '@ghosttypes/ff-api';
+import { EventEmitter } from 'events';
 import type {
-  PrinterModelType,
-  PrinterFeatureSet,
-  BackendInitOptions,
-  CommandResult,
-  GCodeCommandResult,
-  StatusResult,
-  JobListResult,
-  JobStartResult,
-  JobOperationParams,
   BackendCapabilities,
-  BackendStatus,
-  MaterialStationStatus,
-  FeatureStubInfo,
   BackendEvent,
-  BackendEventType
+  BackendEventType,
+  BackendInitOptions,
+  BackendStatus,
+  CommandResult,
+  FeatureStubInfo,
+  GCodeCommandResult,
+  JobListResult,
+  JobOperationParams,
+  JobStartResult,
+  MaterialStationStatus,
+  PrinterFeatureSet,
+  PrinterModelType,
+  StatusResult,
 } from '../types/printer-backend';
 import {
-  getModelDisplayName,
-  getFeatureStubMessage,
   canOverrideFeature,
   getFeatureOverrideSettingsKey,
-  supportsDualAPI
+  getFeatureStubMessage,
+  getModelDisplayName,
+  supportsDualAPI,
 } from '../utils/PrinterUtils';
 
 /**
@@ -102,7 +102,7 @@ export abstract class BasePrinterBackend extends EventEmitter {
       type,
       timestamp: new Date(),
       data,
-      error
+      error,
     };
 
     this.emit(type, event);
@@ -139,11 +139,10 @@ export abstract class BasePrinterBackend extends EventEmitter {
 
       this.emitEvent('initialized', {
         modelType: this.modelType,
-        features: this.features
+        features: this.features,
       });
 
       console.log(`Backend initialized for ${this.printerName} (${this.modelType})`);
-
     } catch (error) {
       this.emitEvent('error', null, error instanceof Error ? error.message : String(error));
       throw error;
@@ -182,32 +181,35 @@ export abstract class BasePrinterBackend extends EventEmitter {
     return {
       camera: {
         builtin: baseFeatures.camera.builtin,
-        customUrl: settingsOverrides.customCameraEnabled ? String(settingsOverrides.customCameraUrl) : null,
-        customEnabled: Boolean(settingsOverrides.customCameraEnabled)
+        customUrl: settingsOverrides.customCameraEnabled
+          ? String(settingsOverrides.customCameraUrl)
+          : null,
+        customEnabled: Boolean(settingsOverrides.customCameraEnabled),
       },
       ledControl: {
         builtin: baseFeatures.ledControl.builtin,
         // Auto-enable for 5M/AD5X, otherwise check custom setting
-        customControlEnabled: (this.modelType === 'adventurer-5m' || this.modelType === 'ad5x')
-          ? true  // Auto-enable TCP LED control for these models
-          : (Boolean(settingsOverrides.customLEDControl) && this.supportsCustomLEDControl()),
-        usesLegacyAPI: baseFeatures.ledControl.usesLegacyAPI
+        customControlEnabled:
+          this.modelType === 'adventurer-5m' || this.modelType === 'ad5x'
+            ? true // Auto-enable TCP LED control for these models
+            : Boolean(settingsOverrides.customLEDControl) && this.supportsCustomLEDControl(),
+        usesLegacyAPI: baseFeatures.ledControl.usesLegacyAPI,
       },
       filtration: {
         available: baseFeatures.filtration.available,
         controllable: baseFeatures.filtration.controllable,
-        reason: baseFeatures.filtration.reason
+        reason: baseFeatures.filtration.reason,
       },
       gcodeCommands: {
         available: true, // Always available
         usesLegacyAPI: true, // G-code always uses legacy API
-        supportedCommands: this.getSupportedGCodeCommands()
+        supportedCommands: this.getSupportedGCodeCommands(),
       },
       statusMonitoring: {
         available: true, // Always available
         usesNewAPI: this.supportsNewAPI(),
         usesLegacyAPI: true, // Always available as fallback
-        realTimeUpdates: this.supportsNewAPI()
+        realTimeUpdates: this.supportsNewAPI(),
       },
       jobManagement: {
         localJobs: this.supportsLocalJobs(),
@@ -216,14 +218,14 @@ export abstract class BasePrinterBackend extends EventEmitter {
         startJobs: this.supportsStartJobs(),
         pauseResume: true, // Always available
         cancelJobs: true, // Always available
-        usesNewAPI: this.supportsNewAPI()
+        usesNewAPI: this.supportsNewAPI(),
       },
       materialStation: {
         available: this.supportsMaterialStation(),
         slotCount: this.getMaterialStationSlotCount(),
         perSlotInfo: this.supportsMaterialStation(),
-        materialDetection: this.supportsMaterialStation()
-      }
+        materialDetection: this.supportsMaterialStation(),
+      },
     };
   }
 
@@ -236,7 +238,7 @@ export abstract class BasePrinterBackend extends EventEmitter {
       customCameraEnabled: this.customCameraEnabled,
       customCameraUrl: this.customCameraUrl,
       customLEDControl: this.customLedsEnabled,
-      forceLegacyMode: this.forceLegacyMode
+      forceLegacyMode: this.forceLegacyMode,
     };
   }
 
@@ -286,7 +288,7 @@ export abstract class BasePrinterBackend extends EventEmitter {
       printerModel: getModelDisplayName(this.modelType),
       reason: available ? 'Available' : getFeatureStubMessage(feature, this.modelType),
       canBeEnabled,
-      settingsPath: settingsKey || undefined
+      settingsPath: settingsKey || undefined,
     };
   }
 
@@ -301,8 +303,10 @@ export abstract class BasePrinterBackend extends EventEmitter {
       secondaryClientConnected: this.secondaryClient !== null,
       features: this.features || this.buildFeatureSet(),
       capabilities: this.getCapabilities(),
-      materialStation: this.supportsMaterialStation() ? (this.getMaterialStationStatus() || undefined) : undefined,
-      lastUpdate: this.lastStatusUpdate
+      materialStation: this.supportsMaterialStation()
+        ? this.getMaterialStationStatus() || undefined
+        : undefined,
+      lastUpdate: this.lastStatusUpdate,
     };
   }
 
@@ -315,7 +319,7 @@ export abstract class BasePrinterBackend extends EventEmitter {
       supportedFeatures: this.getSupportedFeatures(),
       apiClients: this.getApiClients(),
       materialStationSupport: this.supportsMaterialStation(),
-      dualAPISupport: supportsDualAPI(this.modelType)
+      dualAPISupport: supportsDualAPI(this.modelType),
     };
   }
 
@@ -392,7 +396,6 @@ export abstract class BasePrinterBackend extends EventEmitter {
       this.emitEvent('disconnected');
 
       console.log(`Backend disposed for ${this.printerName}`);
-
     } catch (error) {
       console.error('Error during backend disposal:', error);
     }

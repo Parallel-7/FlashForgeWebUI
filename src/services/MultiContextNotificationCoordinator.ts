@@ -33,10 +33,10 @@
  * @exports getMultiContextNotificationCoordinator - Singleton instance accessor
  */
 
-import { EventEmitter } from '../utils/EventEmitter';
-import { getMultiContextPrintStateMonitor } from './MultiContextPrintStateMonitor';
 import { getPrinterContextManager } from '../managers/PrinterContextManager';
 import type { PrinterStatus } from '../types/polling';
+import { EventEmitter } from '../utils/EventEmitter';
+import { getMultiContextPrintStateMonitor } from './MultiContextPrintStateMonitor';
 
 // ============================================================================
 // TYPES
@@ -137,7 +137,7 @@ export class MultiContextNotificationCoordinator extends EventEmitter<Notificati
       printerName,
       jobName: event.jobName,
       timestamp: event.timestamp || event.completedAt || new Date(),
-      status: event.status
+      status: event.status,
     };
 
     console.log(`[MultiContextNotificationCoordinator] ${type}: ${printerName} - ${event.jobName}`);

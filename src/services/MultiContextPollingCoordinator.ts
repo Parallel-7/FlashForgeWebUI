@@ -20,12 +20,12 @@
  * - Automatic frequency adjustment on context switch
  */
 
-import { EventEmitter } from '../utils/EventEmitter';
-import { PrinterPollingService, POLLING_EVENTS } from './PrinterPollingService';
 import { getPrinterContextManager } from '../managers/PrinterContextManager';
-import type { PollingData, PollingConfig } from '../types/polling';
-import type { ContextSwitchEvent, ContextRemovedEvent } from '../types/printer';
+import type { PollingConfig, PollingData } from '../types/polling';
+import type { ContextRemovedEvent, ContextSwitchEvent } from '../types/printer';
+import { EventEmitter } from '../utils/EventEmitter';
 import { logVerbose } from '../utils/logging';
+import { POLLING_EVENTS, PrinterPollingService } from './PrinterPollingService';
 
 // ============================================================================
 // CONFIGURATION CONSTANTS
@@ -67,7 +67,8 @@ export interface MultiContextPollingEventMap extends Record<string, unknown[]> {
  * Branded type for MultiContextPollingCoordinator to ensure singleton pattern
  */
 type MultiContextPollingCoordinatorBrand = { readonly __brand: 'MultiContextPollingCoordinator' };
-type MultiContextPollingCoordinatorInstance = MultiContextPollingCoordinator & MultiContextPollingCoordinatorBrand;
+type MultiContextPollingCoordinatorInstance = MultiContextPollingCoordinator &
+  MultiContextPollingCoordinatorBrand;
 const COORDINATOR_LOG_NAMESPACE = 'MultiContextPollingCoordinator';
 
 /**
@@ -100,7 +101,8 @@ export class MultiContextPollingCoordinator extends EventEmitter<MultiContextPol
    */
   public static getInstance(): MultiContextPollingCoordinatorInstance {
     if (!MultiContextPollingCoordinator.instance) {
-      MultiContextPollingCoordinator.instance = new MultiContextPollingCoordinator() as MultiContextPollingCoordinatorInstance;
+      MultiContextPollingCoordinator.instance =
+        new MultiContextPollingCoordinator() as MultiContextPollingCoordinatorInstance;
     }
     return MultiContextPollingCoordinator.instance;
   }
@@ -143,7 +145,9 @@ export class MultiContextPollingCoordinator extends EventEmitter<MultiContextPol
     const newContextPoller = this.pollingServices.get(newContextId);
     if (newContextPoller) {
       newContextPoller.updateConfig({ intervalMs: ACTIVE_CONTEXT_POLLING_INTERVAL_MS });
-      this.logDebug(`Updated ${newContextId} to fast polling (${ACTIVE_CONTEXT_POLLING_INTERVAL_MS}ms)`);
+      this.logDebug(
+        `Updated ${newContextId} to fast polling (${ACTIVE_CONTEXT_POLLING_INTERVAL_MS}ms)`
+      );
 
       // Immediately emit cached polling data for the new active context
       // This ensures the UI updates instantly when switching tabs instead of waiting for the next poll cycle
@@ -159,7 +163,9 @@ export class MultiContextPollingCoordinator extends EventEmitter<MultiContextPol
       const previousContextPoller = this.pollingServices.get(previousContextId);
       if (previousContextPoller) {
         previousContextPoller.updateConfig({ intervalMs: INACTIVE_CONTEXT_POLLING_INTERVAL_MS });
-        this.logDebug(`Updated ${previousContextId} to slow polling (${INACTIVE_CONTEXT_POLLING_INTERVAL_MS}ms)`);
+        this.logDebug(
+          `Updated ${previousContextId} to slow polling (${INACTIVE_CONTEXT_POLLING_INTERVAL_MS}ms)`
+        );
       }
     }
   }
@@ -189,16 +195,19 @@ export class MultiContextPollingCoordinator extends EventEmitter<MultiContextPol
     if (!context.backend) {
       throw new Error(`Cannot start polling: Context ${contextId} has no backend`);
     }
+    const backend = context.backend;
 
     // Determine polling interval based on active state
     const isActive = context.isActive;
-    const intervalMs = isActive ? ACTIVE_CONTEXT_POLLING_INTERVAL_MS : INACTIVE_CONTEXT_POLLING_INTERVAL_MS;
+    const intervalMs = isActive
+      ? ACTIVE_CONTEXT_POLLING_INTERVAL_MS
+      : INACTIVE_CONTEXT_POLLING_INTERVAL_MS;
 
     // Create polling configuration
     const config: Partial<PollingConfig> = {
       intervalMs,
       maxRetries: 3,
-      retryDelayMs: 2000
+      retryDelayMs: 2000,
     };
 
     // Create and configure polling service
@@ -208,21 +217,23 @@ export class MultiContextPollingCoordinator extends EventEmitter<MultiContextPol
     // PrinterPollingService expects methods without contextId, so we bind the contextId here
     const backendWrapper = {
       getPrinterStatus: async () => {
-        return await context.backend!.getPrinterStatus();
+        return await backend.getPrinterStatus();
       },
       getMaterialStationStatus: async () => {
         // Backend method is synchronous, wrap in Promise.resolve
-        return Promise.resolve(context.backend!.getMaterialStationStatus());
+        return Promise.resolve(backend.getMaterialStationStatus());
       },
       getModelPreview: async () => {
-        return await context.backend!.getModelPreview();
+        return await backend.getModelPreview();
       },
       getJobThumbnail: async (fileName: string) => {
-        return await context.backend!.getJobThumbnail(fileName);
-      }
+        return await backend.getJobThumbnail(fileName);
+      },
     };
 
-    pollingService.setBackendManager(backendWrapper as Parameters<typeof pollingService.setBackendManager>[0]);
+    pollingService.setBackendManager(
+      backendWrapper as Parameters<typeof pollingService.setBackendManager>[0]
+    );
 
     // Set up event forwarding with context identification
     this.setupPollingServiceEvents(contextId, pollingService);
@@ -236,10 +247,14 @@ export class MultiContextPollingCoordinator extends EventEmitter<MultiContextPol
     const started = pollingService.start();
 
     if (started) {
-      this.logDebug(`Started ${isActive ? 'fast' : 'slow'} polling for context ${contextId} (${intervalMs}ms)`);
+      this.logDebug(
+        `Started ${isActive ? 'fast' : 'slow'} polling for context ${contextId} (${intervalMs}ms)`
+      );
       this.emit('polling-started', contextId);
     } else {
-      console.error(`[MultiContextPollingCoordinator] Failed to start polling for context ${contextId}`);
+      console.error(
+        `[MultiContextPollingCoordinator] Failed to start polling for context ${contextId}`
+      );
     }
   }
 
@@ -269,7 +284,10 @@ export class MultiContextPollingCoordinator extends EventEmitter<MultiContextPol
    * Set up event forwarding from a polling service
    * Adds context ID to all events for identification
    */
-  private setupPollingServiceEvents(contextId: string, pollingService: PrinterPollingService): void {
+  private setupPollingServiceEvents(
+    contextId: string,
+    pollingService: PrinterPollingService
+  ): void {
     // Forward data updates with context ID
     pollingService.on(POLLING_EVENTS.DATA_UPDATED, (data: PollingData) => {
       this.emit('polling-data', contextId, data);
@@ -304,7 +322,9 @@ export class MultiContextPollingCoordinator extends EventEmitter<MultiContextPol
   /**
    * Get polling statistics for a context
    */
-  public getPollingStatsForContext(contextId: string): ReturnType<PrinterPollingService['getStats']> | null {
+  public getPollingStatsForContext(
+    contextId: string
+  ): ReturnType<PrinterPollingService['getStats']> | null {
     const pollingService = this.pollingServices.get(contextId);
     return pollingService ? pollingService.getStats() : null;
   }
@@ -341,7 +361,9 @@ export class MultiContextPollingCoordinator extends EventEmitter<MultiContextPol
    * Stop all polling services
    */
   public stopAllPolling(): void {
-    console.info(`[MultiContextPollingCoordinator] Stopping all polling services (${this.pollingServices.size} active)`);
+    console.info(
+      `[MultiContextPollingCoordinator] Stopping all polling services (${this.pollingServices.size} active)`
+    );
 
     const contextIds = Array.from(this.pollingServices.keys());
     for (const contextId of contextIds) {
@@ -368,14 +390,17 @@ export class MultiContextPollingCoordinator extends EventEmitter<MultiContextPol
     listenersRegistered: boolean;
     pollingConfigs: Record<string, { intervalMs: number; isPolling: boolean; retryCount: number }>;
   } {
-    const pollingConfigs: Record<string, { intervalMs: number; isPolling: boolean; retryCount: number }> = {};
+    const pollingConfigs: Record<
+      string,
+      { intervalMs: number; isPolling: boolean; retryCount: number }
+    > = {};
 
     this.pollingServices.forEach((pollingService, contextId) => {
       const stats = pollingService.getStats();
       pollingConfigs[contextId] = {
         intervalMs: stats.intervalMs,
         isPolling: stats.isPolling,
-        retryCount: stats.retryCount
+        retryCount: stats.retryCount,
       };
     });
 
@@ -383,7 +408,7 @@ export class MultiContextPollingCoordinator extends EventEmitter<MultiContextPol
       activePollingCount: this.pollingServices.size,
       activeContexts: Array.from(this.pollingServices.keys()),
       listenersRegistered: this.listenersRegistered,
-      pollingConfigs
+      pollingConfigs,
     };
   }
 }

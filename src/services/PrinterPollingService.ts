@@ -15,17 +15,17 @@
  * to adhere to single responsibility principle.
  */
 
-import { EventEmitter } from '../utils/EventEmitter';
-import { printerDataTransformer } from './PrinterDataTransformer';
 import type {
-  PollingData,
-  PollingConfig,
-  PrinterStatus,
   CurrentJobInfo,
-  MaterialStationStatus
+  MaterialStationStatus,
+  PollingConfig,
+  PollingData,
+  PrinterStatus,
 } from '../types/polling';
-import { DEFAULT_POLLING_CONFIG, createEmptyPollingData } from '../types/polling';
+import { createEmptyPollingData, DEFAULT_POLLING_CONFIG } from '../types/polling';
+import { EventEmitter } from '../utils/EventEmitter';
 import { logVerbose } from '../utils/logging';
+import { printerDataTransformer } from './PrinterDataTransformer';
 
 const POLLING_LOG_NAMESPACE = 'PrinterPollingService';
 
@@ -75,7 +75,7 @@ export const POLLING_EVENTS = {
   POLLING_STARTED: 'polling-started',
   POLLING_STOPPED: 'polling-stopped',
   POLLING_ERROR: 'polling-error',
-  CONNECTION_CHANGED: 'connection-changed'
+  CONNECTION_CHANGED: 'connection-changed',
 } as const;
 
 /**
@@ -123,7 +123,7 @@ export class PrinterPollingService extends EventEmitter<PollingServiceEventMap> 
 
     this.config = {
       ...DEFAULT_POLLING_CONFIG,
-      ...config
+      ...config,
     };
 
     this.currentData = createEmptyPollingData();
@@ -165,7 +165,9 @@ export class PrinterPollingService extends EventEmitter<PollingServiceEventMap> 
       return false;
     }
 
-    console.info(`[PrinterPollingService] Starting polling (interval: ${this.config.intervalMs}ms)`);
+    console.info(
+      `[PrinterPollingService] Starting polling (interval: ${this.config.intervalMs}ms)`
+    );
 
     this.isPolling = true;
     this.retryCount = 0;
@@ -173,7 +175,7 @@ export class PrinterPollingService extends EventEmitter<PollingServiceEventMap> 
 
     this.emit(POLLING_EVENTS.POLLING_STARTED, {
       timestamp: new Date(),
-      intervalMs: this.config.intervalMs
+      intervalMs: this.config.intervalMs,
     });
 
     return true;
@@ -198,7 +200,7 @@ export class PrinterPollingService extends EventEmitter<PollingServiceEventMap> 
     }
 
     this.emit(POLLING_EVENTS.POLLING_STOPPED, {
-      timestamp: new Date()
+      timestamp: new Date(),
     });
   }
 
@@ -221,7 +223,7 @@ export class PrinterPollingService extends EventEmitter<PollingServiceEventMap> 
 
     this.config = {
       ...this.config,
-      ...newConfig
+      ...newConfig,
     };
 
     if (wasPolling) {
@@ -241,9 +243,7 @@ export class PrinterPollingService extends EventEmitter<PollingServiceEventMap> 
       return;
     }
 
-    const delay = this.retryCount > 0
-      ? this.calculateRetryDelay()
-      : this.config.intervalMs;
+    const delay = this.retryCount > 0 ? this.calculateRetryDelay() : this.config.intervalMs;
 
     this.pollingTimer = setTimeout(() => {
       void this.performPoll();
@@ -264,7 +264,7 @@ export class PrinterPollingService extends EventEmitter<PollingServiceEventMap> 
       // Fetch all data in parallel
       const [printerStatus, materialStation] = await Promise.allSettled([
         this.fetchPrinterStatus(),
-        this.fetchMaterialStation()
+        this.fetchMaterialStation(),
       ]);
 
       // Process results
@@ -272,7 +272,7 @@ export class PrinterPollingService extends EventEmitter<PollingServiceEventMap> 
       const newData: PollingData = {
         ...this.currentData,
         isInitializing: false,
-        lastPolled: new Date()
+        lastPolled: new Date(),
       };
 
       // Process printer status
@@ -286,7 +286,7 @@ export class PrinterPollingService extends EventEmitter<PollingServiceEventMap> 
 
         this.emit(POLLING_EVENTS.STATUS_UPDATED, printerStatus.value);
 
-        if (printerStatus.value.currentJob && printerStatus.value.currentJob.isActive) {
+        if (printerStatus.value.currentJob?.isActive) {
           this.emit(POLLING_EVENTS.JOB_UPDATED, printerStatus.value.currentJob);
         }
       } else {
@@ -319,7 +319,6 @@ export class PrinterPollingService extends EventEmitter<PollingServiceEventMap> 
       // Reset retry count on success
       this.retryCount = 0;
       this.lastSuccessfulPoll = new Date();
-
     } catch (error) {
       this.handlePollingError(error);
     } finally {
@@ -370,7 +369,7 @@ export class PrinterPollingService extends EventEmitter<PollingServiceEventMap> 
   private async handleJobChange(status: PrinterStatus, data: PollingData): Promise<void> {
     const currentJob = status.currentJob;
 
-    if (currentJob && currentJob.isActive && currentJob.fileName) {
+    if (currentJob?.isActive && currentJob.fileName) {
       const fileName = currentJob.fileName;
 
       // Job is active, check if it's a new job
@@ -382,7 +381,9 @@ export class PrinterPollingService extends EventEmitter<PollingServiceEventMap> 
         if (this.thumbnailCache.has(fileName)) {
           const cachedThumbnail = this.thumbnailCache.get(fileName);
           this.currentThumbnail = cachedThumbnail ?? null; // Handle undefined case
-          this.logDebug(`Using cached thumbnail for ${fileName}: ${this.currentThumbnail ? 'Available' : 'Failed (cached)'}`);
+          this.logDebug(
+            `Using cached thumbnail for ${fileName}: ${this.currentThumbnail ? 'Available' : 'Failed (cached)'}`
+          );
         } else if (this.thumbnailFailureCache.has(fileName)) {
           // Previous failure, don't retry
           this.currentThumbnail = null;
@@ -463,13 +464,16 @@ export class PrinterPollingService extends EventEmitter<PollingServiceEventMap> 
     const errorMessage = error instanceof Error ? error.message : 'Unknown polling error';
     const willRetry = this.retryCount <= this.config.maxRetries;
 
-    console.error(`Polling error (attempt ${this.retryCount}/${this.config.maxRetries}):`, errorMessage);
+    console.error(
+      `Polling error (attempt ${this.retryCount}/${this.config.maxRetries}):`,
+      errorMessage
+    );
 
     this.emit(POLLING_EVENTS.POLLING_ERROR, {
       error: errorMessage,
       timestamp: new Date(),
       retryCount: this.retryCount,
-      willRetry
+      willRetry,
     });
 
     if (!willRetry) {
@@ -483,7 +487,7 @@ export class PrinterPollingService extends EventEmitter<PollingServiceEventMap> 
    */
   private calculateRetryDelay(): number {
     const baseDelay = this.config.retryDelayMs;
-    const backoffMultiplier = Math.pow(2, this.retryCount - 1);
+    const backoffMultiplier = 2 ** (this.retryCount - 1);
     const maxDelay = 30000; // 30 seconds max
 
     return Math.min(baseDelay * backoffMultiplier, maxDelay);
@@ -515,7 +519,7 @@ export class PrinterPollingService extends EventEmitter<PollingServiceEventMap> 
       retryCount: this.retryCount,
       lastSuccessfulPoll: this.lastSuccessfulPoll,
       intervalMs: this.config.intervalMs,
-      isConnected: this.currentData.isConnected
+      isConnected: this.currentData.isConnected,
     };
   }
 

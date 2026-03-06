@@ -7,15 +7,20 @@
  */
 
 import { EventEmitter } from 'events';
-import { getConfigManager, type ConfigManager } from '../../managers/ConfigManager';
+import { type ConfigManager, getConfigManager } from '../../managers/ConfigManager';
 import {
   getPrinterContextManager,
   type PrinterContext,
   type PrinterContextManager,
 } from '../../managers/PrinterContextManager';
-import type { ContextRemovedEvent } from '../../types/printer';
-import type { DiscordEmbed, DiscordEmbedField, DiscordServiceConfig, DiscordWebhookPayload } from '../../types/discord';
+import type {
+  DiscordEmbed,
+  DiscordEmbedField,
+  DiscordServiceConfig,
+  DiscordWebhookPayload,
+} from '../../types/discord';
 import type { PrinterState, PrinterStatus } from '../../types/polling';
+import type { ContextRemovedEvent } from '../../types/printer';
 import type { PrintStateMonitor } from '../PrintStateMonitor';
 import type { TemperatureMonitoringService } from '../TemperatureMonitoringService';
 
@@ -211,7 +216,9 @@ export class DiscordNotificationService extends EventEmitter {
       this.emit('notification-sent', { contextId, type: 'print-complete' });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      console.error(`[DiscordNotificationService] Failed to send print complete notification: ${errorMessage}`);
+      console.error(
+        `[DiscordNotificationService] Failed to send print complete notification: ${errorMessage}`
+      );
     }
   }
 
@@ -240,7 +247,9 @@ export class DiscordNotificationService extends EventEmitter {
       this.emit('notification-sent', { contextId, type: 'printer-cooled' });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      console.error(`[DiscordNotificationService] Failed to send printer cooled notification: ${errorMessage}`);
+      console.error(
+        `[DiscordNotificationService] Failed to send printer cooled notification: ${errorMessage}`
+      );
     }
   }
 
@@ -462,7 +471,9 @@ export class DiscordNotificationService extends EventEmitter {
       this.emit('notification-sent', { contextId, type: 'idle-transition' });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      console.error(`[DiscordNotificationService] Failed to send idle notification: ${errorMessage}`);
+      console.error(
+        `[DiscordNotificationService] Failed to send idle notification: ${errorMessage}`
+      );
     }
   }
 

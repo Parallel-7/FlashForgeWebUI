@@ -29,17 +29,14 @@ export type WebSocketMessageType =
 /**
  * WebSocket command types (Client → Server)
  */
-export type WebSocketCommandType =
-  | 'REQUEST_STATUS'
-  | 'EXECUTE_GCODE'
-  | 'PING';
+export type WebSocketCommandType = 'REQUEST_STATUS' | 'EXECUTE_GCODE' | 'PING';
 
 /**
  * WebSocket message from server to client
  */
 export interface WebSocketServerMessage {
   type: WebSocketMessageType;
-  data?: any;
+  data?: unknown;
   error?: string;
 }
 
@@ -48,7 +45,7 @@ export interface WebSocketServerMessage {
  */
 export interface WebSocketClientMessage {
   type: WebSocketCommandType;
-  data?: any;
+  data?: unknown;
 }
 
 /**
@@ -82,7 +79,7 @@ export interface AuthStatusResponse {
  */
 export interface ApiErrorResponse {
   error: string;
-  details?: any;
+  details?: unknown;
 }
 
 /**
@@ -91,5 +88,5 @@ export interface ApiErrorResponse {
 export interface ApiSuccessResponse {
   success: boolean;
   message?: string;
-  data?: any;
+  data?: unknown;
 }

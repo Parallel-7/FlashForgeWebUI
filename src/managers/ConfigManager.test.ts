@@ -3,14 +3,18 @@
  * Tests configuration loading, saving, validation, and event emission
  */
 
-import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
-import * as fs from 'fs';
+import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { EventEmitter } from 'events';
+import * as fs from 'fs';
 import { ConfigManager, getConfigManager } from './ConfigManager';
 
 // Mock fs and path
 jest.mock('fs');
 jest.mock('path');
+
+function resetConfigManagerSingleton(): void {
+  Reflect.set(ConfigManager, 'instance', null);
+}
 
 describe('ConfigManager', () => {
   let configManager: ConfigManager;
@@ -22,26 +26,28 @@ describe('ConfigManager', () => {
     jest.spyOn(fs, 'existsSync').mockReturnValue(true);
 
     // Mock fs.readFileSync to return default config
-    jest.spyOn(fs, 'readFileSync').mockReturnValue(JSON.stringify({
-      WebUIEnabled: true,
-      WebUIPort: 3000,
-      WebUIPassword: 'testpass',
-      WebUIPasswordRequired: true,
-      DiscordSync: false,
-      WebhookUrl: '',
-      DiscordUpdateIntervalMinutes: 5,
-      SpoolmanEnabled: false,
-      SpoolmanServerUrl: ''
-    }));
+    jest.spyOn(fs, 'readFileSync').mockReturnValue(
+      JSON.stringify({
+        WebUIEnabled: true,
+        WebUIPort: 3000,
+        WebUIPassword: 'testpass',
+        WebUIPasswordRequired: true,
+        DiscordSync: false,
+        WebhookUrl: '',
+        DiscordUpdateIntervalMinutes: 5,
+        SpoolmanEnabled: false,
+        SpoolmanServerUrl: '',
+      })
+    );
 
     // Mock fs.mkdirSync
-    jest.spyOn(fs, 'mkdirSync').mockImplementation(() => undefined as any);
+    jest.spyOn(fs, 'mkdirSync').mockImplementation(() => undefined);
 
     // Mock fs.writeFileSync
     jest.spyOn(fs, 'writeFileSync').mockImplementation(() => {});
 
     // Reset singleton
-    (ConfigManager as any).instance = null;
+    resetConfigManagerSingleton();
     configManager = getConfigManager();
   });
 
@@ -107,7 +113,8 @@ describe('ConfigManager', () => {
     });
 
     it('should return undefined for non-existent key', () => {
-      const value = configManager.get('NonExistentKey' as any);
+      const getUnknownKey = configManager.get.bind(configManager) as (key: string) => unknown;
+      const value = getUnknownKey('NonExistentKey');
 
       expect(value).toBeUndefined();
     });
@@ -158,7 +165,7 @@ describe('ConfigManager', () => {
 
       configManager.updateConfig({
         WebUIPort: 3001,
-        SpoolmanEnabled: true
+        SpoolmanEnabled: true,
       });
     });
   });
@@ -212,7 +219,7 @@ describe('ConfigManager', () => {
     it('should create data directory if it does not exist', () => {
       (fs.existsSync as jest.Mock).mockReturnValueOnce(false);
 
-      (ConfigManager as any).instance = null;
+      resetConfigManagerSingleton();
       getConfigManager();
 
       expect(fs.mkdirSync).toHaveBeenCalled();

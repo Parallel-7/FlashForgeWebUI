@@ -21,21 +21,20 @@
  */
 
 import { EventEmitter } from 'events';
+import type { BasePrinterBackend } from '../printer-backends/BasePrinterBackend';
+import type { PrinterPollingService } from '../services/PrinterPollingService';
 import type {
-  PrinterDetails,
   ContextConnectionState,
-  PrinterContextInfo,
-  ContextSwitchEvent,
   ContextCreatedEvent,
-  ContextRemovedEvent
+  ContextRemovedEvent,
+  ContextSwitchEvent,
+  PrinterContextInfo,
+  PrinterDetails,
 } from '../types/printer';
 import type { ActiveSpoolData } from '../types/spoolman';
 
-// Forward type declarations for services not yet implemented
-// These will be replaced with actual imports once services are ported
-type BasePrinterBackend = any;
-type PrinterPollingService = any;
-type PrinterNotificationCoordinator = any;
+// Notification coordinators are only stored and compared by identity in this manager.
+type PrinterNotificationCoordinator = object;
 
 /**
  * Complete printer context containing all state for a single printer connection
@@ -147,7 +146,7 @@ export class PrinterContextManager extends EventEmitter {
       createdAt: now,
       lastActivity: now,
       activeSpoolId: null,
-      activeSpoolData: null
+      activeSpoolData: null,
     };
 
     this.contexts.set(contextId, context);
@@ -155,11 +154,13 @@ export class PrinterContextManager extends EventEmitter {
     // Emit creation event
     const event: ContextCreatedEvent = {
       contextId,
-      contextInfo: this.contextToInfo(context)
+      contextInfo: this.contextToInfo(context),
     };
     this.emit('context-created', event);
 
-    console.log(`[PrinterContextManager] Created context ${contextId} for printer: ${printerDetails.Name}`);
+    console.log(
+      `[PrinterContextManager] Created context ${contextId} for printer: ${printerDetails.Name}`
+    );
 
     return contextId;
   }
@@ -191,7 +192,7 @@ export class PrinterContextManager extends EventEmitter {
     // Emit removal event
     const event: ContextRemovedEvent = {
       contextId,
-      wasActive
+      wasActive,
     };
     this.emit('context-removed', event);
 
@@ -231,11 +232,13 @@ export class PrinterContextManager extends EventEmitter {
     const event: ContextSwitchEvent = {
       contextId,
       previousContextId,
-      contextInfo: this.contextToInfo(context)
+      contextInfo: this.contextToInfo(context),
     };
     this.emit('context-switched', event);
 
-    console.log(`[PrinterContextManager] Switched from ${previousContextId || 'none'} to ${contextId}`);
+    console.log(
+      `[PrinterContextManager] Switched from ${previousContextId || 'none'} to ${contextId}`
+    );
   }
 
   /**
@@ -284,7 +287,7 @@ export class PrinterContextManager extends EventEmitter {
    * @returns Array of context info objects safe for IPC/API
    */
   public getAllContextsInfo(): PrinterContextInfo[] {
-    return this.getAllContexts().map(ctx => this.contextToInfo(ctx));
+    return this.getAllContexts().map((ctx) => this.contextToInfo(ctx));
   }
 
   /**
@@ -358,7 +361,10 @@ export class PrinterContextManager extends EventEmitter {
    * @param contextId - Context to update
    * @param pollingService - Polling service instance or null
    */
-  public updatePollingService(contextId: string, pollingService: PrinterPollingService | null): void {
+  public updatePollingService(
+    contextId: string,
+    pollingService: PrinterPollingService | null
+  ): void {
     const context = this.contexts.get(contextId);
     if (context) {
       context.pollingService = pollingService;
@@ -372,7 +378,10 @@ export class PrinterContextManager extends EventEmitter {
    * @param contextId - Context to update
    * @param notificationCoordinator - Notification coordinator instance or null
    */
-  public updateNotificationCoordinator(contextId: string, notificationCoordinator: PrinterNotificationCoordinator | null): void {
+  public updateNotificationCoordinator(
+    contextId: string,
+    notificationCoordinator: PrinterNotificationCoordinator | null
+  ): void {
     const context = this.contexts.get(contextId);
     if (context) {
       context.notificationCoordinator = notificationCoordinator;
@@ -386,7 +395,9 @@ export class PrinterContextManager extends EventEmitter {
    * @param coordinator - Notification coordinator to locate
    * @returns Context ID or null if coordinator is not registered
    */
-  public getContextIdForNotificationCoordinator(coordinator: PrinterNotificationCoordinator): string | null {
+  public getContextIdForNotificationCoordinator(
+    coordinator: PrinterNotificationCoordinator
+  ): string | null {
     for (const [contextId, context] of this.contexts.entries()) {
       if (context.notificationCoordinator === coordinator) {
         return contextId;
@@ -412,7 +423,7 @@ export class PrinterContextManager extends EventEmitter {
       status: context.connectionState,
       isActive: context.isActive,
       createdAt: context.createdAt.toISOString(),
-      lastActivity: context.lastActivity.toISOString()
+      lastActivity: context.lastActivity.toISOString(),
     };
   }
 
@@ -423,9 +434,14 @@ export class PrinterContextManager extends EventEmitter {
    * @param contextId - Context ID (defaults to active context if not provided)
    * @param spoolData - Active spool data (null to clear)
    */
-  public async setActiveSpool(contextId: string | undefined, spoolData: ActiveSpoolData | null): Promise<void> {
+  public async setActiveSpool(
+    contextId: string | undefined,
+    spoolData: ActiveSpoolData | null
+  ): Promise<void> {
     // TODO: Implement once SpoolmanIntegrationService is ported
-    console.warn('[PrinterContextManager] setActiveSpool not yet implemented - SpoolmanIntegrationService pending');
+    console.warn(
+      '[PrinterContextManager] setActiveSpool not yet implemented - SpoolmanIntegrationService pending'
+    );
     const targetContextId = contextId || this.activeContextId;
     if (targetContextId) {
       const context = this.contexts.get(targetContextId);

@@ -3,13 +3,22 @@
  * Tests middleware order, static file serving, SPA routing, and API endpoints
  */
 
-import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach, jest } from '@jest/globals';
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  jest,
+} from '@jest/globals';
 import express, { type Express } from 'express';
 import * as fs from 'fs';
 import * as path from 'path';
 import request from 'supertest';
-import type { EnvironmentService } from '../../services/EnvironmentService';
 import type { ConfigManager } from '../../managers/ConfigManager';
+import type { EnvironmentService } from '../../services/EnvironmentService';
 import type { StandardAPIResponse } from '../types/web-api.types';
 
 // Mock the singleton dependencies
@@ -66,13 +75,13 @@ describe('WebUIManager Integration Tests', () => {
         dirname: __dirname,
         cwd: process.cwd(),
         staticPath: mockStaticPath,
-        dataPath: path.join(process.cwd(), 'data')
+        dataPath: path.join(process.cwd(), 'data'),
       }),
       getDataPath: jest.fn().mockReturnValue(path.join(process.cwd(), 'data')),
       getLogsPath: jest.fn().mockReturnValue(path.join(process.cwd(), 'data', 'logs')),
       getAppRootPath: jest.fn().mockReturnValue(process.cwd()),
-      isElectron: jest.fn().mockReturnValue(false)
-    } as any;
+      isElectron: jest.fn().mockReturnValue(false),
+    } as unknown as jest.Mocked<EnvironmentService>;
 
     mockConfigManager = {
       getConfig: jest.fn().mockReturnValue({
@@ -84,19 +93,19 @@ describe('WebUIManager Integration Tests', () => {
         WebhookUrl: '',
         DiscordUpdateIntervalMinutes: 5,
         SpoolmanEnabled: false,
-        SpoolmanServerUrl: ''
+        SpoolmanServerUrl: '',
       }),
       get: jest.fn().mockReturnValue(true),
-      on: jest.fn()
-    } as any;
+      on: jest.fn(),
+    } as unknown as jest.Mocked<ConfigManager>;
 
     // Mock the module imports
     jest.doMock('../../services/EnvironmentService', () => ({
-      getEnvironmentService: () => mockEnvironmentService
+      getEnvironmentService: () => mockEnvironmentService,
     }));
 
     jest.doMock('../../managers/ConfigManager', () => ({
-      getConfigManager: () => mockConfigManager
+      getConfigManager: () => mockConfigManager,
     }));
 
     // Create a minimal Express app with the same middleware structure
@@ -106,10 +115,12 @@ describe('WebUIManager Integration Tests', () => {
     app.use(express.json());
 
     // Static file serving
-    app.use(express.static(mockStaticPath, {
-      fallthrough: true,
-      maxAge: '0'
-    }));
+    app.use(
+      express.static(mockStaticPath, {
+        fallthrough: true,
+        maxAge: '0',
+      })
+    );
 
     // Mock API routes
     app.get('/api/health', (_req, res) => {
@@ -123,7 +134,7 @@ describe('WebUIManager Integration Tests', () => {
       const fullPath = `/api${req.path}`;
       const response: StandardAPIResponse = {
         success: false,
-        error: `API endpoint not found: ${req.method} ${fullPath}`
+        error: `API endpoint not found: ${req.method} ${fullPath}`,
       };
       res.status(404).json(response);
     });
@@ -153,7 +164,7 @@ describe('WebUIManager Integration Tests', () => {
       // File with extension that wasn't found by static middleware
       const response: StandardAPIResponse = {
         success: false,
-        error: `File not found: ${req.path}`
+        error: `File not found: ${req.path}`,
       };
       res.status(404).json(response);
     });
@@ -194,7 +205,7 @@ describe('WebUIManager Integration Tests', () => {
       expect(response.status).toBe(404);
       expect(response.body).toEqual({
         success: false,
-        error: 'File not found: /nonexistent.css'
+        error: 'File not found: /nonexistent.css',
       });
     });
   });
@@ -206,7 +217,7 @@ describe('WebUIManager Integration Tests', () => {
       expect(response.status).toBe(200);
       expect(response.body).toEqual({
         success: true,
-        status: 'ok'
+        status: 'ok',
       });
     });
 
@@ -216,7 +227,7 @@ describe('WebUIManager Integration Tests', () => {
       expect(response.status).toBe(404);
       expect(response.body).toEqual({
         success: false,
-        error: 'API endpoint not found: GET /api/nonexistent'
+        error: 'API endpoint not found: GET /api/nonexistent',
       });
     });
 
@@ -226,7 +237,7 @@ describe('WebUIManager Integration Tests', () => {
       expect(response.status).toBe(404);
       expect(response.body).toEqual({
         success: false,
-        error: 'API endpoint not found: POST /api/test'
+        error: 'API endpoint not found: POST /api/test',
       });
     });
   });
@@ -259,7 +270,7 @@ describe('WebUIManager Integration Tests', () => {
       expect(response.status).toBe(404);
       expect(response.body).toEqual({
         success: false,
-        error: 'File not found: /missing.js'
+        error: 'File not found: /missing.js',
       });
     });
 

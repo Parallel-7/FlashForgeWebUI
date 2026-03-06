@@ -49,7 +49,7 @@
  * and UI components for printer-specific behavior.
  */
 
-import type { PrinterFamilyInfo, PrinterClientType } from '../types/printer';
+import type { PrinterClientType, PrinterFamilyInfo } from '../types/printer';
 import type { PrinterModelType } from '../types/printer-backend';
 
 /**
@@ -104,7 +104,7 @@ export const getPrinterModelInfo = (typeName: string): EnhancedPrinterFamilyInfo
         hasBuiltinCamera: true,
         hasBuiltinLED: true,
         hasBuiltinFiltration: true,
-        supportsMaterialStation: false
+        supportsMaterialStation: false,
       };
 
     case 'adventurer-5m':
@@ -116,7 +116,7 @@ export const getPrinterModelInfo = (typeName: string): EnhancedPrinterFamilyInfo
         hasBuiltinCamera: false,
         hasBuiltinLED: false,
         hasBuiltinFiltration: false,
-        supportsMaterialStation: false
+        supportsMaterialStation: false,
       };
 
     case 'ad5x':
@@ -128,10 +128,8 @@ export const getPrinterModelInfo = (typeName: string): EnhancedPrinterFamilyInfo
         hasBuiltinCamera: false,
         hasBuiltinLED: false,
         hasBuiltinFiltration: false,
-        supportsMaterialStation: true
+        supportsMaterialStation: true,
       };
-
-    case 'generic-legacy':
     default:
       return {
         is5MFamily: false,
@@ -141,7 +139,7 @@ export const getPrinterModelInfo = (typeName: string): EnhancedPrinterFamilyInfo
         hasBuiltinCamera: false,
         hasBuiltinLED: false,
         hasBuiltinFiltration: false,
-        supportsMaterialStation: false
+        supportsMaterialStation: false,
       };
   }
 };
@@ -165,7 +163,6 @@ export const getModelDisplayName = (modelType: PrinterModelType): string => {
       return 'Adventurer 5M';
     case 'ad5x':
       return 'AD5X';
-    case 'generic-legacy':
     default:
       return 'Legacy Printer';
   }
@@ -227,7 +224,7 @@ export const detectPrinterFamily = (typeName: string): PrinterFamilyInfo => {
     return {
       is5MFamily: false,
       requiresCheckCode: false,
-      familyName: 'Unknown'
+      familyName: 'Unknown',
     };
   }
 
@@ -250,7 +247,7 @@ export const detectPrinterFamily = (typeName: string): PrinterFamilyInfo => {
     return {
       is5MFamily: true,
       requiresCheckCode: true,
-      familyName
+      familyName,
     };
   }
 
@@ -258,7 +255,7 @@ export const detectPrinterFamily = (typeName: string): PrinterFamilyInfo => {
   return {
     is5MFamily: false,
     requiresCheckCode: false,
-    familyName: typeName
+    familyName: typeName,
   };
 };
 
@@ -291,7 +288,8 @@ export const isValidIPAddress = (ip: string): boolean => {
     return false;
   }
 
-  const ipRegex = /^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
+  const ipRegex =
+    /^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
   return ipRegex.test(ip);
 };
 
@@ -411,7 +409,11 @@ export const shouldPromptForCheckCode = (
   }
 
   // 5M printers need check code if not already saved or saved code is default/empty
-  return !savedCheckCode || savedCheckCode === getDefaultCheckCode() || savedCheckCode.trim().length === 0;
+  return (
+    !savedCheckCode ||
+    savedCheckCode === getDefaultCheckCode() ||
+    savedCheckCode.trim().length === 0
+  );
 };
 
 /**

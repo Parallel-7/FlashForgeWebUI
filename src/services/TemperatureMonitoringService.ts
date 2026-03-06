@@ -23,10 +23,10 @@
  * @exports TemperatureMonitoringService - Main temperature monitoring class
  */
 
+import type { PrinterStatus } from '../types/polling';
 import { EventEmitter } from '../utils/EventEmitter';
 import type { PrinterPollingService } from './PrinterPollingService';
 import type { PrintStateMonitor } from './PrintStateMonitor';
-import type { PrinterStatus } from '../types/polling';
 
 // ============================================================================
 // CONSTANTS
@@ -42,7 +42,7 @@ const COOLED_TEMPERATURE_THRESHOLD = 35;
  */
 const DEFAULT_TEMP_MONITOR_CONFIG = {
   checkIntervalMs: 10 * 1000, // Check every 10 seconds
-  temperatureThreshold: COOLED_TEMPERATURE_THRESHOLD
+  temperatureThreshold: COOLED_TEMPERATURE_THRESHOLD,
 };
 
 // ============================================================================
@@ -71,18 +71,22 @@ interface TemperatureMonitorState {
  * Event map for TemperatureMonitoringService
  */
 interface TempMonitorEventMap extends Record<string, unknown[]> {
-  'temperature-checked': [{
-    contextId: string;
-    temperature: number;
-    coolingThreshold: number;
-    hasCooled: boolean;
-  }];
-  'printer-cooled': [{
-    contextId: string;
-    temperature: number;
-    bedCooledAt: Date;
-    status: PrinterStatus;
-  }];
+  'temperature-checked': [
+    {
+      contextId: string;
+      temperature: number;
+      coolingThreshold: number;
+      hasCooled: boolean;
+    },
+  ];
+  'printer-cooled': [
+    {
+      contextId: string;
+      temperature: number;
+      bedCooledAt: Date;
+      status: PrinterStatus;
+    },
+  ];
   'monitoring-started': [{ contextId: string }];
   'monitoring-stopped': [{ contextId: string }];
 }
@@ -104,7 +108,7 @@ export class TemperatureMonitoringService extends EventEmitter<TempMonitorEventM
     printCompleteTime: null,
     hasCooled: false,
     lastCheckedTemp: null,
-    monitoringActive: false
+    monitoringActive: false,
   };
 
   private temperatureCheckTimer: NodeJS.Timeout | null = null;
@@ -229,7 +233,6 @@ export class TemperatureMonitoringService extends EventEmitter<TempMonitorEventM
     this.printStateMonitor.removeAllListeners('print-error');
   }
 
-
   // ============================================================================
   // TEMPERATURE MONITORING
   // ============================================================================
@@ -297,7 +300,7 @@ export class TemperatureMonitoringService extends EventEmitter<TempMonitorEventM
       contextId: this.contextId,
       temperature: bedTemp,
       coolingThreshold: this.config.temperatureThreshold,
-      hasCooled
+      hasCooled,
     });
 
     // If cooled, emit cooled event and stop monitoring
@@ -308,10 +311,12 @@ export class TemperatureMonitoringService extends EventEmitter<TempMonitorEventM
         contextId: this.contextId,
         temperature: bedTemp,
         bedCooledAt: new Date(),
-        status
+        status,
       });
 
-      console.log(`[TemperatureMonitor] Printer cooled for context ${this.contextId}: ${bedTemp}°C`);
+      console.log(
+        `[TemperatureMonitor] Printer cooled for context ${this.contextId}: ${bedTemp}°C`
+      );
 
       this.stopMonitoring();
     }
@@ -331,7 +336,7 @@ export class TemperatureMonitoringService extends EventEmitter<TempMonitorEventM
       printCompleteTime: null,
       hasCooled: false,
       lastCheckedTemp: null,
-      monitoringActive: false
+      monitoringActive: false,
     };
 
     console.log(`[TemperatureMonitor] State reset for context ${this.contextId}`);

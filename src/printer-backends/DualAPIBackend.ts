@@ -21,18 +21,18 @@
  */
 
 import { FiveMClient, FlashForgeClient, type Product } from '@ghosttypes/ff-api';
-import { BasePrinterBackend } from './BasePrinterBackend';
 import type {
   BackendInitOptions,
+  BasicJobInfo,
   CommandResult,
   GCodeCommandResult,
-  StatusResult,
   JobListResult,
-  JobStartResult,
   JobOperationParams,
-  BasicJobInfo,
-  PrinterFeatureSet
+  JobStartResult,
+  PrinterFeatureSet,
+  StatusResult,
 } from '../types/printer-backend';
+import { BasePrinterBackend } from './BasePrinterBackend';
 
 /**
  * Abstract base class for dual-API printer backends
@@ -102,7 +102,6 @@ export abstract class DualAPIBackend extends BasePrinterBackend {
 
       // Now call parent initialize which will build features using our product info
       await super.initialize();
-
     } catch (error) {
       this.emitEvent('error', null, error instanceof Error ? error.message : String(error));
       throw error;
@@ -129,11 +128,22 @@ export abstract class DualAPIBackend extends BasePrinterBackend {
     // Log detected features if we have product info
     if (this.productInfo) {
       console.log('Auto-detected features from product endpoint:');
-      console.log(`- LED control: ${this.productInfo.lightCtrlState !== 0 ? 'Available' : 'Not available'}`);
-      console.log(`- Filtration: ${(this.productInfo.internalFanCtrlState !== 0 || this.productInfo.externalFanCtrlState !== 0) ? 'Available' : 'Not available'}`);
-      if (this.productInfo.internalFanCtrlState !== 0 || this.productInfo.externalFanCtrlState !== 0) {
-        console.log(`  - Internal fan control: ${this.productInfo.internalFanCtrlState !== 0 ? 'Yes' : 'No'}`);
-        console.log(`  - External fan control: ${this.productInfo.externalFanCtrlState !== 0 ? 'Yes' : 'No'}`);
+      console.log(
+        `- LED control: ${this.productInfo.lightCtrlState !== 0 ? 'Available' : 'Not available'}`
+      );
+      console.log(
+        `- Filtration: ${this.productInfo.internalFanCtrlState !== 0 || this.productInfo.externalFanCtrlState !== 0 ? 'Available' : 'Not available'}`
+      );
+      if (
+        this.productInfo.internalFanCtrlState !== 0 ||
+        this.productInfo.externalFanCtrlState !== 0
+      ) {
+        console.log(
+          `  - Internal fan control: ${this.productInfo.internalFanCtrlState !== 0 ? 'Yes' : 'No'}`
+        );
+        console.log(
+          `  - External fan control: ${this.productInfo.externalFanCtrlState !== 0 ? 'Yes' : 'No'}`
+        );
       }
     }
 
@@ -155,7 +165,6 @@ export abstract class DualAPIBackend extends BasePrinterBackend {
 
       // Store product info for use in getBaseFeatures
       this.productInfo = this.fiveMClient.productInfo;
-
     } catch (error) {
       console.error('Error fetching product info:', error);
       // Continue without product info - features will use defaults
@@ -172,28 +181,29 @@ export abstract class DualAPIBackend extends BasePrinterBackend {
 
     // Override LED and filtration based on product info if available
     if (this.productInfo) {
-      const hasFiltration = this.productInfo.internalFanCtrlState !== 0 ||
-                           this.productInfo.externalFanCtrlState !== 0;
+      const hasFiltration =
+        this.productInfo.internalFanCtrlState !== 0 || this.productInfo.externalFanCtrlState !== 0;
 
       // For AD5X, respect the child's per-printer LED override instead of auto-detecting.
-      const ledBuiltin = this.modelType === 'ad5x'
-        ? childFeatures.ledControl.builtin
-        : this.productInfo.lightCtrlState !== 0;
+      const ledBuiltin =
+        this.modelType === 'ad5x'
+          ? childFeatures.ledControl.builtin
+          : this.productInfo.lightCtrlState !== 0;
 
       // Return new object with overridden values
       return {
         ...childFeatures,
         ledControl: {
           ...childFeatures.ledControl,
-          builtin: ledBuiltin
+          builtin: ledBuiltin,
         },
         filtration: {
           available: hasFiltration,
           controllable: hasFiltration,
           reason: hasFiltration
             ? 'Hardware supports filtration control'
-            : 'Hardware does not support filtration control'
-        }
+            : 'Hardware does not support filtration control',
+        },
       };
     }
 
@@ -223,7 +233,7 @@ export abstract class DualAPIBackend extends BasePrinterBackend {
         command,
         response: String(response),
         executionTime,
-        timestamp: new Date()
+        timestamp: new Date(),
       };
     } catch (error) {
       const executionTime = Date.now() - startTime;
@@ -234,7 +244,7 @@ export abstract class DualAPIBackend extends BasePrinterBackend {
         command,
         error: errorMessage,
         executionTime,
-        timestamp: new Date()
+        timestamp: new Date(),
       };
     }
   }
@@ -261,9 +271,8 @@ export abstract class DualAPIBackend extends BasePrinterBackend {
       // Calculate time estimates properly
       const estimatedTimeSeconds = machineInfo?.EstimatedTime || 0;
       const elapsedTimeSeconds = machineInfo?.PrintDuration || 0;
-      const remainingTimeSeconds = estimatedTimeSeconds > elapsedTimeSeconds
-        ? estimatedTimeSeconds - elapsedTimeSeconds
-        : 0;
+      const remainingTimeSeconds =
+        estimatedTimeSeconds > elapsedTimeSeconds ? estimatedTimeSeconds - elapsedTimeSeconds : 0;
 
       // Extract current filament usage values
       const estimatedRightLen = machineInfo?.EstLength || 0;
@@ -271,14 +280,16 @@ export abstract class DualAPIBackend extends BasePrinterBackend {
       const currentJob = machineInfo?.PrintFileName;
 
       // Cache filament usage while actively printing
-      if ((status === 'printing' || status === 'paused') &&
-          currentJob &&
-          (estimatedRightLen > 0 || estimatedRightWeight > 0)) {
+      if (
+        (status === 'printing' || status === 'paused') &&
+        currentJob &&
+        (estimatedRightLen > 0 || estimatedRightWeight > 0)
+      ) {
         this.lastFilamentUsageCache = {
           estimatedRightLen,
           estimatedRightWeight,
           currentJob,
-          cachedAt: new Date()
+          cachedAt: new Date(),
         };
       }
 
@@ -291,13 +302,19 @@ export abstract class DualAPIBackend extends BasePrinterBackend {
         if (this.lastFilamentUsageCache.currentJob === currentJob) {
           finalEstimatedRightLen = this.lastFilamentUsageCache.estimatedRightLen;
           finalEstimatedRightWeight = this.lastFilamentUsageCache.estimatedRightWeight;
-          console.log(`[DualAPIBackend] Using cached filament usage for completed print: ${finalEstimatedRightWeight}g, ${finalEstimatedRightLen}mm`);
+          console.log(
+            `[DualAPIBackend] Using cached filament usage for completed print: ${finalEstimatedRightWeight}g, ${finalEstimatedRightLen}mm`
+          );
         }
       }
 
       // Clear cache when returning to ready or new print starts
-      if (status === 'ready' ||
-          (status === 'printing' && currentJob && this.lastFilamentUsageCache?.currentJob !== currentJob)) {
+      if (
+        status === 'ready' ||
+        (status === 'printing' &&
+          currentJob &&
+          this.lastFilamentUsageCache?.currentJob !== currentJob)
+      ) {
         console.log('[DualAPIBackend] Clearing filament usage cache');
         this.lastFilamentUsageCache = null;
       }
@@ -328,13 +345,13 @@ export abstract class DualAPIBackend extends BasePrinterBackend {
         chamberFanSpeed: machineInfo?.ChamberFanSpeed || 0,
         tvoc: machineInfo?.Tvoc || 0,
         // Allow subclasses to add additional fields
-        ...this.getAdditionalStatusFields(machineInfo)
+        ...this.getAdditionalStatusFields(machineInfo),
       };
 
       return {
         success: true,
         status: printerStatus,
-        timestamp: new Date()
+        timestamp: new Date(),
       };
     } catch (error) {
       // Fallback to legacy API if new API fails
@@ -358,19 +375,25 @@ export abstract class DualAPIBackend extends BasePrinterBackend {
       const status = {
         printerState: String(infoObj.MachineStatus || infoObj.Status || 'unknown'),
         bedTemperature: parseFloat(String(infoObj.BedTemperature || infoObj.BedTemp || '0')),
-        nozzleTemperature: parseFloat(String(infoObj.NozzleTemperature || infoObj.NozzleTemp || infoObj.ExtruderTemp || '0')),
+        nozzleTemperature: parseFloat(
+          String(infoObj.NozzleTemperature || infoObj.NozzleTemp || infoObj.ExtruderTemp || '0')
+        ),
         progress: parseFloat(String(infoObj.Progress || '0')),
         currentJob: infoObj.CurrentFile ? String(infoObj.CurrentFile) : undefined,
         estimatedTime: undefined,
         remainingTime: undefined,
-        currentLayer: infoObj.CurrentPrintLayer ? parseInt(String(infoObj.CurrentPrintLayer)) : undefined,
-        totalLayers: infoObj.TotalPrintLayers ? parseInt(String(infoObj.TotalPrintLayers)) : undefined
+        currentLayer: infoObj.CurrentPrintLayer
+          ? parseInt(String(infoObj.CurrentPrintLayer), 10)
+          : undefined,
+        totalLayers: infoObj.TotalPrintLayers
+          ? parseInt(String(infoObj.TotalPrintLayers), 10)
+          : undefined,
       };
 
       return {
         success: true,
         status,
-        timestamp: new Date()
+        timestamp: new Date(),
       };
     } catch {
       return {
@@ -383,8 +406,8 @@ export abstract class DualAPIBackend extends BasePrinterBackend {
           nozzleTemperature: 0,
           progress: 0,
           currentLayer: undefined,
-          totalLayers: undefined
-        }
+          totalLayers: undefined,
+        },
       };
     }
   }
@@ -403,7 +426,7 @@ export abstract class DualAPIBackend extends BasePrinterBackend {
       // Local file list returns string[] - convert to BasicJobInfo[]
       const jobs: BasicJobInfo[] = localJobs.map((fileName: string) => ({
         fileName,
-        printingTime: 0 // Local file list doesn't provide timing information
+        printingTime: 0, // Local file list doesn't provide timing information
       }));
 
       return {
@@ -411,7 +434,7 @@ export abstract class DualAPIBackend extends BasePrinterBackend {
         jobs,
         totalCount: jobs.length,
         source: 'local',
-        timestamp: new Date()
+        timestamp: new Date(),
       };
     } catch (error) {
       return {
@@ -420,7 +443,7 @@ export abstract class DualAPIBackend extends BasePrinterBackend {
         jobs: [],
         totalCount: 0,
         source: 'local',
-        timestamp: new Date()
+        timestamp: new Date(),
       };
     }
   }
@@ -439,7 +462,7 @@ export abstract class DualAPIBackend extends BasePrinterBackend {
       // Recent jobs return FFGcodeFileEntry[]
       const jobs: BasicJobInfo[] = recentJobs.map((fileEntry) => ({
         fileName: fileEntry.gcodeFileName,
-        printingTime: fileEntry.printingTime
+        printingTime: fileEntry.printingTime,
       }));
 
       // Allow subclasses to transform job data
@@ -450,7 +473,7 @@ export abstract class DualAPIBackend extends BasePrinterBackend {
         jobs: transformedJobs,
         totalCount: transformedJobs.length,
         source: 'recent',
-        timestamp: new Date()
+        timestamp: new Date(),
       };
     } catch (error) {
       return {
@@ -459,7 +482,7 @@ export abstract class DualAPIBackend extends BasePrinterBackend {
         jobs: [],
         totalCount: 0,
         source: 'recent',
-        timestamp: new Date()
+        timestamp: new Date(),
       };
     }
   }
@@ -485,7 +508,7 @@ export abstract class DualAPIBackend extends BasePrinterBackend {
           success: true,
           fileName: params.fileName || params.filePath,
           started: params.startNow,
-          timestamp: new Date()
+          timestamp: new Date(),
         };
       }
 
@@ -500,11 +523,14 @@ export abstract class DualAPIBackend extends BasePrinterBackend {
           success: true,
           fileName: params.fileName,
           started: false,
-          timestamp: new Date()
+          timestamp: new Date(),
         };
       }
 
-      const success = await this.fiveMClient.jobControl.printLocalFile(params.fileName, params.leveling);
+      const success = await this.fiveMClient.jobControl.printLocalFile(
+        params.fileName,
+        params.leveling
+      );
 
       if (!success) {
         throw new Error('Failed to start job');
@@ -514,7 +540,7 @@ export abstract class DualAPIBackend extends BasePrinterBackend {
         success: true,
         fileName: params.fileName,
         started: true,
-        timestamp: new Date()
+        timestamp: new Date(),
       };
     } catch (error) {
       return {
@@ -522,7 +548,7 @@ export abstract class DualAPIBackend extends BasePrinterBackend {
         error: error instanceof Error ? error.message : String(error),
         fileName: params.fileName || '',
         started: false,
-        timestamp: new Date()
+        timestamp: new Date(),
       };
     }
   }
@@ -541,7 +567,7 @@ export abstract class DualAPIBackend extends BasePrinterBackend {
       return {
         success: true,
         data: 'Job paused',
-        timestamp: new Date()
+        timestamp: new Date(),
       };
     } catch (error) {
       // Fallback to legacy API
@@ -550,13 +576,13 @@ export abstract class DualAPIBackend extends BasePrinterBackend {
         return {
           success: true,
           data: 'Job paused (via legacy API)',
-          timestamp: new Date()
+          timestamp: new Date(),
         };
       } catch {
         return {
           success: false,
           error: error instanceof Error ? error.message : String(error),
-          timestamp: new Date()
+          timestamp: new Date(),
         };
       }
     }
@@ -576,7 +602,7 @@ export abstract class DualAPIBackend extends BasePrinterBackend {
       return {
         success: true,
         data: 'Job resumed',
-        timestamp: new Date()
+        timestamp: new Date(),
       };
     } catch (error) {
       // Fallback to legacy API
@@ -585,13 +611,13 @@ export abstract class DualAPIBackend extends BasePrinterBackend {
         return {
           success: true,
           data: 'Job resumed (via legacy API)',
-          timestamp: new Date()
+          timestamp: new Date(),
         };
       } catch {
         return {
           success: false,
           error: error instanceof Error ? error.message : String(error),
-          timestamp: new Date()
+          timestamp: new Date(),
         };
       }
     }
@@ -611,7 +637,7 @@ export abstract class DualAPIBackend extends BasePrinterBackend {
       return {
         success: true,
         data: 'Job cancelled',
-        timestamp: new Date()
+        timestamp: new Date(),
       };
     } catch (error) {
       // Fallback to legacy API
@@ -620,13 +646,13 @@ export abstract class DualAPIBackend extends BasePrinterBackend {
         return {
           success: true,
           data: 'Job cancelled (via legacy API)',
-          timestamp: new Date()
+          timestamp: new Date(),
         };
       } catch {
         return {
           success: false,
           error: error instanceof Error ? error.message : String(error),
-          timestamp: new Date()
+          timestamp: new Date(),
         };
       }
     }
@@ -647,7 +673,6 @@ export abstract class DualAPIBackend extends BasePrinterBackend {
 
       // Use the general job thumbnail method for the current job
       return this.getJobThumbnail(machineInfo.PrintFileName);
-
     } catch (error) {
       console.error('Error getting model preview:', error);
       return null;
@@ -675,7 +700,6 @@ export abstract class DualAPIBackend extends BasePrinterBackend {
       // Convert buffer to base64 data URL
       const base64Data = thumbnailBuffer.toString('base64');
       return `data:image/png;base64,${base64Data}`;
-
     } catch (error) {
       console.error(`Error getting thumbnail for ${fileName}:`, error);
       return null;
@@ -699,7 +723,7 @@ export abstract class DualAPIBackend extends BasePrinterBackend {
         return {
           success: false,
           error: 'Cannot determine printer features',
-          timestamp: new Date()
+          timestamp: new Date(),
         };
       }
 
@@ -713,7 +737,7 @@ export abstract class DualAPIBackend extends BasePrinterBackend {
           success,
           data: enabled ? 'LED turned on (HTTP API)' : 'LED turned off (HTTP API)',
           error: success ? undefined : 'Failed to control LED',
-          timestamp: new Date()
+          timestamp: new Date(),
         };
       } else if (this.modelType === 'adventurer-5m' || this.modelType === 'ad5x') {
         // 5M and AD5X → Always use TCP API (auto-enabled)
@@ -723,23 +747,25 @@ export abstract class DualAPIBackend extends BasePrinterBackend {
 
         return {
           success,
-          data: enabled ? 'LED turned on (TCP API - auto-enabled)' : 'LED turned off (TCP API - auto-enabled)',
+          data: enabled
+            ? 'LED turned on (TCP API - auto-enabled)'
+            : 'LED turned off (TCP API - auto-enabled)',
           error: success ? undefined : 'Failed to control LED',
-          timestamp: new Date()
+          timestamp: new Date(),
         };
       } else {
         // Should not reach here for dual-API backends, but handle gracefully
         return {
           success: false,
           error: 'LED control not available for this printer model',
-          timestamp: new Date()
+          timestamp: new Date(),
         };
       }
     } catch (error) {
       return {
         success: false,
         error: error instanceof Error ? error.message : String(error),
-        timestamp: new Date()
+        timestamp: new Date(),
       };
     }
   }
@@ -773,12 +799,55 @@ export abstract class DualAPIBackend extends BasePrinterBackend {
   protected getSupportedGCodeCommands(): readonly string[] {
     // Common G-code commands supported by all dual-API printers
     return [
-      'G0', 'G1', 'G28', 'G29', 'G90', 'G91', 'G92',
-      'M0', 'M1', 'M17', 'M18', 'M20', 'M21', 'M23', 'M24', 'M25', 'M26',
-      'M104', 'M105', 'M106', 'M107', 'M109', 'M140', 'M190',
-      'M200', 'M201', 'M203', 'M204', 'M205', 'M206', 'M207', 'M208', 'M209',
-      'M220', 'M221', 'M301', 'M302', 'M303', 'M304', 'M400', 'M500', 'M501',
-      'M502', 'M503', 'M504', 'M905', 'M906', 'M907', 'M908'
+      'G0',
+      'G1',
+      'G28',
+      'G29',
+      'G90',
+      'G91',
+      'G92',
+      'M0',
+      'M1',
+      'M17',
+      'M18',
+      'M20',
+      'M21',
+      'M23',
+      'M24',
+      'M25',
+      'M26',
+      'M104',
+      'M105',
+      'M106',
+      'M107',
+      'M109',
+      'M140',
+      'M190',
+      'M200',
+      'M201',
+      'M203',
+      'M204',
+      'M205',
+      'M206',
+      'M207',
+      'M208',
+      'M209',
+      'M220',
+      'M221',
+      'M301',
+      'M302',
+      'M303',
+      'M304',
+      'M400',
+      'M500',
+      'M501',
+      'M502',
+      'M503',
+      'M504',
+      'M905',
+      'M906',
+      'M907',
+      'M908',
     ];
   }
 

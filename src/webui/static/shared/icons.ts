@@ -32,7 +32,10 @@ export function toPascalCase(value: string): string {
     .join('');
 }
 
-export function hydrateLucideIcons(iconNames: string[], root: Document | Element | DocumentFragment = document): void {
+export function hydrateLucideIcons(
+  iconNames: string[],
+  root: Document | Element | DocumentFragment = document
+): void {
   const lucide = window.lucide;
   if (!lucide?.createIcons) {
     return;

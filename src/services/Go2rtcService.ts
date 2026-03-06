@@ -3,7 +3,6 @@
  * streaming gateway.
  */
 
-import { EventEmitter } from '../utils/EventEmitter';
 import type {
   CameraStreamConfig,
   Go2rtcServiceEvents,
@@ -11,7 +10,8 @@ import type {
   Go2rtcStreamInfo,
   Go2rtcStreamsResponse,
 } from '../types/go2rtc.types';
-import { Go2rtcBinaryManager, getGo2rtcBinaryManager } from './Go2rtcBinaryManager';
+import { EventEmitter } from '../utils/EventEmitter';
+import { type Go2rtcBinaryManager, getGo2rtcBinaryManager } from './Go2rtcBinaryManager';
 
 interface ManagedStream {
   contextId: string;
@@ -71,7 +71,10 @@ export class Go2rtcService extends EventEmitter<Go2rtcServiceEvents> {
         await this.registerStreamWithGo2rtc(stream.streamName, stream.sourceUrl);
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
-        console.error(`[Go2rtcService] Failed to restore stream ${stream.streamName}:`, errorMessage);
+        console.error(
+          `[Go2rtcService] Failed to restore stream ${stream.streamName}:`,
+          errorMessage
+        );
         this.streams.delete(stream.contextId);
         this.emit(
           'stream-error',
@@ -195,7 +198,11 @@ export class Go2rtcService extends EventEmitter<Go2rtcServiceEvents> {
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       console.error(`[Go2rtcService] Failed to add stream ${streamName}:`, errorMessage);
-      this.emit('stream-error', contextId, error instanceof Error ? error : new Error(errorMessage));
+      this.emit(
+        'stream-error',
+        contextId,
+        error instanceof Error ? error : new Error(errorMessage)
+      );
       throw error;
     }
   }

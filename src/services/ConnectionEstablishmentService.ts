@@ -18,17 +18,14 @@
  * conjunction with ConnectionFlowManager for complete connection workflows.
  */
 
-import { EventEmitter } from 'events';
 import { FiveMClient, FlashForgeClient } from '@ghosttypes/ff-api';
+import { EventEmitter } from 'events';
 import type {
   DiscoveredPrinter,
+  ExtendedPrinterInfo,
   TemporaryConnectionResult,
-  ExtendedPrinterInfo
 } from '../types/printer';
-import {
-  detectPrinterFamily,
-  getConnectionErrorMessage
-} from '../utils/PrinterUtils';
+import { detectPrinterFamily, getConnectionErrorMessage } from '../utils/PrinterUtils';
 
 // Connection clients interface for dual API support
 interface ConnectionClients {
@@ -84,7 +81,7 @@ export class ConnectionEstablishmentService extends EventEmitter {
           tempClient.initControl(),
           new Promise<boolean>((_, reject) =>
             setTimeout(() => reject(new Error('Connection timeout')), timeout)
-          )
+          ),
         ]);
 
         if (!connected) {
@@ -93,7 +90,10 @@ export class ConnectionEstablishmentService extends EventEmitter {
             try {
               void tempClient.dispose();
             } catch (disposeError) {
-              console.error('[Connection] Error disposing temp client after initControl failure:', disposeError);
+              console.error(
+                '[Connection] Error disposing temp client after initControl failure:',
+                disposeError
+              );
             }
           }
 
@@ -105,18 +105,20 @@ export class ConnectionEstablishmentService extends EventEmitter {
           this.emit('temporary-connection-failed', 'Failed to initialize control');
           return {
             success: false,
-            error: 'Failed to initialize control'
+            error: 'Failed to initialize control',
           };
         }
 
-        console.log(`[Connection] Control initialized, fetching printer info (timeout: ${timeout}ms)...`);
+        console.log(
+          `[Connection] Control initialized, fetching printer info (timeout: ${timeout}ms)...`
+        );
 
         // Get printer info with timeout
         const printerInfo = await Promise.race([
           tempClient.getPrinterInfo(),
           new Promise<never>((_, reject) =>
             setTimeout(() => reject(new Error('Printer info timeout')), timeout)
-          )
+          ),
         ]);
 
         if (!printerInfo || !printerInfo.TypeName) {
@@ -133,7 +135,7 @@ export class ConnectionEstablishmentService extends EventEmitter {
           this.emit('temporary-connection-failed', 'Failed to get printer type information');
           return {
             success: false,
-            error: 'Failed to get printer type information'
+            error: 'Failed to get printer type information',
           };
         }
 
@@ -144,7 +146,7 @@ export class ConnectionEstablishmentService extends EventEmitter {
           TypeName: printerInfo.TypeName,
           Name: printerInfo.Name,
           SerialNumber: printerInfo.SerialNumber,
-          is5MFamily: familyInfo.is5MFamily
+          is5MFamily: familyInfo.is5MFamily,
         });
 
         this.emit('printer-type-detected', { typeName, familyInfo });
@@ -157,14 +159,16 @@ export class ConnectionEstablishmentService extends EventEmitter {
             typeName,
             printerInfo: {
               ...(printerInfo as unknown as Record<string, unknown>),
-              _reuseableClient: tempClient // Store for reuse
-            }
+              _reuseableClient: tempClient, // Store for reuse
+            },
           };
         } else {
           // 5M family - dispose temp client, will create new one
           // But first ensure we have critical information for dual API connection
           if (!printerInfo.SerialNumber || printerInfo.SerialNumber.trim() === '') {
-            console.warn('[Connection] Warning: No serial number found in printer info for 5M family printer');
+            console.warn(
+              '[Connection] Warning: No serial number found in printer info for 5M family printer'
+            );
             console.warn('[Connection] This may cause dual API connection to fail');
           }
 
@@ -172,15 +176,14 @@ export class ConnectionEstablishmentService extends EventEmitter {
           void tempClient.dispose();
 
           // Add a small delay after disposing temp client to ensure clean state
-          await new Promise(resolve => setTimeout(resolve, 200));
+          await new Promise((resolve) => setTimeout(resolve, 200));
 
           return {
             success: true,
             typeName,
-            printerInfo: printerInfo as unknown as ExtendedPrinterInfo
+            printerInfo: printerInfo as unknown as ExtendedPrinterInfo,
           };
         }
-
       } catch (error) {
         console.error(`[Connection] Attempt ${attempt} failed:`, error);
 
@@ -206,7 +209,7 @@ export class ConnectionEstablishmentService extends EventEmitter {
         this.emit('temporary-connection-failed', errorMessage);
         return {
           success: false,
-          error: errorMessage
+          error: errorMessage,
         };
       }
     }
@@ -214,7 +217,7 @@ export class ConnectionEstablishmentService extends EventEmitter {
     // Should never reach here, but TypeScript requires it
     return {
       success: false,
-      error: 'All connection attempts failed'
+      error: 'All connection attempts failed',
     };
   }
 
@@ -222,7 +225,7 @@ export class ConnectionEstablishmentService extends EventEmitter {
    * Delay helper for exponential backoff
    */
   private async delay(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
   /**
@@ -263,18 +266,18 @@ export class ConnectionEstablishmentService extends EventEmitter {
       ipAddress: printer.ipAddress,
       serialNumber: printer.serialNumber,
       name: printer.name,
-      hasValidSerial: !!(printer.serialNumber && printer.serialNumber.trim() !== '')
+      hasValidSerial: !!(printer.serialNumber && printer.serialNumber.trim() !== ''),
     });
-    
+
     // Validate that we have a valid serial number for FiveMClient
     if (!printer.serialNumber || printer.serialNumber.trim() === '') {
       console.error('Cannot create FiveMClient without valid serial number');
       throw new Error('Serial number is required for dual API connection but was not provided');
     }
-    
+
     // Primary client: FiveMClient for new API operations
     const primaryClient = new FiveMClient(printer.ipAddress, printer.serialNumber, checkCode);
-    
+
     try {
       console.log('Initializing FiveMClient...');
       const initialized = await primaryClient.initialize();
@@ -291,10 +294,10 @@ export class ConnectionEstablishmentService extends EventEmitter {
         throw new Error('Failed to initialize 5M control - initControl returned false');
       }
       console.log('FiveMClient control initialized successfully');
-      
+
       // Add a small delay to ensure primary client is fully ready
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
+      await new Promise((resolve) => setTimeout(resolve, 500));
+
       // Secondary client: FlashForgeClient for legacy API operations (G-code commands)
       console.log('Initializing secondary FlashForgeClient...');
       const secondaryClient = new FlashForgeClient(printer.ipAddress);
@@ -310,16 +313,16 @@ export class ConnectionEstablishmentService extends EventEmitter {
         throw new Error('Failed to initialize legacy client for dual API');
       }
       console.log('Secondary FlashForgeClient initialized successfully');
-      
+
       console.log('Both clients initialized successfully for dual API');
       this.emit('dual-api-connection-established', {
         ipAddress: printer.ipAddress,
-        serialNumber: printer.serialNumber
+        serialNumber: printer.serialNumber,
       });
-      
+
       return {
         primaryClient,
-        secondaryClient
+        secondaryClient,
       };
     } catch (error) {
       console.error('Error in establishDualAPIConnection:', error);
@@ -329,7 +332,7 @@ export class ConnectionEstablishmentService extends EventEmitter {
       } catch (disposeError) {
         console.error('Error disposing primary client after error:', disposeError);
       }
-      
+
       // Provide more specific error information
       if (error instanceof Error) {
         throw new Error(`Dual API connection failed: ${error.message}`);
@@ -342,31 +345,29 @@ export class ConnectionEstablishmentService extends EventEmitter {
   /**
    * Establish legacy connection for non-5M printers
    */
-  private async establishLegacyConnection(
-    printer: DiscoveredPrinter
-  ): Promise<ConnectionClients> {
+  private async establishLegacyConnection(printer: DiscoveredPrinter): Promise<ConnectionClients> {
     console.log('Creating single legacy API connection');
-    
+
     // Try to reuse temporary connection if available
     const tempInfo = await this.createTemporaryConnection(printer);
     if (tempInfo.success && tempInfo.printerInfo?._reuseableClient) {
       console.log('Reusing temporary connection for legacy printer');
       this.emit('legacy-connection-reused');
       return {
-        primaryClient: tempInfo.printerInfo._reuseableClient as FlashForgeClient
+        primaryClient: tempInfo.printerInfo._reuseableClient as FlashForgeClient,
       };
     } else {
       // Create new legacy connection
       const primaryClient = new FlashForgeClient(printer.ipAddress);
       const connected = await primaryClient.initControl();
-      
+
       if (!connected) {
         throw new Error('Failed to initialize legacy client');
       }
 
       this.emit('legacy-connection-established');
       return {
-        primaryClient
+        primaryClient,
       };
     }
   }
@@ -395,12 +396,12 @@ export class ConnectionEstablishmentService extends EventEmitter {
     // Send logout to legacy clients before disposal
     if (clientType === 'legacy' && primaryClient) {
       await this.sendLogoutCommand(primaryClient as FlashForgeClient);
-      await new Promise(resolve => setTimeout(resolve, 200)); // Give time to process
+      await new Promise((resolve) => setTimeout(resolve, 200)); // Give time to process
     }
 
     if (secondaryClient) {
       await this.sendLogoutCommand(secondaryClient);
-      await new Promise(resolve => setTimeout(resolve, 200));
+      await new Promise((resolve) => setTimeout(resolve, 200));
     }
 
     // Dispose clients
@@ -428,4 +429,3 @@ export class ConnectionEstablishmentService extends EventEmitter {
 export const getConnectionEstablishmentService = (): ConnectionEstablishmentService => {
   return ConnectionEstablishmentService.getInstance();
 };
-

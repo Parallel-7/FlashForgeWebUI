@@ -18,19 +18,26 @@
  * commands and legacy status parsing, ensuring compatibility with all FlashForge printers.
  */
 
-import { FlashForgeClient, type TempInfo, type TempData, type EndstopStatus, MachineStatus, type PrintStatus } from '@ghosttypes/ff-api';
-import { BasePrinterBackend } from './BasePrinterBackend';
+import {
+  type EndstopStatus,
+  FlashForgeClient,
+  MachineStatus,
+  type PrintStatus,
+  type TempData,
+  type TempInfo,
+} from '@ghosttypes/ff-api';
 import type {
-  PrinterFeatureSet,
+  BasicJobInfo,
   CommandResult,
   GCodeCommandResult,
-  StatusResult,
   JobListResult,
-  JobStartResult,
   JobOperationParams,
+  JobStartResult,
   MaterialStationStatus,
-  BasicJobInfo
+  PrinterFeatureSet,
+  StatusResult,
 } from '../types/printer-backend';
+import { BasePrinterBackend } from './BasePrinterBackend';
 
 /**
  * Backend implementation for legacy printers
@@ -58,28 +65,28 @@ export class GenericLegacyBackend extends BasePrinterBackend {
       camera: {
         builtin: false,
         customUrl: null,
-        customEnabled: false
+        customEnabled: false,
       },
       ledControl: {
         builtin: false,
         customControlEnabled: false,
-        usesLegacyAPI: true
+        usesLegacyAPI: true,
       },
       filtration: {
         available: false,
         controllable: false,
-        reason: 'Hardware does not support filtration control'
+        reason: 'Hardware does not support filtration control',
       },
       gcodeCommands: {
         available: true,
         usesLegacyAPI: true,
-        supportedCommands: this.getSupportedGCodeCommands()
+        supportedCommands: this.getSupportedGCodeCommands(),
       },
       statusMonitoring: {
         available: true,
         usesNewAPI: false,
         usesLegacyAPI: true,
-        realTimeUpdates: false
+        realTimeUpdates: false,
       },
       jobManagement: {
         localJobs: true,
@@ -88,14 +95,14 @@ export class GenericLegacyBackend extends BasePrinterBackend {
         startJobs: true,
         pauseResume: true,
         cancelJobs: true,
-        usesNewAPI: false
+        usesNewAPI: false,
       },
       materialStation: {
         available: false,
         slotCount: 0,
         perSlotInfo: false,
-        materialDetection: false
-      }
+        materialDetection: false,
+      },
     };
   }
 
@@ -123,7 +130,7 @@ export class GenericLegacyBackend extends BasePrinterBackend {
         command,
         response: String(response),
         executionTime,
-        timestamp: new Date()
+        timestamp: new Date(),
       };
     } catch (error) {
       const executionTime = Date.now() - startTime;
@@ -134,7 +141,7 @@ export class GenericLegacyBackend extends BasePrinterBackend {
         command,
         error: errorMessage,
         executionTime,
-        timestamp: new Date()
+        timestamp: new Date(),
       };
     }
   }
@@ -153,7 +160,7 @@ export class GenericLegacyBackend extends BasePrinterBackend {
         isNull: printerInfo === null,
         isUndefined: printerInfo === undefined,
         keys: printerInfo ? Object.keys(printerInfo) : [],
-        printerInfo: printerInfo ? JSON.stringify(printerInfo, null, 2) : 'null/undefined'
+        printerInfo: printerInfo ? JSON.stringify(printerInfo, null, 2) : 'null/undefined',
       });
 
       // Get temperature info (like legacy version)
@@ -223,7 +230,6 @@ export class GenericLegacyBackend extends BasePrinterBackend {
           case MachineStatus.BUSY:
             printerState = 'busy';
             break;
-          case MachineStatus.DEFAULT:
           default:
             printerState = 'unknown';
             break;
@@ -234,8 +240,8 @@ export class GenericLegacyBackend extends BasePrinterBackend {
       // === ENHANCED PRINT STATUS INTEGRATION ===
       // Conditionally get detailed print status when printer is actively printing
       let progress = 0;
-      let currentLayer: number | undefined = undefined;
-      let totalLayers: number | undefined = undefined;
+      let currentLayer: number | undefined;
+      let totalLayers: number | undefined;
       const enhancedJobName: string | undefined = endstopStatus?._CurrentFile || undefined;
 
       const isActivePrinting = printerState === 'printing' || printerState === 'paused';
@@ -247,22 +253,22 @@ export class GenericLegacyBackend extends BasePrinterBackend {
           if (printStatus) {
             // Extract progress percentage
             const progressPercent = printStatus.getPrintPercent();
-            if (!isNaN(progressPercent)) {
+            if (!Number.isNaN(progressPercent)) {
               progress = progressPercent;
               console.log(`[GenericLegacyBackend] Progress: ${progress}%`);
             }
 
             // Extract layer information
             const layerProgress = printStatus.getLayerProgress();
-            if (layerProgress && layerProgress.includes('/')) {
+            if (layerProgress?.includes('/')) {
               const layerParts = layerProgress.split('/');
               const current = parseInt(layerParts[0]?.trim() || '0', 10);
               const total = parseInt(layerParts[1]?.trim() || '0', 10);
 
-              if (!isNaN(current) && current > 0) {
+              if (!Number.isNaN(current) && current > 0) {
                 currentLayer = current;
               }
-              if (!isNaN(total) && total > 0) {
+              if (!Number.isNaN(total) && total > 0) {
                 totalLayers = total;
               }
 
@@ -276,7 +282,10 @@ export class GenericLegacyBackend extends BasePrinterBackend {
           }
         } catch (error) {
           // Don't fail the entire status call if PrintStatus fails
-          console.warn('[GenericLegacyBackend] Failed to get PrintStatus:', error instanceof Error ? error.message : String(error));
+          console.warn(
+            '[GenericLegacyBackend] Failed to get PrintStatus:',
+            error instanceof Error ? error.message : String(error)
+          );
         }
       }
 
@@ -303,13 +312,13 @@ export class GenericLegacyBackend extends BasePrinterBackend {
         zAxisCompensation: undefined,
         coolingFanSpeed: undefined,
         chamberFanSpeed: undefined,
-        tvoc: undefined
+        tvoc: undefined,
       };
 
       return {
         success: true,
         status,
-        timestamp: new Date()
+        timestamp: new Date(),
       };
     } catch (error) {
       return {
@@ -322,8 +331,8 @@ export class GenericLegacyBackend extends BasePrinterBackend {
           nozzleTemperature: 0,
           progress: 0,
           currentLayer: undefined,
-          totalLayers: undefined
-        }
+          totalLayers: undefined,
+        },
       };
     }
   }
@@ -337,9 +346,9 @@ export class GenericLegacyBackend extends BasePrinterBackend {
       const fileNames = await this.legacyClient.getFileListAsync();
 
       // Convert filenames to BasicJobInfo objects
-      const jobs: BasicJobInfo[] = fileNames.map(fileName => ({
+      const jobs: BasicJobInfo[] = fileNames.map((fileName) => ({
         fileName,
-        printingTime: 0 // Legacy printers don't provide time estimates via M661
+        printingTime: 0, // Legacy printers don't provide time estimates via M661
       }));
 
       return {
@@ -347,7 +356,7 @@ export class GenericLegacyBackend extends BasePrinterBackend {
         jobs,
         totalCount: jobs.length,
         source: 'local',
-        timestamp: new Date()
+        timestamp: new Date(),
       };
     } catch (error) {
       return {
@@ -356,7 +365,7 @@ export class GenericLegacyBackend extends BasePrinterBackend {
         jobs: [],
         totalCount: 0,
         source: 'local',
-        timestamp: new Date()
+        timestamp: new Date(),
       };
     }
   }
@@ -372,9 +381,9 @@ export class GenericLegacyBackend extends BasePrinterBackend {
       const recentFileNames = fileNames.slice(0, 10);
 
       // Convert filenames to BasicJobInfo objects
-      const jobs: BasicJobInfo[] = recentFileNames.map(fileName => ({
+      const jobs: BasicJobInfo[] = recentFileNames.map((fileName) => ({
         fileName,
-        printingTime: 0 // Legacy printers don't provide time estimates via M661
+        printingTime: 0, // Legacy printers don't provide time estimates via M661
       }));
 
       return {
@@ -382,7 +391,7 @@ export class GenericLegacyBackend extends BasePrinterBackend {
         jobs,
         totalCount: jobs.length,
         source: 'recent',
-        timestamp: new Date()
+        timestamp: new Date(),
       };
     } catch (error) {
       return {
@@ -391,7 +400,7 @@ export class GenericLegacyBackend extends BasePrinterBackend {
         jobs: [],
         totalCount: 0,
         source: 'recent',
-        timestamp: new Date()
+        timestamp: new Date(),
       };
     }
   }
@@ -407,7 +416,7 @@ export class GenericLegacyBackend extends BasePrinterBackend {
           error: 'fileName is required for legacy printers',
           fileName: '',
           started: false,
-          timestamp: new Date()
+          timestamp: new Date(),
         };
       }
 
@@ -421,7 +430,7 @@ export class GenericLegacyBackend extends BasePrinterBackend {
           error: 'Failed to start print job - printer rejected command',
           fileName: params.fileName,
           started: false,
-          timestamp: new Date()
+          timestamp: new Date(),
         };
       }
 
@@ -429,7 +438,7 @@ export class GenericLegacyBackend extends BasePrinterBackend {
         success: true,
         fileName: params.fileName,
         started: true,
-        timestamp: new Date()
+        timestamp: new Date(),
       };
     } catch (error) {
       return {
@@ -437,7 +446,7 @@ export class GenericLegacyBackend extends BasePrinterBackend {
         error: error instanceof Error ? error.message : String(error),
         fileName: params.fileName || '',
         started: false,
-        timestamp: new Date()
+        timestamp: new Date(),
       };
     }
   }
@@ -453,20 +462,20 @@ export class GenericLegacyBackend extends BasePrinterBackend {
         return {
           success: false,
           error: 'Failed to pause job - printer rejected command',
-          timestamp: new Date()
+          timestamp: new Date(),
         };
       }
 
       return {
         success: true,
         data: 'Job paused',
-        timestamp: new Date()
+        timestamp: new Date(),
       };
     } catch (error) {
       return {
         success: false,
         error: error instanceof Error ? error.message : String(error),
-        timestamp: new Date()
+        timestamp: new Date(),
       };
     }
   }
@@ -482,20 +491,20 @@ export class GenericLegacyBackend extends BasePrinterBackend {
         return {
           success: false,
           error: 'Failed to resume job - printer rejected command',
-          timestamp: new Date()
+          timestamp: new Date(),
         };
       }
 
       return {
         success: true,
         data: 'Job resumed',
-        timestamp: new Date()
+        timestamp: new Date(),
       };
     } catch (error) {
       return {
         success: false,
         error: error instanceof Error ? error.message : String(error),
-        timestamp: new Date()
+        timestamp: new Date(),
       };
     }
   }
@@ -511,20 +520,20 @@ export class GenericLegacyBackend extends BasePrinterBackend {
         return {
           success: false,
           error: 'Failed to cancel job - printer rejected command',
-          timestamp: new Date()
+          timestamp: new Date(),
         };
       }
 
       return {
         success: true,
         data: 'Job cancelled',
-        timestamp: new Date()
+        timestamp: new Date(),
       };
     } catch (error) {
       return {
         success: false,
         error: error instanceof Error ? error.message : String(error),
-        timestamp: new Date()
+        timestamp: new Date(),
       };
     }
   }
@@ -551,7 +560,6 @@ export class GenericLegacyBackend extends BasePrinterBackend {
 
       // Use the general job thumbnail method for the current job
       return this.getJobThumbnail(status.status.currentJob);
-
     } catch (error) {
       console.error('Error getting model preview:', error);
       return null;
@@ -590,7 +598,6 @@ export class GenericLegacyBackend extends BasePrinterBackend {
 
       // Convert to base64 data URL
       return `data:image/png;base64,${base64Data}`;
-
     } catch (error) {
       console.error(`Error getting thumbnail for ${fileName}:`, error);
       return null;
@@ -608,8 +615,9 @@ export class GenericLegacyBackend extends BasePrinterBackend {
       if (!this.isFeatureAvailable('led-control')) {
         return {
           success: false,
-          error: 'LED control not available on this printer. Enable "Custom LEDs" in printer settings to use LED control.',
-          timestamp: new Date()
+          error:
+            'LED control not available on this printer. Enable "Custom LEDs" in printer settings to use LED control.',
+          timestamp: new Date(),
         };
       }
 
@@ -620,20 +628,20 @@ export class GenericLegacyBackend extends BasePrinterBackend {
         return {
           success: false,
           error: `Failed to ${enabled ? 'turn on' : 'turn off'} LED - printer rejected command`,
-          timestamp: new Date()
+          timestamp: new Date(),
         };
       }
 
       return {
         success: true,
         data: enabled ? 'LED turned on (TCP API)' : 'LED turned off (TCP API)',
-        timestamp: new Date()
+        timestamp: new Date(),
       };
     } catch (error) {
       return {
         success: false,
         error: error instanceof Error ? error.message : String(error),
-        timestamp: new Date()
+        timestamp: new Date(),
       };
     }
   }
@@ -671,12 +679,55 @@ export class GenericLegacyBackend extends BasePrinterBackend {
 
   protected getSupportedGCodeCommands(): readonly string[] {
     return [
-      'G0', 'G1', 'G28', 'G29', 'G90', 'G91', 'G92',
-      'M0', 'M1', 'M17', 'M18', 'M20', 'M21', 'M23', 'M24', 'M25', 'M26',
-      'M104', 'M105', 'M106', 'M107', 'M109', 'M140', 'M190',
-      'M200', 'M201', 'M203', 'M204', 'M205', 'M206', 'M207', 'M208', 'M209',
-      'M220', 'M221', 'M301', 'M302', 'M303', 'M304', 'M400', 'M500', 'M501',
-      'M502', 'M503', 'M504', 'M905', 'M906', 'M907', 'M908'
+      'G0',
+      'G1',
+      'G28',
+      'G29',
+      'G90',
+      'G91',
+      'G92',
+      'M0',
+      'M1',
+      'M17',
+      'M18',
+      'M20',
+      'M21',
+      'M23',
+      'M24',
+      'M25',
+      'M26',
+      'M104',
+      'M105',
+      'M106',
+      'M107',
+      'M109',
+      'M140',
+      'M190',
+      'M200',
+      'M201',
+      'M203',
+      'M204',
+      'M205',
+      'M206',
+      'M207',
+      'M208',
+      'M209',
+      'M220',
+      'M221',
+      'M301',
+      'M302',
+      'M303',
+      'M304',
+      'M400',
+      'M500',
+      'M501',
+      'M502',
+      'M503',
+      'M504',
+      'M905',
+      'M906',
+      'M907',
+      'M908',
     ];
   }
 

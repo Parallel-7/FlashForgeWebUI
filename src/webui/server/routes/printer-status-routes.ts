@@ -96,9 +96,10 @@ export function registerPrinterStatusRoutes(router: Router, deps: RouteDependenc
         estimatedLength = statusResult.status.estimatedRightLen
           ? statusResult.status.estimatedRightLen / 1000
           : undefined;
-        timeElapsed = statusResult.status.printDuration !== undefined
-          ? Math.round(statusResult.status.printDuration / 60)
-          : undefined;
+        timeElapsed =
+          statusResult.status.printDuration !== undefined
+            ? Math.round(statusResult.status.printDuration / 60)
+            : undefined;
         elapsedTimeSeconds = statusResult.status.printDuration;
         formattedEta = statusResult.status.printEta;
 

@@ -141,7 +141,7 @@ function parseNumberArgument(args: string[], flag: string): number | undefined {
   const value = arg.split('=')[1];
   const parsed = parseInt(value, 10);
 
-  return isNaN(parsed) ? undefined : parsed;
+  return Number.isNaN(parsed) ? undefined : parsed;
 }
 
 /**

@@ -14,17 +14,13 @@
  * - BackendEvent: Event system for backend state changes
  */
 
-import type { FiveMClient, FlashForgeClient, FFGcodeToolData } from '@ghosttypes/ff-api';
-import type { PrinterFeatureSet, MaterialStationStatus } from './printer-features';
+import type { FFGcodeToolData, FiveMClient, FlashForgeClient } from '@ghosttypes/ff-api';
+import type { MaterialStationStatus, PrinterFeatureSet } from './printer-features';
 
 /**
  * Printer model types supported by the backend system
  */
-export type PrinterModelType =
-  | 'generic-legacy'
-  | 'adventurer-5m'
-  | 'adventurer-5m-pro'
-  | 'ad5x';
+export type PrinterModelType = 'generic-legacy' | 'adventurer-5m' | 'adventurer-5m-pro' | 'ad5x';
 
 /**
  * Backend initialization options
@@ -143,13 +139,7 @@ export interface JobStartResult extends CommandResult {
 /**
  * Job operation types
  */
-export type JobOperation =
-  | 'start'
-  | 'pause'
-  | 'resume'
-  | 'cancel'
-  | 'list-local'
-  | 'list-recent';
+export type JobOperation = 'start' | 'pause' | 'resume' | 'cancel' | 'list-local' | 'list-recent';
 
 /**
  * Job operation parameters - FIXED to use fileName instead of jobId

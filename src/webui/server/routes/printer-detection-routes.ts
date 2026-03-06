@@ -3,14 +3,14 @@
  * Handles probing printers to determine their type and capabilities
  */
 
-import type { Router, Response } from 'express';
-import type { AuthenticatedRequest } from '../auth-middleware';
+import type { Response, Router } from 'express';
+import { getConnectionEstablishmentService } from '../../../services/ConnectionEstablishmentService';
+import type { DiscoveredPrinter } from '../../../types/printer';
 import { toAppError } from '../../../utils/error.utils';
+import { detectPrinterFamily, determineClientType } from '../../../utils/PrinterUtils';
+import type { AuthenticatedRequest } from '../auth-middleware';
 import type { RouteDependencies } from './route-helpers';
 import { sendErrorResponse } from './route-helpers';
-import { getConnectionEstablishmentService } from '../../../services/ConnectionEstablishmentService';
-import { detectPrinterFamily, determineClientType } from '../../../utils/PrinterUtils';
-import type { DiscoveredPrinter } from '../../../types/printer';
 
 export function registerPrinterDetectionRoutes(router: Router, _deps: RouteDependencies): void {
   const connectionService = getConnectionEstablishmentService();
@@ -35,7 +35,8 @@ export function registerPrinterDetectionRoutes(router: Router, _deps: RouteDepen
       }
 
       // Basic IP validation
-      const ipRegex = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
+      const ipRegex =
+        /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
       if (!ipRegex.test(ipAddress)) {
         return sendErrorResponse(res, 400, 'Invalid IP address format');
       }
@@ -47,7 +48,7 @@ export function registerPrinterDetectionRoutes(router: Router, _deps: RouteDepen
         name: `Printer at ${ipAddress}`,
         ipAddress,
         serialNumber: '', // Will be determined during connection
-        model: undefined
+        model: undefined,
       };
 
       // Create temporary connection to probe the printer
@@ -55,17 +56,14 @@ export function registerPrinterDetectionRoutes(router: Router, _deps: RouteDepen
 
       if (!tempResult.success || !tempResult.typeName) {
         console.error(`[Detection] Failed to probe ${ipAddress}: ${tempResult.error}`);
-        return sendErrorResponse(
-          res,
-          500,
-          tempResult.error || 'Failed to detect printer type'
-        );
+        return sendErrorResponse(res, 500, tempResult.error || 'Failed to detect printer type');
       }
 
       // Extract printer information
       const typeName = tempResult.typeName;
       const serialNumber =
-        tempResult.printerInfo?.SerialNumber && typeof tempResult.printerInfo.SerialNumber === 'string'
+        tempResult.printerInfo?.SerialNumber &&
+        typeof tempResult.printerInfo.SerialNumber === 'string'
           ? tempResult.printerInfo.SerialNumber
           : '';
       const printerName =
@@ -77,7 +75,9 @@ export function registerPrinterDetectionRoutes(router: Router, _deps: RouteDepen
       const familyInfo = detectPrinterFamily(typeName);
       const clientType = determineClientType(familyInfo.is5MFamily);
 
-      console.log(`[Detection] Detected ${typeName} as ${familyInfo.is5MFamily ? '5M family' : 'legacy'} printer`);
+      console.log(
+        `[Detection] Detected ${typeName} as ${familyInfo.is5MFamily ? '5M family' : 'legacy'} printer`
+      );
 
       return res.json({
         success: true,
@@ -87,9 +87,8 @@ export function registerPrinterDetectionRoutes(router: Router, _deps: RouteDepen
         is5MFamily: familyInfo.is5MFamily,
         requiresCheckCode: familyInfo.requiresCheckCode,
         clientType,
-        familyName: familyInfo.familyName
+        familyName: familyInfo.familyName,
       });
-
     } catch (error) {
       console.error('[Detection] Printer detection failed:', error);
       const appError = toAppError(error);

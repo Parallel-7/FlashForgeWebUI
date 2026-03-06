@@ -27,20 +27,12 @@ import {
   onSpoolmanUpdate,
   onStatusUpdate,
 } from './core/Transport.js';
-import { $, hideElement, showElement } from './shared/dom.js';
-import { initializeLucideIcons } from './shared/icons.js';
 import {
-  applyDefaultTheme,
-  applySettings,
-  ensureSpoolmanVisibilityIfEnabled,
-  initializeLayout,
-  loadWebUITheme,
-  refreshSettingsUI,
-  persistSettings,
-  setupLayoutEventHandlers,
-  setupViewportListener,
-} from './features/layout-theme.js';
-import { setupAuthEventHandlers, loadAuthStatus, checkAuthStatus } from './features/authentication.js';
+  checkAuthStatus,
+  loadAuthStatus,
+  setupAuthEventHandlers,
+} from './features/authentication.js';
+import { initializeCamera } from './features/camera.js';
 import {
   fetchPrinterContexts,
   getCurrentContextId,
@@ -55,20 +47,32 @@ import {
   updateFeatureVisibility,
 } from './features/job-control.js';
 import {
+  applyDefaultTheme,
+  applySettings,
+  ensureSpoolmanVisibilityIfEnabled,
+  initializeLayout,
+  loadWebUITheme,
+  persistSettings,
+  refreshSettingsUI,
+  setupLayoutEventHandlers,
+  setupViewportListener,
+} from './features/layout-theme.js';
+import {
   closeMaterialMatchingModal,
   confirmMaterialMatching,
   setupMaterialMatchingHandlers,
 } from './features/material-matching.js';
-import { loadSpoolmanConfig, setupSpoolmanHandlers } from './features/spoolman.js';
-import { initializeCamera } from './features/camera.js';
 import { initializeDiscovery } from './features/printer-discovery.js';
+import { loadSpoolmanConfig, setupSpoolmanHandlers } from './features/spoolman.js';
+import { $, hideElement, showElement } from './shared/dom.js';
+import { initializeLucideIcons } from './shared/icons.js';
 import { type DialogHandlers, setupDialogEventHandlers } from './ui/dialogs.js';
+import { setupHeaderEventHandlers } from './ui/header.js';
 import {
   updateConnectionStatus,
   updatePrinterStatus,
   updateSpoolmanPanelState,
 } from './ui/panels.js';
-import { setupHeaderEventHandlers } from './ui/header.js';
 
 // ============================================================================
 // TYPES AND INTERFACES
@@ -301,7 +305,6 @@ export interface SpoolSelectResponse extends ApiResponse {
 // UI UPDATES
 // ============================================================================
 
-
 onConnectionChange((connected) => {
   updateConnectionStatus(connected);
 });
@@ -321,12 +324,9 @@ onSpoolmanUpdate((contextId, spool) => {
 // PRINTER CONTROLS
 // ============================================================================
 
-
 // ============================================================================
 // SPOOLMAN INTEGRATION
 // ============================================================================
-
-
 
 // ============================================================================
 // VIEWPORT AND LAYOUT SWITCHING
@@ -338,7 +338,6 @@ onSpoolmanUpdate((contextId, spool) => {
 // ============================================================================
 // EVENT HANDLERS
 // ============================================================================
-
 
 async function initialize(): Promise<void> {
   console.log('Initializing Web UI...');

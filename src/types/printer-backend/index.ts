@@ -13,44 +13,43 @@
  * - Backend types: Initialization, events, and factory options
  */
 
-// Feature types
-export type {
-  PrinterFeatureType,
-  CameraFeature,
-  LEDControlFeature,
-  FiltrationFeature,
-  GCodeCommandFeature,
-  StatusMonitoringFeature,
-  JobManagementFeature,
-  MaterialStationFeature,
-  PrinterFeatureSet,
-  FeatureAvailabilityResult,
-  FeatureOverrideSettings,
-  MaterialSlotInfo,
-  MaterialStationStatus,
-  FeatureDisableReason
-} from './printer-features';
-
 // Backend operation types
 export type {
-  PrinterModelType,
-  BackendInitOptions,
-  CommandResult,
-  GCodeCommandResult,
-  StatusResult,
-  BaseJobInfo,
   AD5XJobInfo,
+  BackendCapabilities,
+  BackendEvent,
+  BackendEventType,
+  BackendFactoryOptions,
+  BackendInitOptions,
+  BackendOperationContext,
+  BackendStatus,
+  BaseJobInfo,
   BasicJobInfo,
+  CommandResult,
+  FeatureStubInfo,
+  GCodeCommandResult,
   JobListResult,
-  JobStartParams,
-  JobStartResult,
   JobOperation,
   JobOperationParams,
-  BackendCapabilities,
-  BackendStatus,
-  BackendOperationContext,
-  FeatureStubInfo,
-  BackendEventType,
-  BackendEvent,
-  BackendFactoryOptions
+  JobStartParams,
+  JobStartResult,
+  PrinterModelType,
+  StatusResult,
 } from './backend-operations';
+// Feature types
+export type {
+  CameraFeature,
+  FeatureAvailabilityResult,
+  FeatureDisableReason,
+  FeatureOverrideSettings,
+  FiltrationFeature,
+  GCodeCommandFeature,
+  JobManagementFeature,
+  LEDControlFeature,
+  MaterialSlotInfo,
+  MaterialStationFeature,
+  MaterialStationStatus,
+  PrinterFeatureSet,
+  PrinterFeatureType,
+  StatusMonitoringFeature,
+} from './printer-features';

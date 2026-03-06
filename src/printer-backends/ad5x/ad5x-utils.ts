@@ -19,15 +19,15 @@
  * Used by AD5XBackend and material-related dialogs for consistent material management.
  */
 
+import { createEmptyMaterialStation, transformMaterialStation } from './ad5x-transforms';
 import {
   type AD5XJobInfo,
   type FFGcodeToolData,
-  type SlotInfo,
   hasValidMaterialStationInfo,
+  isAD5XMachineInfo,
   type MaterialStationStatus,
-  isAD5XMachineInfo
+  type SlotInfo,
 } from './ad5x-types';
-import { transformMaterialStation, createEmptyMaterialStation } from './ad5x-transforms';
 
 /**
  * Type guard to check if a job is an AD5X job with material data
@@ -37,9 +37,7 @@ export function isAD5XJobInfo(value: unknown): value is AD5XJobInfo {
 
   const obj = value as Record<string, unknown>;
   return (
-    'fileName' in obj &&
-    typeof obj.fileName === 'string' &&
-    ('toolDatas' in obj || '_type' in obj)
+    'fileName' in obj && typeof obj.fileName === 'string' && ('toolDatas' in obj || '_type' in obj)
   );
 }
 
@@ -54,10 +52,7 @@ export function isMultiColorJob(job: AD5XJobInfo): boolean {
  * Validate material compatibility between tool requirement and slot content
  * Direct string comparison - exact match required
  */
-export function validateMaterialCompatibility(
-  tool: FFGcodeToolData,
-  slot: SlotInfo
-): boolean {
+export function validateMaterialCompatibility(tool: FFGcodeToolData, slot: SlotInfo): boolean {
   if (!slot.hasFilament) return false;
   return tool.materialName === slot.materialName;
 }
@@ -123,15 +118,10 @@ export function getToolDisplayName(toolId: number): string {
  * Check if color difference exists between tool and slot
  * Used for warning users about color mismatches
  */
-export function hasColorDifference(
-  toolColor: string,
-  slotColor: string | null
-): boolean {
+export function hasColorDifference(toolColor: string, slotColor: string | null): boolean {
   if (!slotColor) return false;
   return toolColor.toLowerCase() !== slotColor.toLowerCase();
 }
-
-
 
 /**
  * Create a user-friendly error message for material mismatch

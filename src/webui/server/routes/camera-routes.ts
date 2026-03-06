@@ -23,7 +23,11 @@ export function registerCameraRoutes(router: Router, deps: RouteDependencies): v
     try {
       const contextResult = resolveContext(req, deps, { requireBackendReady: true });
       if (!contextResult.success) {
-        return sendErrorResponse<StandardAPIResponse>(res, contextResult.statusCode, contextResult.error);
+        return sendErrorResponse<StandardAPIResponse>(
+          res,
+          contextResult.statusCode,
+          contextResult.error
+        );
       }
 
       const isAvailable = deps.backendManager.isFeatureAvailable(contextResult.contextId, 'camera');
@@ -51,7 +55,11 @@ export function registerCameraRoutes(router: Router, deps: RouteDependencies): v
         requireBackendInstance: true,
       });
       if (!contextResult.success) {
-        return sendErrorResponse<StandardAPIResponse>(res, contextResult.statusCode, contextResult.error);
+        return sendErrorResponse<StandardAPIResponse>(
+          res,
+          contextResult.statusCode,
+          contextResult.error
+        );
       }
 
       const { contextId, context, backend } = contextResult;
@@ -67,7 +75,11 @@ export function registerCameraRoutes(router: Router, deps: RouteDependencies): v
       });
 
       if (!cameraConfig.isAvailable || !cameraConfig.streamUrl || !cameraConfig.streamType) {
-        return sendErrorResponse<StandardAPIResponse>(res, 503, 'Camera not available for this printer');
+        return sendErrorResponse<StandardAPIResponse>(
+          res,
+          503,
+          'Camera not available for this printer'
+        );
       }
 
       if (!isGo2rtcSourceType(cameraConfig.sourceType)) {
@@ -81,11 +93,22 @@ export function registerCameraRoutes(router: Router, deps: RouteDependencies): v
           await go2rtcService.initialize();
         } catch (initError) {
           console.error('[WebUI] Failed to initialize go2rtc service:', initError);
-          return sendErrorResponse<StandardAPIResponse>(res, 503, 'Camera streaming service not available');
+          return sendErrorResponse<StandardAPIResponse>(
+            res,
+            503,
+            'Camera streaming service not available'
+          );
         }
       }
 
-      if (!go2rtcService.hasMatchingStream(contextId, cameraConfig.streamUrl, cameraConfig.sourceType, cameraConfig.streamType)) {
+      if (
+        !go2rtcService.hasMatchingStream(
+          contextId,
+          cameraConfig.streamUrl,
+          cameraConfig.sourceType,
+          cameraConfig.streamType
+        )
+      ) {
         try {
           await go2rtcService.addStream(
             contextId,

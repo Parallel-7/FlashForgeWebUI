@@ -5,46 +5,56 @@
  * each printer connection has its own isolated state monitoring instance.
  */
 
-import { EventEmitter } from '../utils/EventEmitter';
-import { PrintStateMonitor } from './PrintStateMonitor';
-import type { PrinterPollingService } from './PrinterPollingService';
 import type { PrinterStatus } from '../types/polling';
+import { EventEmitter } from '../utils/EventEmitter';
+import type { PrinterPollingService } from './PrinterPollingService';
+import { PrintStateMonitor } from './PrintStateMonitor';
 
 /**
  * Event map for MultiContextPrintStateMonitor
  */
 interface MultiContextPrintStateMonitorEventMap extends Record<string, unknown[]> {
-  'state-changed': [{
-    contextId: string;
-    previousState: string;
-    currentState: string;
-    status: PrinterStatus;
-    timestamp: Date;
-  }];
-  'print-started': [{
-    contextId: string;
-    jobName: string;
-    status: PrinterStatus;
-    timestamp: Date;
-  }];
-  'print-completed': [{
-    contextId: string;
-    jobName: string;
-    status: PrinterStatus;
-    completedAt: Date;
-  }];
-  'print-cancelled': [{
-    contextId: string;
-    jobName: string;
-    status: PrinterStatus;
-    timestamp: Date;
-  }];
-  'print-error': [{
-    contextId: string;
-    jobName: string;
-    status: PrinterStatus;
-    timestamp: Date;
-  }];
+  'state-changed': [
+    {
+      contextId: string;
+      previousState: string;
+      currentState: string;
+      status: PrinterStatus;
+      timestamp: Date;
+    },
+  ];
+  'print-started': [
+    {
+      contextId: string;
+      jobName: string;
+      status: PrinterStatus;
+      timestamp: Date;
+    },
+  ];
+  'print-completed': [
+    {
+      contextId: string;
+      jobName: string;
+      status: PrinterStatus;
+      completedAt: Date;
+    },
+  ];
+  'print-cancelled': [
+    {
+      contextId: string;
+      jobName: string;
+      status: PrinterStatus;
+      timestamp: Date;
+    },
+  ];
+  'print-error': [
+    {
+      contextId: string;
+      jobName: string;
+      status: PrinterStatus;
+      timestamp: Date;
+    },
+  ];
 }
 
 /**
@@ -57,13 +67,12 @@ export class MultiContextPrintStateMonitor extends EventEmitter<MultiContextPrin
   /**
    * Create a print state monitor for a specific context
    */
-  public createMonitorForContext(
-    contextId: string,
-    pollingService: PrinterPollingService
-  ): void {
+  public createMonitorForContext(contextId: string, pollingService: PrinterPollingService): void {
     // Check if monitor already exists
     if (this.monitors.has(contextId)) {
-      console.warn(`[MultiContextPrintStateMonitor] Monitor already exists for context ${contextId}`);
+      console.warn(
+        `[MultiContextPrintStateMonitor] Monitor already exists for context ${contextId}`
+      );
       return;
     }
 

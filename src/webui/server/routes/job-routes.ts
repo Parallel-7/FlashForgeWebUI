@@ -2,15 +2,14 @@
  * @fileoverview Job listing and control routes (local/recent files plus start job).
  */
 
-import type { Router, Response } from 'express';
-import type { AuthenticatedRequest } from '../auth-middleware';
-import { JobStartRequestSchema } from '../../schemas/web-api.schemas';
-import { createValidationError } from '../../schemas/web-api.schemas';
-import { toAppError } from '../../../utils/error.utils';
-import type { StandardAPIResponse } from '../../types/web-api.types';
+import type { Response, Router } from 'express';
 import { isAD5XJobInfo } from '../../../printer-backends/ad5x/ad5x-utils';
 import type { AD5XJobInfo, BasicJobInfo } from '../../../types/printer-backend/backend-operations';
-import { resolveContext, sendErrorResponse, type RouteDependencies } from './route-helpers';
+import { toAppError } from '../../../utils/error.utils';
+import { createValidationError, JobStartRequestSchema } from '../../schemas/web-api.schemas';
+import type { StandardAPIResponse } from '../../types/web-api.types';
+import type { AuthenticatedRequest } from '../auth-middleware';
+import { type RouteDependencies, resolveContext, sendErrorResponse } from './route-helpers';
 
 type JobSource = 'local' | 'recent';
 
@@ -72,15 +71,13 @@ export function registerJobRoutes(router: Router, deps: RouteDependencies): void
         startNow: validation.data.startNow,
         leveling: validation.data.leveling,
         additionalParams:
-          materialMappings && materialMappings.length > 0
-            ? { materialMappings }
-            : undefined
+          materialMappings && materialMappings.length > 0 ? { materialMappings } : undefined,
       });
 
       const response: StandardAPIResponse = {
         success: result.success,
         message: result.success ? `Starting print: ${validation.data.filename}` : undefined,
-        error: result.error
+        error: result.error,
       };
       return res.status(result.success ? 200 : 500).json(response);
     } catch (error) {
@@ -95,7 +92,7 @@ async function handleJobListRequest(
   res: Response,
   deps: RouteDependencies,
   source: JobSource
-): Promise<Response | void> {
+): Promise<Response | undefined> {
   try {
     const contextResult = resolveContext(req, deps, { requireBackendReady: true });
     if (!contextResult.success) {
@@ -121,8 +118,8 @@ async function handleJobListRequest(
 
     return res.json({
       success: true,
-      files: result.jobs.map(job => mapJobInfo(job)),
-      totalCount: result.totalCount
+      files: result.jobs.map((job) => mapJobInfo(job)),
+      totalCount: result.totalCount,
     });
   } catch (error) {
     const appError = toAppError(error);
@@ -137,7 +134,7 @@ function mapJobInfo(job: AD5XJobInfo | BasicJobInfo) {
     size: 0,
     lastModified: undefined,
     thumbnail: undefined,
-    printingTime: job.printingTime ?? 0
+    printingTime: job.printingTime ?? 0,
   };
 
   if (isAD5XJobInfo(job)) {
@@ -147,12 +144,12 @@ function mapJobInfo(job: AD5XJobInfo | BasicJobInfo) {
       toolCount: job.toolCount ?? job.toolDatas?.length ?? 0,
       toolDatas: job.toolDatas ?? [],
       totalFilamentWeight: job.totalFilamentWeight,
-      useMatlStation: job.useMatlStation
+      useMatlStation: job.useMatlStation,
     };
   }
 
   return {
     ...base,
-    metadataType: 'basic' as const
+    metadataType: 'basic' as const,
   };
 }

@@ -7,24 +7,24 @@
  */
 
 import { Router } from 'express';
-import { getPrinterBackendManager } from '../../managers/PrinterBackendManager';
-import { getPrinterConnectionManager } from '../../managers/ConnectionFlowManager';
-import { getPrinterContextManager } from '../../managers/PrinterContextManager';
 import { getConfigManager } from '../../managers/ConfigManager';
+import { getPrinterConnectionManager } from '../../managers/ConnectionFlowManager';
+import { getPrinterBackendManager } from '../../managers/PrinterBackendManager';
+import { getPrinterContextManager } from '../../managers/PrinterContextManager';
 import { getSpoolmanIntegrationService } from '../../services/SpoolmanIntegrationService';
-import type { RouteDependencies } from './routes/route-helpers';
-import { registerPrinterStatusRoutes } from './routes/printer-status-routes';
-import { registerPrinterControlRoutes } from './routes/printer-control-routes';
-import { registerTemperatureRoutes } from './routes/temperature-routes';
-import { registerFiltrationRoutes } from './routes/filtration-routes';
-import { registerJobRoutes } from './routes/job-routes';
 import { registerCameraRoutes } from './routes/camera-routes';
 import { registerContextRoutes } from './routes/context-routes';
-import { registerThemeRoutes } from './routes/theme-routes';
-import { registerSpoolmanRoutes } from './routes/spoolman-routes';
 import { registerDiscoveryRoutes } from './routes/discovery-routes';
-import { registerPrinterManagementRoutes } from './routes/printer-management-routes';
+import { registerFiltrationRoutes } from './routes/filtration-routes';
+import { registerJobRoutes } from './routes/job-routes';
+import { registerPrinterControlRoutes } from './routes/printer-control-routes';
 import { registerPrinterDetectionRoutes } from './routes/printer-detection-routes';
+import { registerPrinterManagementRoutes } from './routes/printer-management-routes';
+import { registerPrinterStatusRoutes } from './routes/printer-status-routes';
+import type { RouteDependencies } from './routes/route-helpers';
+import { registerSpoolmanRoutes } from './routes/spoolman-routes';
+import { registerTemperatureRoutes } from './routes/temperature-routes';
+import { registerThemeRoutes } from './routes/theme-routes';
 
 export function buildRouteDependencies(): RouteDependencies {
   return {
@@ -32,7 +32,7 @@ export function buildRouteDependencies(): RouteDependencies {
     connectionManager: getPrinterConnectionManager(),
     contextManager: getPrinterContextManager(),
     configManager: getConfigManager(),
-    spoolmanService: getSpoolmanIntegrationService()
+    spoolmanService: getSpoolmanIntegrationService(),
   };
 }
 

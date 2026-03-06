@@ -22,13 +22,13 @@ export function safeExtractNumber(obj: unknown, key: string, defaultValue = 0): 
 
   const value = obj[key];
 
-  if (typeof value === 'number' && !isNaN(value)) {
+  if (typeof value === 'number' && !Number.isNaN(value)) {
     return value;
   }
 
   if (typeof value === 'string') {
     const parsed = parseFloat(value);
-    if (!isNaN(parsed)) {
+    if (!Number.isNaN(parsed)) {
       return parsed;
     }
   }
@@ -106,11 +106,7 @@ export function safeExtractArray<T = unknown>(
 /**
  * Safely extract nested object property
  */
-export function safeExtractNested<T = unknown>(
-  obj: unknown,
-  path: string,
-  defaultValue: T
-): T {
+export function safeExtractNested<T = unknown>(obj: unknown, path: string, defaultValue: T): T {
   if (!isValidObject(obj)) {
     return defaultValue;
   }
@@ -137,7 +133,9 @@ export function safeExtractMultiple<T extends Record<string, unknown>>(
 ): T {
   const result = {} as T;
 
-  for (const [prop, config] of Object.entries(schema) as Array<[keyof T, typeof schema[keyof T]]>) {
+  for (const [prop, config] of Object.entries(schema) as Array<
+    [keyof T, (typeof schema)[keyof T]]
+  >) {
     switch (config.type) {
       case 'string':
         result[prop] = safeExtractString(obj, config.key, config.default as string) as T[keyof T];
@@ -165,11 +163,11 @@ export function toNumber(
 ): number {
   let num = defaultValue;
 
-  if (typeof value === 'number' && !isNaN(value)) {
+  if (typeof value === 'number' && !Number.isNaN(value)) {
     num = value;
   } else if (typeof value === 'string') {
     const parsed = parseFloat(value);
-    if (!isNaN(parsed)) {
+    if (!Number.isNaN(parsed)) {
       num = parsed;
     }
   }

@@ -11,8 +11,8 @@ import * as fs from 'fs';
 import * as net from 'net';
 import * as path from 'path';
 import { pipeline } from 'stream/promises';
-import { getEnvironmentService } from './EnvironmentService';
 import type { Go2rtcBinaryInfo, Go2rtcConfig } from '../types/go2rtc.types';
+import { getEnvironmentService } from './EnvironmentService';
 
 type PkgProcess = NodeJS.Process & {
   pkg?: {
@@ -304,7 +304,13 @@ export class Go2rtcBinaryManager {
     }
 
     return [
-      path.join(this.environmentService.getAppRootPath(), 'resources', 'bin', platformArch, binaryName),
+      path.join(
+        this.environmentService.getAppRootPath(),
+        'resources',
+        'bin',
+        platformArch,
+        binaryName
+      ),
       path.join(__dirname, '..', 'resources', 'bin', platformArch, binaryName),
       path.join(__dirname, '..', '..', 'resources', 'bin', platformArch, binaryName),
     ];
@@ -368,10 +374,7 @@ export class Go2rtcBinaryManager {
     const temporaryPath = `${runtimeBinaryPath}.tmp-${process.pid}`;
 
     try {
-      await pipeline(
-        fs.createReadStream(bundledBinaryPath),
-        fs.createWriteStream(temporaryPath)
-      );
+      await pipeline(fs.createReadStream(bundledBinaryPath), fs.createWriteStream(temporaryPath));
 
       if (process.platform !== 'win32') {
         await fs.promises.chmod(temporaryPath, 0o755);

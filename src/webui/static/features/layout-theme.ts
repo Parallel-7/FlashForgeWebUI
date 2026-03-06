@@ -7,33 +7,33 @@
  * introducing direct coupling to UI rendering functions.
  */
 
-import { componentRegistry } from '../grid/WebUIComponentRegistry.js';
-import type { WebUIComponentLayout, WebUIGridLayout } from '../grid/types.js';
+import type { ApiResponse, PrinterFeatures, PrinterStatus, WebUISettings } from '../app.js';
 import {
   ALL_COMPONENT_IDS,
   DEFAULT_SETTINGS,
   DEMO_SERIAL,
+  getCurrentPrinterSerial,
+  getCurrentSettings,
+  getGridChangeUnsubscribe,
+  getCurrentContextId as getStoredContextId,
   gridManager,
+  isGridInitialized,
+  isMobile as isMobileLayoutEnabled,
   layoutPersistence,
   mobileLayoutManager,
-  state,
-  getCurrentPrinterSerial,
   setCurrentPrinterSerial,
-  getCurrentSettings,
-  updateCurrentSettings,
-  getGridChangeUnsubscribe,
   setGridChangeUnsubscribe,
-  isGridInitialized,
   setGridInitialized,
-  isMobile as isMobileLayoutEnabled,
   setMobileLayout,
-  getCurrentContextId as getStoredContextId,
+  state,
+  updateCurrentSettings,
 } from '../core/AppState.js';
-import type { ApiResponse, PrinterFeatures, PrinterStatus, WebUISettings } from '../app.js';
 import { apiRequest, apiRequestWithMetadata } from '../core/Transport.js';
+import type { WebUIComponentLayout, WebUIGridLayout } from '../grid/types.js';
+import { componentRegistry } from '../grid/WebUIComponentRegistry.js';
 import { $, showToast } from '../shared/dom.js';
-import { teardownCameraStreamElements } from './camera.js';
 import { updateEditModeToggle } from '../ui/header.js';
+import { teardownCameraStreamElements } from './camera.js';
 
 export interface LayoutUiHooks {
   onConnectionStatusUpdate?: (connected: boolean) => void;
@@ -64,14 +64,14 @@ export function setupLayoutEventHandlers(): void {
 
   saveButton?.addEventListener('click', () => {
     const checkboxes = document.querySelectorAll<HTMLInputElement>(
-      '#settings-modal input[type="checkbox"][data-component-id]',
+      '#settings-modal input[type="checkbox"][data-component-id]'
     );
     const visibleComponents = Array.from(checkboxes)
       .filter((checkbox) => checkbox.checked && !checkbox.disabled)
       .map((checkbox) => checkbox.dataset.componentId ?? '')
       .filter((componentId): componentId is string => componentId.length > 0);
 
-    const editMode = (modalEditToggle?.checked ?? false);
+    const editMode = modalEditToggle?.checked ?? false;
 
     const updatedSettings: WebUISettings = {
       visibleComponents:
@@ -220,11 +220,15 @@ export function ensureCompleteLayout(baseLayout: WebUIGridLayout | null): WebUIG
   for (const componentId of ALL_COMPONENT_IDS) {
     const defaultConfig = defaults.components?.[componentId];
     const customConfig = incoming.components?.[componentId];
-    normalizedComponents[componentId] = sanitizeLayoutConfig(componentId, defaultConfig, customConfig);
+    normalizedComponents[componentId] = sanitizeLayoutConfig(
+      componentId,
+      defaultConfig,
+      customConfig
+    );
   }
 
   const hidden = (incoming.hiddenComponents ?? []).filter((componentId) =>
-    ALL_COMPONENT_IDS.includes(componentId),
+    ALL_COMPONENT_IDS.includes(componentId)
   );
 
   return {
@@ -237,7 +241,7 @@ export function ensureCompleteLayout(baseLayout: WebUIGridLayout | null): WebUIG
 export function sanitizeLayoutConfig(
   componentId: string,
   defaults: WebUIComponentLayout | undefined,
-  custom: WebUIComponentLayout | undefined,
+  custom: WebUIComponentLayout | undefined
 ): WebUIComponentLayout {
   const source = custom ?? defaults;
   if (!source) {
@@ -292,8 +296,9 @@ export function loadSettingsForSerial(serialNumber: string | null): WebUISetting
   }
 
   const visibleComponents = Array.isArray(stored.visibleComponents)
-    ? stored.visibleComponents.filter((componentId): componentId is string =>
-        typeof componentId === 'string' && ALL_COMPONENT_IDS.includes(componentId),
+    ? stored.visibleComponents.filter(
+        (componentId): componentId is string =>
+          typeof componentId === 'string' && ALL_COMPONENT_IDS.includes(componentId)
       )
     : [...DEFAULT_SETTINGS.visibleComponents];
 
@@ -322,7 +327,7 @@ export function applySettings(settings: WebUISettings): void {
     const shouldShow = shouldComponentBeVisible(
       componentId,
       settings,
-      state.printerFeatures ?? null,
+      state.printerFeatures ?? null
     );
 
     if (mobile) {
@@ -356,7 +361,7 @@ export function applySettings(settings: WebUISettings): void {
 
 export function refreshSettingsUI(settings: WebUISettings): void {
   const checkboxes = document.querySelectorAll<HTMLInputElement>(
-    '#settings-modal input[type="checkbox"][data-component-id]',
+    '#settings-modal input[type="checkbox"][data-component-id]'
   );
 
   checkboxes.forEach((checkbox) => {
@@ -472,7 +477,10 @@ export function isSpoolmanAvailableForCurrentContext(): boolean {
   return state.spoolmanConfig.contextId === getStoredContextId();
 }
 
-export function isComponentSupported(componentId: string, features: PrinterFeatures | null): boolean {
+export function isComponentSupported(
+  componentId: string,
+  features: PrinterFeatures | null
+): boolean {
   if (!features) {
     return true;
   }
@@ -491,7 +499,7 @@ export function isComponentSupported(componentId: string, features: PrinterFeatu
 export function shouldComponentBeVisible(
   componentId: string,
   settings: WebUISettings,
-  features: PrinterFeatures | null,
+  features: PrinterFeatures | null
 ): boolean {
   if (!settings.visibleComponents.includes(componentId)) {
     return false;
@@ -528,7 +536,10 @@ export async function loadWebUITheme(): Promise<void> {
       return;
     }
 
-    console.warn('WebUI theme endpoint returned unexpected payload. Falling back to default.', response.status);
+    console.warn(
+      'WebUI theme endpoint returned unexpected payload. Falling back to default.',
+      response.status
+    );
   } catch (error) {
     console.error('Error loading WebUI theme:', error);
   }
@@ -567,8 +578,14 @@ export function lightenColor(hex: string, percent: number): string {
   }
 
   const r = Math.min(255, Math.floor((num >> 16) + (255 - (num >> 16)) * (percent / 100)));
-  const g = Math.min(255, Math.floor(((num >> 8) & 0x00FF) + (255 - ((num >> 8) & 0x00FF)) * (percent / 100)));
-  const b = Math.min(255, Math.floor((num & 0x0000FF) + (255 - (num & 0x0000FF)) * (percent / 100)));
+  const g = Math.min(
+    255,
+    Math.floor(((num >> 8) & 0x00ff) + (255 - ((num >> 8) & 0x00ff)) * (percent / 100))
+  );
+  const b = Math.min(
+    255,
+    Math.floor((num & 0x0000ff) + (255 - (num & 0x0000ff)) * (percent / 100))
+  );
   return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, '0')}`;
 }
 
@@ -673,4 +690,3 @@ function isThemeColors(value: unknown): value is ThemeColors {
     typeof candidate.text === 'string'
   );
 }
-

@@ -44,22 +44,26 @@
 export type DefaultEventMap = Record<string, unknown[]>;
 
 // Generic event listener type that extracts correct parameter types
-export type EventListener<TEventMap extends Record<string, unknown[]>, TEventName extends keyof TEventMap> = (
-  ...args: TEventMap[TEventName]
-) => void;
+export type EventListener<
+  TEventMap extends Record<string, unknown[]>,
+  TEventName extends keyof TEventMap,
+> = (...args: TEventMap[TEventName]) => void;
 
 // Generic EventEmitter class that accepts an event map interface
 export class EventEmitter<TEventMap extends Record<string, unknown[]> = DefaultEventMap> {
-  private readonly events: Map<keyof TEventMap, EventListener<TEventMap, keyof TEventMap>[]> = new Map();
+  private readonly events: Map<keyof TEventMap, EventListener<TEventMap, keyof TEventMap>[]> =
+    new Map();
 
   on<TEventName extends keyof TEventMap>(
     event: TEventName,
     listener: EventListener<TEventMap, TEventName>
   ): this {
-    if (!this.events.has(event)) {
-      this.events.set(event, []);
+    let listeners = this.events.get(event);
+    if (!listeners) {
+      listeners = [];
+      this.events.set(event, listeners);
     }
-    this.events.get(event)!.push(listener as EventListener<TEventMap, keyof TEventMap>);
+    listeners.push(listener as EventListener<TEventMap, keyof TEventMap>);
     return this;
   }
 
@@ -99,7 +103,7 @@ export class EventEmitter<TEventMap extends Record<string, unknown[]> = DefaultE
     if (listeners && listeners.length > 0) {
       // Create a copy to avoid issues if listeners modify the array
       const listenersCopy = [...listeners];
-      listenersCopy.forEach(listener => {
+      listenersCopy.forEach((listener) => {
         try {
           listener(...args);
         } catch (error) {

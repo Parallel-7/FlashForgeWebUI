@@ -62,7 +62,7 @@
  * form input validation, and ensuring type safety at runtime for external data sources.
  */
 
-import { z, ZodError, type ZodSchema, type ZodObject } from 'zod';
+import { ZodError, type ZodObject, type ZodSchema, z } from 'zod';
 import { AppError, fromZodError } from './error.utils';
 
 // ============================================================================
@@ -102,15 +102,12 @@ export type ValidationResult<T> = ValidationSuccess<T> | ValidationFailure;
 /**
  * Validate data against a schema with detailed error info
  */
-export function validate<T>(
-  schema: ZodSchema<T>,
-  data: unknown
-): ValidationResult<T> {
+export function validate<T>(schema: ZodSchema<T>, data: unknown): ValidationResult<T> {
   try {
     const validated = schema.parse(data);
     return {
       success: true,
-      data: validated
+      data: validated,
     };
   } catch (error) {
     if (error instanceof ZodError) {
@@ -118,19 +115,18 @@ export function validate<T>(
       return {
         success: false,
         error: appError,
-        issues: error.issues.map(issue => ({
+        issues: error.issues.map((issue) => ({
           path: issue.path.join('.'),
           message: issue.message,
-          code: issue.code
-        }))
+          code: issue.code,
+        })),
       };
     }
-    
+
     return {
       success: false,
-      error: error instanceof AppError 
-        ? error 
-        : new AppError('Validation failed', undefined, { error })
+      error:
+        error instanceof AppError ? error : new AppError('Validation failed', undefined, { error }),
     };
   }
 }
@@ -138,11 +134,7 @@ export function validate<T>(
 /**
  * Safe parse with default value
  */
-export function parseWithDefault<T>(
-  schema: ZodSchema<T>,
-  data: unknown,
-  defaultValue: T
-): T {
+export function parseWithDefault<T>(schema: ZodSchema<T>, data: unknown, defaultValue: T): T {
   const result = schema.safeParse(data);
   return result.success ? result.data : defaultValue;
 }
@@ -167,23 +159,24 @@ export function validateAndTransform<Input, Output>(
   transform: (input: Input) => Output
 ): ValidationResult<Output> {
   const validationResult = validate(schema, data);
-  
+
   if (!validationResult.success) {
     return validationResult;
   }
-  
+
   try {
     const transformed = transform(validationResult.data);
     return {
       success: true,
-      data: transformed
+      data: transformed,
     };
   } catch (error) {
     return {
       success: false,
-      error: error instanceof AppError
-        ? error
-        : new AppError('Transformation failed', undefined, { error })
+      error:
+        error instanceof AppError
+          ? error
+          : new AppError('Transformation failed', undefined, { error }),
     };
   }
 }
@@ -210,7 +203,8 @@ export const EmailSchema = z.string().email('Invalid email format');
 /**
  * Port number schema
  */
-export const PortSchema = z.number()
+export const PortSchema = z
+  .number()
   .int('Port must be an integer')
   .min(1, 'Port must be at least 1')
   .max(65535, 'Port must be at most 65535');
@@ -218,7 +212,8 @@ export const PortSchema = z.number()
 /**
  * IP address schema (basic regex validation)
  */
-export const IPAddressSchema = z.string()
+export const IPAddressSchema = z
+  .string()
   .regex(
     /^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/,
     'Invalid IP address'
@@ -227,24 +222,24 @@ export const IPAddressSchema = z.string()
 /**
  * File path schema (basic validation)
  */
-export const FilePathSchema = z.string()
+export const FilePathSchema = z
+  .string()
   .min(1, 'File path cannot be empty')
-  .refine(
-    (path) => !path.includes('\0'),
-    'File path contains invalid characters'
-  );
+  .refine((path) => !path.includes('\0'), 'File path contains invalid characters');
 
 /**
  * Positive number schema
  */
-export const PositiveNumberSchema = z.number()
+export const PositiveNumberSchema = z
+  .number()
   .positive('Value must be positive')
   .finite('Value must be finite');
 
 /**
  * Percentage schema (0-100)
  */
-export const PercentageSchema = z.number()
+export const PercentageSchema = z
+  .number()
   .min(0, 'Percentage must be at least 0')
   .max(100, 'Percentage must be at most 100');
 
@@ -255,9 +250,7 @@ export const PercentageSchema = z.number()
 /**
  * Create a type guard from a Zod schema
  */
-export function createTypeGuard<T>(
-  schema: ZodSchema<T>
-): (value: unknown) => value is T {
+export function createTypeGuard<T>(schema: ZodSchema<T>): (value: unknown) => value is T {
   return (value: unknown): value is T => {
     return schema.safeParse(value).success;
   };
@@ -290,8 +283,8 @@ export function validateArray<T>(
     const result = validate(schema, item);
     if (!result.success && result.issues) {
       // Prefix paths with array index
-      result.issues.forEach(issue => {
-        issue.path = `[${index}]${issue.path ? '.' + issue.path : ''}`;
+      result.issues.forEach((issue) => {
+        issue.path = `[${index}]${issue.path ? `.${issue.path}` : ''}`;
       });
     }
     return result;
@@ -301,14 +294,14 @@ export function validateArray<T>(
 /**
  * Filter valid items from array
  */
-export function filterValid<T>(
-  schema: ZodSchema<T>,
-  data: unknown[]
-): T[] {
-  return data
-    .map(item => schema.safeParse(item))
-    .filter(result => result.success)
-    .map(result => result.data!);
+export function filterValid<T>(schema: ZodSchema<T>, data: unknown[]): T[] {
+  return data.reduce<T[]>((validItems, item) => {
+    const result = schema.safeParse(item);
+    if (result.success) {
+      validItems.push(result.data);
+    }
+    return validItems;
+  }, []);
 }
 
 // ============================================================================
@@ -321,12 +314,12 @@ export function filterValid<T>(
 export function pickFields<T extends z.ZodRawShape>(
   schema: z.ZodObject<T>,
   fields: Array<keyof T>
-): z.ZodObject<Pick<T, typeof fields[number]>> {
+): z.ZodObject<Pick<T, (typeof fields)[number]>> {
   const picked: Partial<T> = {};
-  fields.forEach(field => {
+  fields.forEach((field) => {
     picked[field] = schema.shape[field];
   });
-  return z.object(picked as Pick<T, typeof fields[number]>);
+  return z.object(picked as Pick<T, (typeof fields)[number]>);
 }
 
 /**
@@ -335,12 +328,12 @@ export function pickFields<T extends z.ZodRawShape>(
 export function omitFields<T extends z.ZodRawShape>(
   schema: z.ZodObject<T>,
   fields: Array<keyof T>
-): z.ZodObject<Omit<T, typeof fields[number]>> {
+): z.ZodObject<Omit<T, (typeof fields)[number]>> {
   const shape = { ...schema.shape };
-  fields.forEach(field => {
+  fields.forEach((field) => {
     delete shape[field];
   });
-  return z.object(shape as Omit<T, typeof fields[number]>);
+  return z.object(shape as Omit<T, (typeof fields)[number]>);
 }
 
 // ============================================================================
@@ -387,11 +380,11 @@ export function coerceToDate(value: unknown): Date | null {
  * Format validation errors for display
  */
 export function formatValidationErrors(error: ZodError): string {
-  const messages = error.issues.map(issue => {
+  const messages = error.issues.map((issue) => {
     const path = issue.path.length > 0 ? `${issue.path.join('.')}: ` : '';
     return `${path}${issue.message}`;
   });
-  
+
   return messages.join('\n');
 }
 
@@ -401,4 +394,3 @@ export function formatValidationErrors(error: ZodError): string {
 export function getFirstErrorMessage(error: ZodError): string {
   return error.issues[0]?.message || 'Validation failed';
 }
-

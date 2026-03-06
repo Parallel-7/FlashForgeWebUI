@@ -8,16 +8,16 @@
  */
 
 import type { Response } from 'express';
-import type { AuthenticatedRequest } from '../auth-middleware';
-import type { PrinterBackendManager } from '../../../managers/PrinterBackendManager';
-import type { ConnectionFlowManager } from '../../../managers/ConnectionFlowManager';
-import type {
-  PrinterContextManager,
-  PrinterContext
-} from '../../../managers/PrinterContextManager';
 import type { ConfigManager } from '../../../managers/ConfigManager';
-import type { SpoolmanIntegrationService } from '../../../services/SpoolmanIntegrationService';
+import type { ConnectionFlowManager } from '../../../managers/ConnectionFlowManager';
+import type { PrinterBackendManager } from '../../../managers/PrinterBackendManager';
+import type {
+  PrinterContext,
+  PrinterContextManager,
+} from '../../../managers/PrinterContextManager';
 import type { BasePrinterBackend } from '../../../printer-backends/BasePrinterBackend';
+import type { SpoolmanIntegrationService } from '../../../services/SpoolmanIntegrationService';
+import type { AuthenticatedRequest } from '../auth-middleware';
 
 /**
  * Common manager dependencies shared across most route modules.
@@ -79,7 +79,7 @@ export function resolveContext(
     return {
       success: false,
       statusCode: 503,
-      error: 'No active printer context'
+      error: 'No active printer context',
     };
   }
 
@@ -88,7 +88,7 @@ export function resolveContext(
     return {
       success: false,
       statusCode: 404,
-      error: `Context ${candidate} not found`
+      error: `Context ${candidate} not found`,
     };
   }
 
@@ -96,7 +96,7 @@ export function resolveContext(
     return {
       success: false,
       statusCode: 503,
-      error: 'Printer not connected'
+      error: 'Printer not connected',
     };
   }
 
@@ -107,7 +107,7 @@ export function resolveContext(
       return {
         success: false,
         statusCode: 503,
-        error: 'Backend not available'
+        error: 'Backend not available',
       };
     }
   }
@@ -116,7 +116,7 @@ export function resolveContext(
     success: true,
     contextId: candidate,
     context,
-    backend
+    backend,
   };
 }
 
@@ -132,7 +132,7 @@ export function sendErrorResponse<T extends { success: boolean; error?: string }
   const payload: T = {
     ...(extras ?? {}),
     success: false,
-    error: message
+    error: message,
   } as T;
   return res.status(statusCode).json(payload);
 }

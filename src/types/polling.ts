@@ -205,11 +205,11 @@ export interface PollingData {
  * Types of UI updates that can occur
  */
 export type UIUpdateType =
-  | 'status'      // Status panel update
-  | 'job'         // Job info panel update
-  | 'preview'     // Model preview update
-  | 'connection'  // Connection status change
-  | 'error';      // Error occurred
+  | 'status' // Status panel update
+  | 'job' // Job info panel update
+  | 'preview' // Model preview update
+  | 'connection' // Connection status change
+  | 'error'; // Error occurred
 
 /**
  * UI update event data
@@ -239,7 +239,7 @@ export interface PollingConfig {
 export const DEFAULT_POLLING_CONFIG: PollingConfig = {
   intervalMs: 2500, // 2.5 seconds
   maxRetries: 3,
-  retryDelayMs: 1000 // 1 second
+  retryDelayMs: 1000, // 1 second
 };
 
 // ============================================================================
@@ -250,30 +250,29 @@ export const DEFAULT_POLLING_CONFIG: PollingConfig = {
  * Check if printer is in an active state (disables most buttons for safety)
  */
 export function isActiveState(state: PrinterState): boolean {
-  return state === 'Printing' ||
-         state === 'Paused' ||
-         state === 'Calibrating' ||
-         state === 'Heating' ||
-         state === 'Pausing';
+  return (
+    state === 'Printing' ||
+    state === 'Paused' ||
+    state === 'Calibrating' ||
+    state === 'Heating' ||
+    state === 'Pausing'
+  );
 }
 
 /**
  * Check if printer is available for new jobs (enables file selection)
  */
 export function isReadyForJob(state: PrinterState): boolean {
-  return state === 'Ready' ||
-         state === 'Completed' ||
-         state === 'Cancelled';
+  return state === 'Ready' || state === 'Completed' || state === 'Cancelled';
 }
 
 /**
  * Check if printer can accept print control commands (pause/resume/cancel)
  */
 export function canControlPrint(state: PrinterState): boolean {
-  return state === 'Printing' ||
-         state === 'Paused' ||
-         state === 'Heating' ||
-         state === 'Calibrating';
+  return (
+    state === 'Printing' || state === 'Paused' || state === 'Heating' || state === 'Calibrating'
+  );
 }
 
 /**
@@ -329,6 +328,6 @@ export function createEmptyPollingData(): PollingData {
     thumbnailData: null,
     isConnected: false,
     isInitializing: true,
-    lastPolled: new Date()
+    lastPolled: new Date(),
   };
 }

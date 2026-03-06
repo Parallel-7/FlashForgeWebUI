@@ -3,14 +3,14 @@
  * Handles connecting, disconnecting, and managing printers
  */
 
-import type { Router, Response } from 'express';
-import type { AuthenticatedRequest } from '../auth-middleware';
-import type { StandardAPIResponse } from '../../types/web-api.types';
-import { toAppError } from '../../../utils/error.utils';
-import type { RouteDependencies } from './route-helpers';
-import { sendErrorResponse } from './route-helpers';
+import type { Response, Router } from 'express';
 import { getSavedPrinterService } from '../../../services/SavedPrinterService';
 import type { PrinterClientType } from '../../../types/printer';
+import { toAppError } from '../../../utils/error.utils';
+import type { StandardAPIResponse } from '../../types/web-api.types';
+import type { AuthenticatedRequest } from '../auth-middleware';
+import type { RouteDependencies } from './route-helpers';
+import { sendErrorResponse } from './route-helpers';
 
 export function registerPrinterManagementRoutes(router: Router, deps: RouteDependencies): void {
   const savedPrinterService = getSavedPrinterService();
@@ -52,7 +52,7 @@ export function registerPrinterManagementRoutes(router: Router, deps: RouteDepen
       const spec = {
         ip: ipAddress,
         type: type as PrinterClientType,
-        checkCode: type === 'new' ? checkCode : undefined
+        checkCode: type === 'new' ? checkCode : undefined,
       };
 
       // Connect via ConnectionFlowManager
@@ -78,9 +78,8 @@ export function registerPrinterManagementRoutes(router: Router, deps: RouteDepen
         success: true,
         contextId,
         printer: context.printerDetails,
-        message: `Connected to ${context.printerDetails.Name}`
+        message: `Connected to ${context.printerDetails.Name}`,
       });
-
     } catch (error) {
       console.error('[API] Printer connection failed:', error);
       const appError = toAppError(error);
@@ -113,9 +112,8 @@ export function registerPrinterManagementRoutes(router: Router, deps: RouteDepen
 
       return res.json({
         success: true,
-        message: 'Printer disconnected'
+        message: 'Printer disconnected',
       } as StandardAPIResponse);
-
     } catch (error) {
       console.error('[API] Printer disconnection failed:', error);
       const appError = toAppError(error);
@@ -133,7 +131,7 @@ export function registerPrinterManagementRoutes(router: Router, deps: RouteDepen
       return res.json({
         success: true,
         printers: savedPrinters,
-        count: savedPrinters.length
+        count: savedPrinters.length,
       });
     } catch (error) {
       console.error('[API] Failed to get saved printers:', error);
@@ -146,78 +144,86 @@ export function registerPrinterManagementRoutes(router: Router, deps: RouteDepen
    * DELETE /api/printers/saved/:serialNumber
    * Delete a saved printer
    */
-  router.delete('/printers/saved/:serialNumber', async (req: AuthenticatedRequest, res: Response) => {
-    try {
-      const serialNumber = req.params.serialNumber;
+  router.delete(
+    '/printers/saved/:serialNumber',
+    async (req: AuthenticatedRequest, res: Response) => {
+      try {
+        const serialNumber = req.params.serialNumber;
 
-      if (!serialNumber) {
-        return sendErrorResponse(res, 400, 'Serial number is required');
+        if (!serialNumber) {
+          return sendErrorResponse(res, 400, 'Serial number is required');
+        }
+
+        // Check if printer is currently connected
+        const contexts = deps.contextManager.getAllContexts();
+        const connectedContext = contexts.find(
+          (ctx) => ctx.printerDetails.SerialNumber === serialNumber
+        );
+
+        if (connectedContext) {
+          return sendErrorResponse(
+            res,
+            409,
+            'Cannot delete a connected printer. Disconnect first.'
+          );
+        }
+
+        // Delete from saved printers
+        await savedPrinterService.removePrinter(serialNumber);
+
+        return res.json({
+          success: true,
+          message: 'Printer removed from saved list',
+        } as StandardAPIResponse);
+      } catch (error) {
+        console.error('[API] Failed to delete saved printer:', error);
+        const appError = toAppError(error);
+        return sendErrorResponse(res, 500, appError.message);
       }
-
-      // Check if printer is currently connected
-      const contexts = deps.contextManager.getAllContexts();
-      const connectedContext = contexts.find(
-        ctx => ctx.printerDetails.SerialNumber === serialNumber
-      );
-
-      if (connectedContext) {
-        return sendErrorResponse(res, 409, 'Cannot delete a connected printer. Disconnect first.');
-      }
-
-      // Delete from saved printers
-      await savedPrinterService.removePrinter(serialNumber);
-
-      return res.json({
-        success: true,
-        message: 'Printer removed from saved list'
-      } as StandardAPIResponse);
-
-    } catch (error) {
-      console.error('[API] Failed to delete saved printer:', error);
-      const appError = toAppError(error);
-      return sendErrorResponse(res, 500, appError.message);
     }
-  });
+  );
 
   /**
    * POST /api/printers/reconnect/:serialNumber
    * Reconnect to a saved printer
    */
-  router.post('/printers/reconnect/:serialNumber', async (req: AuthenticatedRequest, res: Response) => {
-    try {
-      const serialNumber = req.params.serialNumber;
+  router.post(
+    '/printers/reconnect/:serialNumber',
+    async (req: AuthenticatedRequest, res: Response) => {
+      try {
+        const serialNumber = req.params.serialNumber;
 
-      if (!serialNumber) {
-        return sendErrorResponse(res, 400, 'Serial number is required');
+        if (!serialNumber) {
+          return sendErrorResponse(res, 400, 'Serial number is required');
+        }
+
+        const savedPrinter = savedPrinterService.getSavedPrinter(serialNumber);
+        if (!savedPrinter) {
+          return sendErrorResponse(res, 404, 'Saved printer not found');
+        }
+
+        // Connect using saved details
+        console.log('[API] Reconnecting to saved printer:', savedPrinter.Name);
+        const results = await deps.connectionManager.connectHeadlessFromSaved([savedPrinter]);
+
+        if (results.length === 0 || !results[0].contextId) {
+          console.error('[API] Reconnection failed - no context created');
+          return sendErrorResponse(res, 500, 'Failed to reconnect to printer');
+        }
+
+        const contextId = results[0].contextId;
+        console.log('[API] Successfully reconnected to:', savedPrinter.Name);
+
+        return res.json({
+          success: true,
+          contextId,
+          message: `Reconnected to ${savedPrinter.Name}`,
+        });
+      } catch (error) {
+        console.error('[API] Printer reconnection failed:', error);
+        const appError = toAppError(error);
+        return sendErrorResponse(res, 500, appError.message);
       }
-
-      const savedPrinter = savedPrinterService.getSavedPrinter(serialNumber);
-      if (!savedPrinter) {
-        return sendErrorResponse(res, 404, 'Saved printer not found');
-      }
-
-      // Connect using saved details
-      console.log('[API] Reconnecting to saved printer:', savedPrinter.Name);
-      const results = await deps.connectionManager.connectHeadlessFromSaved([savedPrinter]);
-
-      if (results.length === 0 || !results[0].contextId) {
-        console.error('[API] Reconnection failed - no context created');
-        return sendErrorResponse(res, 500, 'Failed to reconnect to printer');
-      }
-
-      const contextId = results[0].contextId;
-      console.log('[API] Successfully reconnected to:', savedPrinter.Name);
-
-      return res.json({
-        success: true,
-        contextId,
-        message: `Reconnected to ${savedPrinter.Name}`
-      });
-
-    } catch (error) {
-      console.error('[API] Printer reconnection failed:', error);
-      const appError = toAppError(error);
-      return sendErrorResponse(res, 500, appError.message);
     }
-  });
+  );
 }

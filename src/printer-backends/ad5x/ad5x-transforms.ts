@@ -21,11 +21,11 @@
  */
 
 import type {
+  AD5XMaterialMapping,
+  MaterialSlotInfo,
+  MaterialStationStatus,
   MatlStationInfo,
   SlotInfo,
-  MaterialStationStatus,
-  MaterialSlotInfo,
-  AD5XMaterialMapping
 } from './ad5x-types';
 
 /**
@@ -38,7 +38,7 @@ export function transformMaterialStation(info: MatlStationInfo): MaterialStation
     slots: info.slotInfos.map((slot, index) => transformSlotInfo(slot, index)),
     activeSlot: info.currentSlot,
     overallStatus: determineOverallStatus(info),
-    errorMessage: null
+    errorMessage: null,
   };
 }
 
@@ -51,7 +51,7 @@ export function transformSlotInfo(slot: SlotInfo, index: number): MaterialSlotIn
     slotId: index, // Convert to 0-based for UI
     materialType: slot.hasFilament ? slot.materialName : null,
     materialColor: slot.hasFilament ? slot.materialColor : null,
-    isEmpty: !slot.hasFilament
+    isEmpty: !slot.hasFilament,
   };
 }
 
@@ -64,14 +64,16 @@ export function createEmptyMaterialStation(): MaterialStationStatus {
     slots: [],
     activeSlot: null,
     overallStatus: 'disconnected',
-    errorMessage: 'Material station not available'
+    errorMessage: 'Material station not available',
   };
 }
 
 /**
  * Determine overall status based on material station state
  */
-function determineOverallStatus(info: MatlStationInfo): 'ready' | 'warming' | 'error' | 'disconnected' {
+function determineOverallStatus(
+  info: MatlStationInfo
+): 'ready' | 'warming' | 'error' | 'disconnected' {
   // AD5X state interpretation based on stateAction and stateStep
   if (info.stateAction === 0 && info.stateStep === 0) {
     return 'ready';
@@ -98,11 +100,11 @@ export function createMaterialMappings(
     slotMaterialColor: string;
   }>
 ): AD5XMaterialMapping[] {
-  return mappings.map(m => ({
+  return mappings.map((m) => ({
     toolId: m.toolId,
     slotId: m.slotId,
     materialName: m.materialName,
     toolMaterialColor: m.toolMaterialColor,
-    slotMaterialColor: m.slotMaterialColor
+    slotMaterialColor: m.slotMaterialColor,
   }));
 }

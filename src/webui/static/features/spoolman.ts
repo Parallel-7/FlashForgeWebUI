@@ -10,10 +10,10 @@
 import type {
   ActiveSpoolResponse,
   ApiResponse,
+  SpoolmanConfigResponse,
   SpoolSearchResponse,
   SpoolSelectResponse,
   SpoolSummary,
-  SpoolmanConfigResponse,
 } from '../app.js';
 import { getCurrentSettings, state } from '../core/AppState.js';
 import { apiRequest } from '../core/Transport.js';
@@ -63,7 +63,7 @@ export async function fetchActiveSpoolForContext(contextId?: string): Promise<vo
 
   try {
     const result = await apiRequest<ActiveSpoolResponse>(
-      `/api/spoolman/active/${encodeURIComponent(targetContextId)}`,
+      `/api/spoolman/active/${encodeURIComponent(targetContextId)}`
     );
 
     if (result.success) {

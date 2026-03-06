@@ -9,21 +9,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- go2rtc-based camera streaming with:
+  - bundled platform binaries in `resources/bin/`
+  - `scripts/download-go2rtc.cjs` postinstall download flow
+  - `Go2rtcService` and `Go2rtcBinaryManager` for stream and process lifecycle management
+  - bundled `video-rtc` frontend player for WebRTC, MSE, and MJPEG playback
 - Discord webhook notifications for the standalone WebUI with:
   - Global config keys in `config.json`: `DiscordSync`, `WebhookUrl`, `DiscordUpdateIntervalMinutes`
   - Multi-printer periodic status updates using a single shared timer
   - Event-driven notifications for print completion, printer cooled, and idle transitions
   - Status embeds using precise elapsed seconds and firmware ETA when available
 - Focused Discord notification service tests covering timer behavior, multi-context sends, and payload formatting
+- Backend bundling via `scripts/build-backend.ts` for pkg-compatible CommonJS output from the TypeScript source tree
+- Wrapped platform build entrypoints via `scripts/platform-build-wrapper.ts`
+- `docs:check` and `docs:check:debug` npm scripts backed by `scripts/check-fileoverview.go`
+- Packaged favicon asset for the standalone WebUI
 
 ### Changed
 
+- Camera streaming migrated from the legacy proxy/RTSP stack to go2rtc-managed per-context streams
+- Frontend camera playback now uses the bundled `video-rtc` player instead of the previous streaming path
+- Backend build pipeline now bundles `src/index.ts` before pkg packaging, while leaving runtime packages external for compatibility
 - Legacy per-printer settings in `config.json` are now treated as stale keys only and stripped on save
 - Printer connection and backend selection now use per-printer `forceLegacyMode` instead of the removed global `ForceLegacyAPI`
 - Camera configuration resolution now uses only per-printer settings from saved printer details
+- Static asset copying now includes the packaged favicon and updated browser assets
+- Project documentation was refreshed to match the go2rtc migration, Discord webhook support, and current build tooling
 
 ### Removed
 
+- Legacy camera streaming components: `CameraProxyService`, `RtspStreamService`, `PortAllocator`, and old stream type shims
 - Legacy global config ownership for `CustomCamera`, `CustomCameraUrl`, `CustomLeds`, `ForceLegacyAPI`, and `CameraProxyPort`
 
 ## [1.0.2] - 2026-01-31

@@ -30,12 +30,13 @@ export class WebUIMobileLayoutManager {
   }
 
   public load(visibleComponents: string[]): void {
-    if (!this.container) {
+    const container = this.container;
+    if (!container) {
       throw new Error('Mobile layout not initialized');
     }
 
     // Clear existing content
-    this.container.innerHTML = '';
+    container.innerHTML = '';
 
     // Add components in predefined mobile order
     this.componentOrder.forEach((componentId) => {
@@ -44,7 +45,7 @@ export class WebUIMobileLayoutManager {
         wrapper.classList.add('mobile-panel-container');
         wrapper.dataset.componentId = componentId;
         wrapper.appendChild(createComponentElement(componentId));
-        this.container!.appendChild(wrapper);
+        container.appendChild(wrapper);
       }
     });
   }
@@ -71,8 +72,6 @@ export class WebUIMobileLayoutManager {
 
   private getComponentElement(componentId: string): HTMLElement | null {
     if (!this.container) return null;
-    return this.container.querySelector<HTMLElement>(
-      `[data-component-id="${componentId}"]`
-    );
+    return this.container.querySelector<HTMLElement>(`[data-component-id="${componentId}"]`);
   }
 }

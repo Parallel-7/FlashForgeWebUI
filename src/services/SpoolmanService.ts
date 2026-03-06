@@ -19,10 +19,10 @@
  */
 
 import type {
+  SpoolmanConnectionTest,
   SpoolResponse,
   SpoolSearchQuery,
   SpoolUsageUpdate,
-  SpoolmanConnectionTest,
 } from '../types/spoolman';
 
 /**
@@ -38,7 +38,7 @@ export class SpoolmanService {
    */
   constructor(serverUrl: string) {
     // Ensure URL ends without trailing slash
-    this.baseUrl = serverUrl.replace(/\/$/, '') + '/api/v1';
+    this.baseUrl = `${serverUrl.replace(/\/$/, '')}/api/v1`;
   }
 
   /**

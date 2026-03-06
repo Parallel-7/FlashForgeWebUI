@@ -4,7 +4,7 @@
  */
 
 import { apiRequest } from '../core/Transport.js';
-import { $, showElement, hideElement, showToast } from '../shared/dom.js';
+import { $, hideElement, showElement, showToast } from '../shared/dom.js';
 
 interface DiscoveredPrinter {
   name: string;
@@ -59,8 +59,8 @@ function setupDiscoveryButton(): void {
   }
 
   // Re-render lucide icons
-  if (typeof (window as never)['lucide'] !== 'undefined') {
-    ((window as never)['lucide'] as { createIcons: () => void }).createIcons();
+  if (typeof (window as never).lucide !== 'undefined') {
+    ((window as never).lucide as { createIcons: () => void }).createIcons();
   }
 }
 
@@ -70,20 +70,20 @@ function setupDiscoveryButton(): void {
 function setupDiscoveryModal(): void {
   // Tab switching
   const tabBtns = document.querySelectorAll('.discovery-tab-btn');
-  tabBtns.forEach(btn => {
+  tabBtns.forEach((btn) => {
     btn.addEventListener('click', () => {
       const tabName = btn.getAttribute('data-tab');
       if (!tabName) return;
 
       // Update active tab button
-      tabBtns.forEach(b => {
+      tabBtns.forEach((b) => {
         b.classList.remove('active');
       });
       btn.classList.add('active');
 
       // Update active tab pane
       const panes = document.querySelectorAll('.discovery-tab-pane');
-      panes.forEach(pane => {
+      panes.forEach((pane) => {
         if (pane.id === `discovery-tab-${tabName}`) {
           pane.classList.remove('hidden');
         } else {
@@ -145,8 +145,8 @@ async function startNetworkScan(): Promise<void> {
       body: JSON.stringify({
         timeout: 15000,
         interval: 2000,
-        retries: 3
-      })
+        retries: 3,
+      }),
     });
 
     if (!response.success) {
@@ -154,10 +154,12 @@ async function startNetworkScan(): Promise<void> {
     }
 
     displayDiscoveredPrinters(response.savedMatches || []);
-
   } catch (error) {
     console.error('Network scan failed:', error);
-    showToast('Network scan failed: ' + (error instanceof Error ? error.message : 'Unknown error'), 'error');
+    showToast(
+      `Network scan failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      'error'
+    );
   } finally {
     scanInProgress = false;
     scanBtn?.classList.remove('hidden');
@@ -180,12 +182,13 @@ function displayDiscoveredPrinters(matches: SavedPrinterMatch[]): void {
     return;
   }
 
-  printerList.innerHTML = matches.map(match => {
-    const printer = match.discovered;
-    const isKnown = match.isKnown;
-    const ipChanged = match.ipAddressChanged;
+  printerList.innerHTML = matches
+    .map((match) => {
+      const printer = match.discovered;
+      const isKnown = match.isKnown;
+      const ipChanged = match.ipAddressChanged;
 
-    return `
+      return `
       <div class="printer-card ${isKnown ? 'known' : 'new'}">
         <div class="printer-info">
           <h4>${printer.name}</h4>
@@ -206,11 +209,12 @@ function displayDiscoveredPrinters(matches: SavedPrinterMatch[]): void {
         </div>
       </div>
     `;
-  }).join('');
+    })
+    .join('');
 
   // Setup connect buttons
   const connectBtns = printerList.querySelectorAll('.connect-printer-btn');
-  connectBtns.forEach(btn => {
+  connectBtns.forEach((btn) => {
     btn.addEventListener('click', () => {
       const ip = btn.getAttribute('data-ip');
       const serial = btn.getAttribute('data-serial');
@@ -229,7 +233,13 @@ function displayDiscoveredPrinters(matches: SavedPrinterMatch[]): void {
 /**
  * Get saved printer by serial number
  */
-async function getSavedPrinterBySerial(serialNumber: string): Promise<{ Name: string; IPAddress: string; SerialNumber: string; CheckCode?: string; printerModel?: string } | null> {
+async function getSavedPrinterBySerial(serialNumber: string): Promise<{
+  Name: string;
+  IPAddress: string;
+  SerialNumber: string;
+  CheckCode?: string;
+  printerModel?: string;
+} | null> {
   if (!serialNumber) {
     return null;
   }
@@ -237,7 +247,13 @@ async function getSavedPrinterBySerial(serialNumber: string): Promise<{ Name: st
   try {
     const response = await apiRequest<{
       success: boolean;
-      printers?: { Name: string; IPAddress: string; SerialNumber: string; CheckCode?: string; printerModel?: string }[];
+      printers?: {
+        Name: string;
+        IPAddress: string;
+        SerialNumber: string;
+        CheckCode?: string;
+        printerModel?: string;
+      }[];
       error?: string;
     }>('/api/printers/saved');
 
@@ -245,7 +261,7 @@ async function getSavedPrinterBySerial(serialNumber: string): Promise<{ Name: st
       return null;
     }
 
-    return response.printers.find(p => p.SerialNumber === serialNumber) || null;
+    return response.printers.find((p) => p.SerialNumber === serialNumber) || null;
   } catch (error) {
     console.error('Failed to fetch saved printers:', error);
     return null;
@@ -277,7 +293,7 @@ async function connectToDiscoveredPrinter(
     }>('/api/printers/detect', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ipAddress: ip })
+      body: JSON.stringify({ ipAddress: ip }),
     });
 
     if (!detectResponse.success || !detectResponse.typeName) {
@@ -327,8 +343,8 @@ async function connectToDiscoveredPrinter(
         name: detectedName,
         model: typeName,
         type,
-        checkCode
-      })
+        checkCode,
+      }),
     });
 
     if (!response.success) {
@@ -340,10 +356,12 @@ async function connectToDiscoveredPrinter(
 
     // Reload page to refresh printer list
     window.location.reload();
-
   } catch (error) {
     console.error('Connection failed:', error);
-    showToast('Connection failed: ' + (error instanceof Error ? error.message : 'Unknown error'), 'error');
+    showToast(
+      `Connection failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      'error'
+    );
   }
 }
 
@@ -383,7 +401,7 @@ async function connectManually(): Promise<void> {
     }>('/api/printers/detect', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ipAddress: ip })
+      body: JSON.stringify({ ipAddress: ip }),
     });
 
     if (!detectResponse.success || !detectResponse.typeName) {
@@ -401,7 +419,7 @@ async function connectManually(): Promise<void> {
     if (userSelectedType !== detectedType) {
       const proceed = confirm(
         `Warning: You selected "${userSelectedType}" but the printer was detected as "${detectedType}".\n\n` +
-        `Using detected type: ${detectedType}\n\nContinue?`
+          `Using detected type: ${detectedType}\n\nContinue?`
       );
       if (!proceed) {
         return;
@@ -447,8 +465,8 @@ async function connectManually(): Promise<void> {
         name: detectedName,
         model: typeName,
         type: detectedType,
-        checkCode
-      })
+        checkCode,
+      }),
     });
 
     if (!response.success) {
@@ -460,10 +478,12 @@ async function connectManually(): Promise<void> {
 
     // Reload page to refresh printer list
     window.location.reload();
-
   } catch (error) {
     console.error('Manual connection failed:', error);
-    showToast('Connection failed: ' + (error instanceof Error ? error.message : 'Unknown error'), 'error');
+    showToast(
+      `Connection failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      'error'
+    );
   }
 }
 
@@ -477,7 +497,13 @@ async function loadSavedPrinters(): Promise<void> {
   try {
     const response = await apiRequest<{
       success: boolean;
-      printers?: { Name: string; IPAddress: string; SerialNumber: string; printerModel?: string; lastConnected?: string }[];
+      printers?: {
+        Name: string;
+        IPAddress: string;
+        SerialNumber: string;
+        printerModel?: string;
+        lastConnected?: string;
+      }[];
       error?: string;
     }>('/api/printers/saved');
 
@@ -486,7 +512,9 @@ async function loadSavedPrinters(): Promise<void> {
       return;
     }
 
-    savedList.innerHTML = response.printers.map(printer => `
+    savedList.innerHTML = response.printers
+      .map(
+        (printer) => `
       <div class="saved-printer-card">
         <div class="printer-info">
           <h4>${printer.Name}</h4>
@@ -502,11 +530,13 @@ async function loadSavedPrinters(): Promise<void> {
           </button>
         </div>
       </div>
-    `).join('');
+    `
+      )
+      .join('');
 
     // Setup reconnect buttons
     const reconnectBtns = savedList.querySelectorAll('.reconnect-btn');
-    reconnectBtns.forEach(btn => {
+    reconnectBtns.forEach((btn) => {
       btn.addEventListener('click', () => {
         const serial = btn.getAttribute('data-serial');
         if (serial) {
@@ -517,7 +547,7 @@ async function loadSavedPrinters(): Promise<void> {
 
     // Setup delete buttons
     const deleteBtns = savedList.querySelectorAll('.delete-btn');
-    deleteBtns.forEach(btn => {
+    deleteBtns.forEach((btn) => {
       btn.addEventListener('click', () => {
         const serial = btn.getAttribute('data-serial');
         if (serial && confirm('Are you sure you want to delete this printer?')) {
@@ -525,7 +555,6 @@ async function loadSavedPrinters(): Promise<void> {
         }
       });
     });
-
   } catch (error) {
     console.error('Failed to load saved printers:', error);
     savedList.innerHTML = '<p class="text-danger">Failed to load saved printers.</p>';
@@ -546,7 +575,7 @@ async function reconnectToSavedPrinter(serialNumber: string): Promise<void> {
     }>(`/api/printers/reconnect/${serialNumber}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: '{}'
+      body: '{}',
     });
 
     if (!response.success) {
@@ -558,10 +587,12 @@ async function reconnectToSavedPrinter(serialNumber: string): Promise<void> {
 
     // Reload page
     window.location.reload();
-
   } catch (error) {
     console.error('Reconnection failed:', error);
-    showToast('Reconnection failed: ' + (error instanceof Error ? error.message : 'Unknown error'), 'error');
+    showToast(
+      `Reconnection failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      'error'
+    );
   }
 }
 
@@ -574,7 +605,7 @@ async function deleteSavedPrinter(serialNumber: string): Promise<void> {
       success: boolean;
       error?: string;
     }>(`/api/printers/saved/${serialNumber}`, {
-      method: 'DELETE'
+      method: 'DELETE',
     });
 
     if (!response.success) {
@@ -585,9 +616,11 @@ async function deleteSavedPrinter(serialNumber: string): Promise<void> {
 
     // Reload saved printers list
     await loadSavedPrinters();
-
   } catch (error) {
     console.error('Delete failed:', error);
-    showToast('Delete failed: ' + (error instanceof Error ? error.message : 'Unknown error'), 'error');
+    showToast(
+      `Delete failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      'error'
+    );
   }
 }

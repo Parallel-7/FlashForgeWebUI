@@ -6,16 +6,15 @@ module.exports = {
   preset: 'ts-jest/presets/default-esm',
   testEnvironment: 'node',
   roots: ['<rootDir>/src'],
-  testMatch: [
-    '**/?(*.)+(spec|test).ts'
-  ],
-  testPathIgnorePatterns: [
-    '<rootDir>/src/__tests__/setup.ts'
-  ],
+  testMatch: ['**/?(*.)+(spec|test).ts'],
+  testPathIgnorePatterns: ['<rootDir>/src/__tests__/setup.ts'],
   transform: {
-    '^.+\\.ts$': ['ts-jest', {
-      useESM: true,
-    }],
+    '^.+\\.ts$': [
+      'ts-jest',
+      {
+        useESM: true,
+      },
+    ],
   },
   collectCoverageFrom: [
     'src/**/*.ts',
@@ -26,11 +25,7 @@ module.exports = {
     '!src/__tests__/**',
   ],
   coverageDirectory: 'coverage',
-  coverageReporters: [
-    'text',
-    'lcov',
-    'html'
-  ],
+  coverageReporters: ['text', 'lcov', 'html'],
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
   },

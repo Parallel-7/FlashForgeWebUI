@@ -3,7 +3,7 @@
  * Runs before each test file
  */
 
-import { jest, afterEach } from '@jest/globals';
+import { afterEach, jest } from '@jest/globals';
 
 // Mock console methods to reduce noise in tests
 global.console = {

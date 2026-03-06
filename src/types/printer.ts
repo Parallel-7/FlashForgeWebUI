@@ -15,11 +15,7 @@
 /**
  * Printer model types supported by the backend system
  */
-export type PrinterModelType =
-  | 'generic-legacy'
-  | 'adventurer-5m'
-  | 'adventurer-5m-pro'
-  | 'ad5x';
+export type PrinterModelType = 'generic-legacy' | 'adventurer-5m' | 'adventurer-5m-pro' | 'ad5x';
 
 /**
  * Client type for printer connection

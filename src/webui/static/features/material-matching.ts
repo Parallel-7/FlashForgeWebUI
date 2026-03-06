@@ -15,11 +15,7 @@ import type {
   PendingJobStart,
   WebUIJobFile,
 } from '../app.js';
-import {
-  getMaterialMatchingState,
-  setMaterialMatchingState,
-  state,
-} from '../core/AppState.js';
+import { getMaterialMatchingState, setMaterialMatchingState, state } from '../core/AppState.js';
 import { apiRequest } from '../core/Transport.js';
 import { $, hideElement, showElement, showToast } from '../shared/dom.js';
 import { colorsDiffer, isAD5XJobFile, materialsMatch } from '../shared/formatting.js';
@@ -359,7 +355,7 @@ function handleSlotSelection(slotInfo: MaterialSlotInfo): void {
     showMaterialError(
       `Material mismatch: Tool ${tool.toolId + 1} requires ${tool.materialName}, but Slot ${
         slotInfo.slotId + 1
-      } contains ${slotInfo.materialType || 'no material'}.`,
+      } contains ${slotInfo.materialType || 'no material'}.`
     );
     return;
   }
@@ -384,7 +380,7 @@ function handleSlotSelection(slotInfo: MaterialSlotInfo): void {
 
   if (colorsDiffer(tool.materialColor, slotInfo.materialColor || '')) {
     showMaterialWarning(
-      `Tool ${tool.toolId + 1} color (${tool.materialColor}) does not match Slot ${displaySlotId} color (${slotInfo.materialColor || 'unknown'}). The print will succeed, but appearance may differ.`,
+      `Tool ${tool.toolId + 1} color (${tool.materialColor}) does not match Slot ${displaySlotId} color (${slotInfo.materialColor || 'unknown'}). The print will succeed, but appearance may differ.`
     );
   } else {
     clearMaterialMessages();
@@ -518,7 +514,7 @@ export function setupMaterialMatchingHandlers(): void {
   const requirements = $('material-job-requirements');
   requirements?.addEventListener('click', (event) => {
     const target = (event.target as HTMLElement | null)?.closest(
-      '.material-tool-item',
+      '.material-tool-item'
     ) as HTMLElement | null;
     if (!target || !target.dataset.toolId) {
       return;
@@ -529,7 +525,7 @@ export function setupMaterialMatchingHandlers(): void {
   const slotList = $('material-slot-list');
   slotList?.addEventListener('click', (event) => {
     const slotElement = (event.target as HTMLElement | null)?.closest(
-      '.material-slot-item',
+      '.material-slot-item'
     ) as HTMLElement | null;
     if (!slotElement || slotElement.classList.contains('disabled')) {
       return;

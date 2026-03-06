@@ -29,10 +29,10 @@
  * @exports getMultiContextSpoolmanTracker - Singleton instance accessor
  */
 
-import { EventEmitter } from '../utils/EventEmitter';
 import { getPrinterContextManager } from '../managers/PrinterContextManager';
-import { SpoolmanUsageTracker } from './SpoolmanUsageTracker';
+import { EventEmitter } from '../utils/EventEmitter';
 import type { PrintStateMonitor } from './PrintStateMonitor';
+import { SpoolmanUsageTracker } from './SpoolmanUsageTracker';
 
 // ============================================================================
 // TYPES
@@ -44,15 +44,19 @@ import type { PrintStateMonitor } from './PrintStateMonitor';
 interface MultiContextSpoolmanTrackerEventMap extends Record<string, unknown[]> {
   'tracker-created': [{ contextId: string }];
   'tracker-removed': [{ contextId: string }];
-  'usage-updated': [{
-    contextId: string;
-    spoolId: number;
-    usage: { use_weight?: number; use_length?: number };
-  }];
-  'usage-update-failed': [{
-    contextId: string;
-    error: string;
-  }];
+  'usage-updated': [
+    {
+      contextId: string;
+      spoolId: number;
+      usage: { use_weight?: number; use_length?: number };
+    },
+  ];
+  'usage-update-failed': [
+    {
+      contextId: string;
+      error: string;
+    },
+  ];
 }
 
 // ============================================================================

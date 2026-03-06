@@ -33,12 +33,12 @@
  * @exports SpoolmanUsageTracker - Main tracker class
  */
 
-import { EventEmitter } from '../utils/EventEmitter';
 import { getConfigManager } from '../managers/ConfigManager';
+import type { PrinterStatus } from '../types/polling';
+import { EventEmitter } from '../utils/EventEmitter';
+import type { PrintStateMonitor } from './PrintStateMonitor';
 import { getSpoolmanIntegrationService } from './SpoolmanIntegrationService';
 import { SpoolmanService } from './SpoolmanService';
-import type { PrintStateMonitor } from './PrintStateMonitor';
-import type { PrinterStatus } from '../types/polling';
 
 // ============================================================================
 // TYPES
@@ -48,15 +48,19 @@ import type { PrinterStatus } from '../types/polling';
  * Event map for SpoolmanUsageTracker
  */
 interface SpoolmanUsageTrackerEventMap extends Record<string, unknown[]> {
-  'usage-updated': [{
-    contextId: string;
-    spoolId: number;
-    usage: { use_weight?: number; use_length?: number };
-  }];
-  'usage-update-failed': [{
-    contextId: string;
-    error: string;
-  }];
+  'usage-updated': [
+    {
+      contextId: string;
+      spoolId: number;
+      usage: { use_weight?: number; use_length?: number };
+    },
+  ];
+  'usage-update-failed': [
+    {
+      contextId: string;
+      error: string;
+    },
+  ];
 }
 
 // ============================================================================
@@ -136,7 +140,12 @@ export class SpoolmanUsageTracker extends EventEmitter<SpoolmanUsageTrackerEvent
   /**
    * Handle print completed event
    */
-  private async handlePrintCompleted(event: { contextId: string; jobName: string; status: PrinterStatus; completedAt: Date }): Promise<void> {
+  private async handlePrintCompleted(event: {
+    contextId: string;
+    jobName: string;
+    status: PrinterStatus;
+    completedAt: Date;
+  }): Promise<void> {
     console.log(`[SpoolmanTracker] Print completed: ${event.jobName}`);
 
     // Validate context
@@ -174,7 +183,9 @@ export class SpoolmanUsageTracker extends EventEmitter<SpoolmanUsageTrackerEvent
     try {
       const config = this.configManager.getConfig();
       if (!config.SpoolmanEnabled || !config.SpoolmanServerUrl) {
-        console.log(`[SpoolmanUsageTracker] Spoolman not enabled or configured for context ${this.contextId}`);
+        console.log(
+          `[SpoolmanUsageTracker] Spoolman not enabled or configured for context ${this.contextId}`
+        );
         return;
       }
 
@@ -182,18 +193,27 @@ export class SpoolmanUsageTracker extends EventEmitter<SpoolmanUsageTrackerEvent
       try {
         integrationService = getSpoolmanIntegrationService();
       } catch {
-        console.warn('[SpoolmanUsageTracker] Integration service not initialized - skipping usage update');
+        console.warn(
+          '[SpoolmanUsageTracker] Integration service not initialized - skipping usage update'
+        );
         return;
       }
 
-      if (!integrationService.isGloballyEnabled() || !integrationService.isContextSupported(this.contextId)) {
-        console.log(`[SpoolmanUsageTracker] Context ${this.contextId} is not eligible for usage updates`);
+      if (
+        !integrationService.isGloballyEnabled() ||
+        !integrationService.isContextSupported(this.contextId)
+      ) {
+        console.log(
+          `[SpoolmanUsageTracker] Context ${this.contextId} is not eligible for usage updates`
+        );
         return;
       }
 
       const activeSpool = integrationService.getActiveSpool(this.contextId);
       if (!activeSpool) {
-        console.log(`[SpoolmanUsageTracker] No active spool for context ${this.contextId} - skipping usage update`);
+        console.log(
+          `[SpoolmanUsageTracker] No active spool for context ${this.contextId} - skipping usage update`
+        );
         return;
       }
 
@@ -229,19 +249,24 @@ export class SpoolmanUsageTracker extends EventEmitter<SpoolmanUsageTrackerEvent
       }
 
       const service = new SpoolmanService(config.SpoolmanServerUrl);
-      console.log(`[SpoolmanUsageTracker] Updating spool ${activeSpool.id} for context ${this.contextId}`, updatePayload);
+      console.log(
+        `[SpoolmanUsageTracker] Updating spool ${activeSpool.id} for context ${this.contextId}`,
+        updatePayload
+      );
 
       const updatedSpool = await service.updateUsage(activeSpool.id, updatePayload);
       const updatedActiveSpool = integrationService.convertToActiveSpoolData(updatedSpool);
       await integrationService.setActiveSpool(this.contextId, updatedActiveSpool);
 
-      console.log(`[SpoolmanUsageTracker] Successfully updated spool usage for context ${this.contextId}`);
+      console.log(
+        `[SpoolmanUsageTracker] Successfully updated spool usage for context ${this.contextId}`
+      );
 
       // Emit success event
       this.emit('usage-updated', {
         contextId: this.contextId,
         spoolId: activeSpool.id,
-        usage: updatePayload
+        usage: updatePayload,
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -250,7 +275,7 @@ export class SpoolmanUsageTracker extends EventEmitter<SpoolmanUsageTrackerEvent
       // Emit error event
       this.emit('usage-update-failed', {
         contextId: this.contextId,
-        error: message
+        error: message,
       });
     }
   }

@@ -18,28 +18,19 @@
  */
 
 // Re-export types from ff-api
-export {
-  MatlStationInfo,
-  SlotInfo
-} from '@ghosttypes/ff-api';
-
 // Direct re-exports from ff-api index
 export {
-  FFGcodeToolData,
-  FFGcodeFileEntry,
-  AD5XMaterialMapping,
   AD5XLocalJobParams,
-  AD5XSingleColorJobParams
+  AD5XMaterialMapping,
+  AD5XSingleColorJobParams,
+  FFGcodeFileEntry,
+  FFGcodeToolData,
+  MatlStationInfo,
+  SlotInfo,
 } from '@ghosttypes/ff-api';
-
 // Keep our UI-specific types that transform the data structure
-export {
-  MaterialStationStatus,
-  MaterialSlotInfo
-} from '../../types/printer-backend';
-
 // AD5X job info extends the base job info with material station data
-export { AD5XJobInfo } from '../../types/printer-backend';
+export { AD5XJobInfo, MaterialSlotInfo, MaterialStationStatus } from '../../types/printer-backend';
 
 // Import MatlStationInfo for type definitions
 import type { MatlStationInfo as MatlStationInfoType } from '@ghosttypes/ff-api';

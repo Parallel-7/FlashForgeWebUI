@@ -2,12 +2,12 @@
  * @fileoverview Printer control route registrations (movement, job control, LEDs, status operations).
  */
 
-import type { Router, Response } from 'express';
-import type { AuthenticatedRequest } from '../auth-middleware';
 import { FiveMClient } from '@ghosttypes/ff-api';
+import type { Response, Router } from 'express';
 import { toAppError } from '../../../utils/error.utils';
 import type { StandardAPIResponse } from '../../types/web-api.types';
-import { resolveContext, sendErrorResponse, type RouteDependencies } from './route-helpers';
+import type { AuthenticatedRequest } from '../auth-middleware';
+import { type RouteDependencies, resolveContext, sendErrorResponse } from './route-helpers';
 
 type JobControlExecutor = (contextId: string) => Promise<{ success: boolean; error?: string }>;
 
@@ -21,28 +21,27 @@ export function registerPrinterControlRoutes(router: Router, deps: RouteDependen
   const controlRoutes: readonly JobControlRoute[] = [
     {
       path: '/printer/control/home',
-      executor: async contextId =>
-        deps.backendManager.executeGCodeCommand(contextId, '~G28'),
-      successMessage: 'Homing axes...'
+      executor: async (contextId) => deps.backendManager.executeGCodeCommand(contextId, '~G28'),
+      successMessage: 'Homing axes...',
     },
     {
       path: '/printer/control/pause',
-      executor: async contextId => deps.backendManager.pauseJob(contextId),
-      successMessage: 'Print paused'
+      executor: async (contextId) => deps.backendManager.pauseJob(contextId),
+      successMessage: 'Print paused',
     },
     {
       path: '/printer/control/resume',
-      executor: async contextId => deps.backendManager.resumeJob(contextId),
-      successMessage: 'Print resumed'
+      executor: async (contextId) => deps.backendManager.resumeJob(contextId),
+      successMessage: 'Print resumed',
     },
     {
       path: '/printer/control/cancel',
-      executor: async contextId => deps.backendManager.cancelJob(contextId),
-      successMessage: 'Print cancelled'
-    }
+      executor: async (contextId) => deps.backendManager.cancelJob(contextId),
+      successMessage: 'Print cancelled',
+    },
   ];
 
-  controlRoutes.forEach(route => {
+  controlRoutes.forEach((route) => {
     router.post(route.path, async (req: AuthenticatedRequest, res: Response) => {
       try {
         const contextResult = resolveContext(req, deps, { requireBackendReady: true });
@@ -58,7 +57,7 @@ export function registerPrinterControlRoutes(router: Router, deps: RouteDependen
         const response: StandardAPIResponse = {
           success: result.success,
           message: result.success ? route.successMessage : undefined,
-          error: result.error
+          error: result.error,
         };
         return res.status(result.success ? 200 : 500).json(response);
       } catch (error) {
@@ -80,7 +79,7 @@ export function registerPrinterControlRoutes(router: Router, deps: RouteDependen
     try {
       const contextResult = resolveContext(req, deps, {
         requireBackendReady: true,
-        requireBackendInstance: true
+        requireBackendInstance: true,
       });
       if (!contextResult.success) {
         return sendErrorResponse<StandardAPIResponse>(
@@ -116,7 +115,7 @@ export function registerPrinterControlRoutes(router: Router, deps: RouteDependen
       const result = await primaryClient.jobControl.clearPlatform();
       const response: StandardAPIResponse = {
         success: result,
-        message: result ? 'Status cleared' : 'Error clearing status'
+        message: result ? 'Status cleared' : 'Error clearing status',
       };
       return res.status(result ? 200 : 500).json(response);
     } catch (error) {
@@ -131,11 +130,11 @@ async function handleLedControl(
   res: Response,
   deps: RouteDependencies,
   enabled: boolean
-): Promise<Response | void> {
+): Promise<Response | undefined> {
   try {
     const contextResult = resolveContext(req, deps, {
       requireBackendReady: true,
-      requireBackendInstance: true
+      requireBackendInstance: true,
     });
     if (!contextResult.success) {
       return sendErrorResponse<StandardAPIResponse>(
@@ -161,7 +160,7 @@ async function handleLedControl(
     const response: StandardAPIResponse = {
       success: result.success,
       message: result.success ? `LED turned ${enabled ? 'on' : 'off'}` : undefined,
-      error: result.error
+      error: result.error,
     };
     return res.status(result.success ? 200 : 500).json(response);
   } catch (error) {

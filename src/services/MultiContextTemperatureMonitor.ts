@@ -29,12 +29,12 @@
  * @exports getMultiContextTemperatureMonitor - Singleton instance accessor
  */
 
-import { EventEmitter } from '../utils/EventEmitter';
 import { getPrinterContextManager } from '../managers/PrinterContextManager';
-import { TemperatureMonitoringService } from './TemperatureMonitoringService';
-import type { PrintStateMonitor } from './PrintStateMonitor';
-import type { PrinterPollingService } from './PrinterPollingService';
 import type { PrinterStatus } from '../types/polling';
+import { EventEmitter } from '../utils/EventEmitter';
+import type { PrinterPollingService } from './PrinterPollingService';
+import type { PrintStateMonitor } from './PrintStateMonitor';
+import { TemperatureMonitoringService } from './TemperatureMonitoringService';
 
 // ============================================================================
 // TYPES
@@ -54,12 +54,14 @@ export interface PrinterCooledEvent {
  * Event map for MultiContextTemperatureMonitor
  */
 interface MultiContextTempMonitorEventMap extends Record<string, unknown[]> {
-  'temperature-checked': [{
-    contextId: string;
-    temperature: number;
-    coolingThreshold: number;
-    hasCooled: boolean;
-  }];
+  'temperature-checked': [
+    {
+      contextId: string;
+      temperature: number;
+      coolingThreshold: number;
+      hasCooled: boolean;
+    },
+  ];
   'printer-cooled': [PrinterCooledEvent];
   'monitoring-started': [{ contextId: string }];
   'monitoring-stopped': [{ contextId: string }];
@@ -114,7 +116,9 @@ export class MultiContextTemperatureMonitor extends EventEmitter<MultiContextTem
   ): void {
     // Check if monitor already exists
     if (this.monitors.has(contextId)) {
-      console.warn(`[MultiContextTemperatureMonitor] Monitor already exists for context ${contextId}`);
+      console.warn(
+        `[MultiContextTemperatureMonitor] Monitor already exists for context ${contextId}`
+      );
       return;
     }
 

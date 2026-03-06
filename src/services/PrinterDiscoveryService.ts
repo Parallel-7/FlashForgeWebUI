@@ -18,11 +18,8 @@
  * during the printer connection workflow to present available printers to the user.
  */
 
+import { type FlashForgePrinter, FlashForgePrinterDiscovery } from '@ghosttypes/ff-api';
 import { EventEmitter } from 'events';
-import { 
-  FlashForgePrinterDiscovery, 
-  type FlashForgePrinter
-} from '@ghosttypes/ff-api';
 
 import type { DiscoveredPrinter } from '../types/printer';
 
@@ -71,17 +68,18 @@ export class PrinterDiscoveryService extends EventEmitter {
       const discovery = new FlashForgePrinterDiscovery();
       const rawPrinters = await discovery.discoverPrintersAsync(timeout, interval, retries);
 
-      const discoveredPrinters: DiscoveredPrinter[] = rawPrinters.map((printer: FlashForgePrinter) => ({
-        name: printer.name || 'Unknown Printer',
-        ipAddress: printer.ipAddress.toString(),
-        serialNumber: printer.serialNumber,
-        model: 'Unknown', // Will be determined during connection
-        status: 'Discovered'
-      }));
+      const discoveredPrinters: DiscoveredPrinter[] = rawPrinters.map(
+        (printer: FlashForgePrinter) => ({
+          name: printer.name || 'Unknown Printer',
+          ipAddress: printer.ipAddress.toString(),
+          serialNumber: printer.serialNumber,
+          model: 'Unknown', // Will be determined during connection
+          status: 'Discovered',
+        })
+      );
 
       this.emit('discovery-completed', discoveredPrinters);
       return discoveredPrinters;
-
     } catch (error) {
       this.emit('discovery-failed', error);
       throw error;
@@ -100,10 +98,10 @@ export class PrinterDiscoveryService extends EventEmitter {
 
     try {
       const discovery = new FlashForgePrinterDiscovery();
-      
+
       // Use discover with specific IP range
       const rawPrinters = await discovery.discoverPrintersAsync(5000, 1000, 1);
-      
+
       // Filter for the specific IP
       const matchingPrinter = rawPrinters.find(
         (printer: FlashForgePrinter) => printer.ipAddress.toString() === ipAddress
@@ -115,7 +113,7 @@ export class PrinterDiscoveryService extends EventEmitter {
           ipAddress: matchingPrinter.ipAddress.toString(),
           serialNumber: matchingPrinter.serialNumber,
           model: 'Unknown',
-          status: 'Discovered'
+          status: 'Discovered',
         };
 
         this.emit('single-scan-completed', discoveredPrinter);
@@ -124,7 +122,6 @@ export class PrinterDiscoveryService extends EventEmitter {
 
       this.emit('single-scan-completed', null);
       return null;
-
     } catch (error) {
       this.emit('single-scan-failed', { ipAddress, error });
       return null;
@@ -155,4 +152,3 @@ export class PrinterDiscoveryService extends EventEmitter {
 export const getPrinterDiscoveryService = (): PrinterDiscoveryService => {
   return PrinterDiscoveryService.getInstance();
 };
-

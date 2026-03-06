@@ -18,10 +18,10 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import type {
+  MultiPrinterConfig,
   PrinterDetails,
   StoredPrinterDetails,
-  MultiPrinterConfig,
-  ValidatedPrinterDetails
+  ValidatedPrinterDetails,
 } from '../types/printer';
 import { detectPrinterModelType } from '../utils/PrinterUtils';
 
@@ -48,7 +48,7 @@ export class PrinterDetailsManager {
     // Initialize with empty config
     this.currentConfig = {
       lastUsedPrinterSerial: null,
-      printers: {}
+      printers: {},
     };
 
     this.loadPrinterConfig();
@@ -92,9 +92,7 @@ export class PrinterDetailsManager {
       ...(details.forceLegacyMode !== undefined
         ? { forceLegacyMode: details.forceLegacyMode }
         : {}),
-      ...(details.webUIEnabled !== undefined
-        ? { webUIEnabled: details.webUIEnabled }
-        : {}),
+      ...(details.webUIEnabled !== undefined ? { webUIEnabled: details.webUIEnabled } : {}),
       ...(details.activeSpoolData !== undefined
         ? { activeSpoolData: details.activeSpoolData }
         : {}),
@@ -129,9 +127,19 @@ export class PrinterDetailsManager {
     }
 
     const detailsObj = details as Record<string, unknown>;
-    const required = ['Name', 'IPAddress', 'SerialNumber', 'CheckCode', 'ClientType', 'printerModel'];
-    const hasAllFields = required.every(field =>
-      field in detailsObj && typeof detailsObj[field] === 'string' && (detailsObj[field] as string).length > 0
+    const required = [
+      'Name',
+      'IPAddress',
+      'SerialNumber',
+      'CheckCode',
+      'ClientType',
+      'printerModel',
+    ];
+    const hasAllFields = required.every(
+      (field) =>
+        field in detailsObj &&
+        typeof detailsObj[field] === 'string' &&
+        (detailsObj[field] as string).length > 0
     );
 
     if (!hasAllFields) {
@@ -152,7 +160,10 @@ export class PrinterDetailsManager {
     }
 
     // Validate optional per-printer settings fields if present
-    if ('customCameraEnabled' in detailsObj && typeof detailsObj.customCameraEnabled !== 'boolean') {
+    if (
+      'customCameraEnabled' in detailsObj &&
+      typeof detailsObj.customCameraEnabled !== 'boolean'
+    ) {
       return false;
     }
     if ('customCameraUrl' in detailsObj && typeof detailsObj.customCameraUrl !== 'string') {
@@ -242,7 +253,7 @@ export class PrinterDetailsManager {
 
     // Validate it's a valid ISO date string
     const date = new Date(detailsObj.lastConnected as string);
-    if (isNaN(date.getTime())) {
+    if (Number.isNaN(date.getTime())) {
       return false;
     }
 
@@ -260,11 +271,13 @@ export class PrinterDetailsManager {
     const dataObj = data as Record<string, unknown>;
 
     // Old format has printer fields at top level, no 'printers' or 'lastUsedPrinterSerial'
-    return 'Name' in dataObj &&
-           'IPAddress' in dataObj &&
-           'SerialNumber' in dataObj &&
-           !('printers' in dataObj) &&
-           !('lastUsedPrinterSerial' in dataObj);
+    return (
+      'Name' in dataObj &&
+      'IPAddress' in dataObj &&
+      'SerialNumber' in dataObj &&
+      !('printers' in dataObj) &&
+      !('lastUsedPrinterSerial' in dataObj)
+    );
   }
 
   /**
@@ -279,14 +292,14 @@ export class PrinterDetailsManager {
     const storedDetails: StoredPrinterDetails = {
       ...oldData,
       modelType,
-      lastConnected: new Date().toISOString()
+      lastConnected: new Date().toISOString(),
     };
 
     const newConfig: MultiPrinterConfig = {
       lastUsedPrinterSerial: oldData.SerialNumber,
       printers: {
-        [oldData.SerialNumber]: storedDetails
-      }
+        [oldData.SerialNumber]: storedDetails,
+      },
     };
 
     console.log(`Migration complete: ${oldData.Name} -> ${oldData.SerialNumber}`);
@@ -316,7 +329,7 @@ export class PrinterDetailsManager {
           .then(() => {
             console.log('Successfully migrated and saved multi-printer configuration');
           })
-          .catch(error => {
+          .catch((error) => {
             console.warn('Failed to save migrated configuration:', error);
           });
         return;
@@ -340,12 +353,14 @@ export class PrinterDetailsManager {
         };
 
         // Validate lastUsedPrinterSerial integrity
-        if (this.currentConfig.lastUsedPrinterSerial &&
-            !(this.currentConfig.lastUsedPrinterSerial in this.currentConfig.printers)) {
+        if (
+          this.currentConfig.lastUsedPrinterSerial &&
+          !(this.currentConfig.lastUsedPrinterSerial in this.currentConfig.printers)
+        ) {
           console.warn('lastUsedPrinterSerial references non-existent printer - clearing');
           this.currentConfig = {
             ...this.currentConfig,
-            lastUsedPrinterSerial: null
+            lastUsedPrinterSerial: null,
           };
         }
 
@@ -361,7 +376,7 @@ export class PrinterDetailsManager {
         console.warn('Invalid printer configuration found - starting fresh');
         this.currentConfig = {
           lastUsedPrinterSerial: null,
-          printers: {}
+          printers: {},
         };
         // Remove invalid file
         this.clearAllPrinters();
@@ -370,7 +385,7 @@ export class PrinterDetailsManager {
       console.error('Error loading printer configuration:', error);
       this.currentConfig = {
         lastUsedPrinterSerial: null,
-        printers: {}
+        printers: {},
       };
       // Try to remove corrupted file
       this.clearAllPrinters();
@@ -398,7 +413,7 @@ export class PrinterDetailsManager {
     const sanitizedDetails = this.sanitizePrinterDetails(details);
     return {
       ...sanitizedDetails,
-      lastConnected: new Date().toISOString()
+      lastConnected: new Date().toISOString(),
     };
   }
 
@@ -460,7 +475,7 @@ export class PrinterDetailsManager {
       contextId,
       hasCustomCamera: 'customCameraEnabled' in details,
       customCameraEnabled: details.customCameraEnabled,
-      customCameraUrl: details.customCameraUrl
+      customCameraUrl: details.customCameraUrl,
     });
 
     if (!this.validatePrinterDetails(details)) {
@@ -477,19 +492,24 @@ export class PrinterDetailsManager {
       ...this.currentConfig,
       printers: {
         ...this.currentConfig.printers,
-        [details.SerialNumber]: storedDetails
+        [details.SerialNumber]: storedDetails,
       },
       lastUsedPrinterSerial: shouldUpdateLastUsed
         ? details.SerialNumber
-        : this.currentConfig.lastUsedPrinterSerial
+        : this.currentConfig.lastUsedPrinterSerial,
     };
 
-    console.log('[PrinterDetailsManager] Updated config in memory:', this.currentConfig.printers[details.SerialNumber]);
+    console.log(
+      '[PrinterDetailsManager] Updated config in memory:',
+      this.currentConfig.printers[details.SerialNumber]
+    );
 
     // If contextId provided, track context-specific last used
     if (contextId) {
       this.contextLastUsed.set(contextId, details.SerialNumber);
-      console.log(`Saved printer for context ${contextId}: ${details.Name} (${details.SerialNumber})`);
+      console.log(
+        `Saved printer for context ${contextId}: ${details.Name} (${details.SerialNumber})`
+      );
     } else {
       console.log(`Saved printer: ${details.Name} (${details.SerialNumber})`);
     }
@@ -516,7 +536,7 @@ export class PrinterDetailsManager {
 
     this.currentConfig = {
       lastUsedPrinterSerial: newLastUsed,
-      printers: remainingPrinters
+      printers: remainingPrinters,
     };
 
     await this.saveConfigToFile();
@@ -533,7 +553,7 @@ export class PrinterDetailsManager {
 
     this.currentConfig = {
       ...this.currentConfig,
-      lastUsedPrinterSerial: serialNumber
+      lastUsedPrinterSerial: serialNumber,
     };
 
     await this.saveConfigToFile();
@@ -546,7 +566,7 @@ export class PrinterDetailsManager {
   public async clearLastUsedPrinter(): Promise<void> {
     this.currentConfig = {
       ...this.currentConfig,
-      lastUsedPrinterSerial: null
+      lastUsedPrinterSerial: null,
     };
 
     await this.saveConfigToFile();
@@ -582,7 +602,7 @@ export class PrinterDetailsManager {
 
     this.currentConfig = {
       lastUsedPrinterSerial: null,
-      printers: {}
+      printers: {},
     };
 
     // Clear context-specific tracking

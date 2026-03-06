@@ -3,23 +3,34 @@
  * Tests AppError class, error factory functions, and error handling utilities
  */
 
-import { describe, it, expect, jest } from '@jest/globals';
-import { ZodError } from 'zod';
+import { describe, expect, it, jest } from '@jest/globals';
+import { ZodError, z } from 'zod';
 import {
   AppError,
-  ErrorCode,
-  fromZodError,
-  networkError,
-  timeoutError,
-  printerError,
   backendError,
+  createErrorResult,
+  ErrorCode,
   fileError,
+  fromZodError,
   isAppError,
+  logError,
+  networkError,
+  printerError,
+  timeoutError,
   toAppError,
   withErrorHandling,
-  createErrorResult,
-  logError
 } from './error.utils';
+
+function createInvalidStringFieldError(field: string): ZodError {
+  const schema = z.object({ [field]: z.string() });
+  const result = schema.safeParse({ [field]: 123 });
+
+  if (result.success) {
+    throw new Error(`Expected ${field} validation to fail`);
+  }
+
+  return result.error;
+}
 
 describe('ErrorCode', () => {
   it('should have all expected error codes', () => {
@@ -116,7 +127,7 @@ describe('AppError', () => {
         context: { test: 'value' },
         timestamp: error.timestamp,
         stack: error.stack,
-        originalError: undefined
+        originalError: undefined,
       });
     });
 
@@ -129,7 +140,7 @@ describe('AppError', () => {
       expect(json.originalError).toEqual({
         name: 'Error',
         message: 'Original',
-        stack: originalError.stack
+        stack: originalError.stack,
       });
     });
 
@@ -149,12 +160,16 @@ describe('AppError', () => {
 
     it('should return user-friendly message for PRINTER_BUSY', () => {
       const error = new AppError('Technical message', ErrorCode.PRINTER_BUSY);
-      expect(error.getUserMessage()).toBe('Printer is busy. Please wait for the current operation to complete');
+      expect(error.getUserMessage()).toBe(
+        'Printer is busy. Please wait for the current operation to complete'
+      );
     });
 
     it('should return user-friendly message for PRINTER_ERROR', () => {
       const error = new AppError('Technical message', ErrorCode.PRINTER_ERROR);
-      expect(error.getUserMessage()).toBe('Printer reported an error. Please check the printer display');
+      expect(error.getUserMessage()).toBe(
+        'Printer reported an error. Please check the printer display'
+      );
     });
 
     it('should return user-friendly message for FILE_NOT_FOUND', () => {
@@ -182,15 +197,10 @@ describe('AppError', () => {
 describe('Error Factory Functions', () => {
   describe('fromZodError', () => {
     it('should create AppError from ZodError', () => {
-      const zodError = new ZodError([
-        {
-          code: 'invalid_type',
-          expected: 'string',
-          received: 'number',
-          path: ['name'],
-          message: 'Expected string, received number'
-        } as any
-      ]);
+      const zodError = createInvalidStringFieldError('name');
+      const [issue] = zodError.issues;
+
+      expect(issue).toBeDefined();
 
       const appError = fromZodError(zodError);
 
@@ -201,9 +211,9 @@ describe('Error Factory Functions', () => {
       expect(appError.context?.issues).toEqual([
         {
           path: 'name',
-          message: 'Expected string, received number',
-          code: 'invalid_type'
-        }
+          message: issue?.message,
+          code: issue?.code,
+        },
       ]);
     });
 
@@ -328,15 +338,7 @@ describe('Error Handling Utilities', () => {
     });
 
     it('should convert ZodError to AppError', () => {
-      const zodError = new ZodError([
-        {
-          code: 'invalid_type',
-          expected: 'string',
-          received: 'number',
-          path: ['test'],
-          message: 'Test error'
-        } as any
-      ]);
+      const zodError = createInvalidStringFieldError('test');
 
       const converted = toAppError(zodError);
 
@@ -396,12 +398,9 @@ describe('Error Handling Utilities', () => {
       const errorHandler = jest.fn();
       const error = new Error('Test error');
 
-      await withErrorHandling(
-        async () => {
-          throw error;
-        },
-        errorHandler
-      );
+      await withErrorHandling(async () => {
+        throw error;
+      }, errorHandler);
 
       expect(errorHandler).toHaveBeenCalledWith(expect.any(AppError));
       expect(errorHandler.mock.calls[0][0] as AppError).toBeInstanceOf(AppError);
@@ -427,7 +426,7 @@ describe('Error Handling Utilities', () => {
 
       expect(result).toEqual({
         success: false,
-        error: 'Please connect to a printer first'
+        error: 'Please connect to a printer first',
       });
     });
 
@@ -437,7 +436,7 @@ describe('Error Handling Utilities', () => {
 
       expect(result).toEqual({
         success: false,
-        error: 'Test error'
+        error: 'Test error',
       });
     });
 
@@ -446,20 +445,12 @@ describe('Error Handling Utilities', () => {
 
       expect(result).toEqual({
         success: false,
-        error: 'String error'
+        error: 'String error',
       });
     });
 
     it('should create error result from ZodError', () => {
-      const zodError = new ZodError([
-        {
-          code: 'invalid_type',
-          expected: 'string',
-          received: 'number',
-          path: ['test'],
-          message: 'Validation failed'
-        } as any
-      ]);
+      const zodError = createInvalidStringFieldError('test');
 
       const result = createErrorResult(zodError);
 
@@ -482,7 +473,7 @@ describe('Error Handling Utilities', () => {
           name: 'AppError',
           message: 'Test',
           code: ErrorCode.NETWORK,
-          additionalContext: { operation: 'connect' }
+          additionalContext: { operation: 'connect' },
         })
       );
 

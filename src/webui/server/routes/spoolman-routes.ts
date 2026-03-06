@@ -2,23 +2,23 @@
  * @fileoverview Spoolman integration routes (config, search, active spool management).
  */
 
-import type { Router, Response } from 'express';
-import type { AuthenticatedRequest } from '../auth-middleware';
+import type { Response, Router } from 'express';
+import { toAppError } from '../../../utils/error.utils';
+import {
+  createValidationError,
+  SpoolClearRequestSchema,
+  SpoolSelectRequestSchema,
+} from '../../schemas/web-api.schemas';
 import type {
+  ActiveSpoolResponse,
   SpoolmanConfigResponse,
   SpoolSearchResponse,
-  ActiveSpoolResponse,
   SpoolSelectResponse,
+  SpoolSummary,
   StandardAPIResponse,
-  SpoolSummary
 } from '../../types/web-api.types';
-import {
-  SpoolSelectRequestSchema,
-  SpoolClearRequestSchema,
-  createValidationError
-} from '../../schemas/web-api.schemas';
-import { toAppError } from '../../../utils/error.utils';
-import { resolveContext, sendErrorResponse, type RouteDependencies } from './route-helpers';
+import type { AuthenticatedRequest } from '../auth-middleware';
+import { type RouteDependencies, resolveContext, sendErrorResponse } from './route-helpers';
 
 export function registerSpoolmanRoutes(router: Router, deps: RouteDependencies): void {
   router.get('/spoolman/config', async (_req: AuthenticatedRequest, res: Response) => {
@@ -29,7 +29,7 @@ export function registerSpoolmanRoutes(router: Router, deps: RouteDependencies):
           enabled: false,
           serverUrl: '',
           updateMode: 'weight',
-          contextId: null
+          contextId: null,
         });
       }
 
@@ -44,7 +44,7 @@ export function registerSpoolmanRoutes(router: Router, deps: RouteDependencies):
         disabledReason,
         serverUrl: deps.spoolmanService.getServerUrl(),
         updateMode: deps.spoolmanService.getUpdateMode(),
-        contextId: activeContextId
+        contextId: activeContextId,
       };
       return res.json(response);
     } catch (error) {
@@ -53,7 +53,7 @@ export function registerSpoolmanRoutes(router: Router, deps: RouteDependencies):
         enabled: false,
         serverUrl: '',
         updateMode: 'weight',
-        contextId: null
+        contextId: null,
       });
     }
   });
@@ -74,7 +74,7 @@ export function registerSpoolmanRoutes(router: Router, deps: RouteDependencies):
 
       const searchQuery: import('../../../types/spoolman').SpoolSearchQuery = {
         limit: 50,
-        allow_archived: false
+        allow_archived: false,
       };
 
       if (searchParam) {
@@ -82,7 +82,7 @@ export function registerSpoolmanRoutes(router: Router, deps: RouteDependencies):
       }
 
       const spoolsData = await deps.spoolmanService.fetchSpools(searchQuery);
-      const spools: SpoolSummary[] = spoolsData.map(spool => ({
+      const spools: SpoolSummary[] = spoolsData.map((spool) => ({
         id: spool.id,
         name: spool.filament.name || `Spool #${spool.id}`,
         vendor: spool.filament.vendor?.name || null,
@@ -90,12 +90,12 @@ export function registerSpoolmanRoutes(router: Router, deps: RouteDependencies):
         colorHex: spool.filament.color_hex || '#808080',
         remainingWeight: spool.remaining_weight || 0,
         remainingLength: spool.remaining_length || 0,
-        archived: spool.archived
+        archived: spool.archived,
       }));
 
       const response: SpoolSearchResponse = {
         success: true,
-        spools
+        spools,
       };
       return res.json(response);
     } catch (error) {
@@ -128,7 +128,7 @@ export function registerSpoolmanRoutes(router: Router, deps: RouteDependencies):
       const spool = deps.spoolmanService.getActiveSpool(contextResult.contextId);
       const response: ActiveSpoolResponse = {
         success: true,
-        spool
+        spool,
       };
       return res.json(response);
     } catch (error) {
@@ -142,11 +142,7 @@ export function registerSpoolmanRoutes(router: Router, deps: RouteDependencies):
       const validation = SpoolSelectRequestSchema.safeParse(req.body);
       if (!validation.success) {
         const validationError = createValidationError(validation.error);
-        return sendErrorResponse<StandardAPIResponse>(
-          res,
-          400,
-          validationError.error
-        );
+        return sendErrorResponse<StandardAPIResponse>(res, 400, validationError.error);
       }
 
       const { contextId, spoolId } = validation.data;
@@ -173,7 +169,7 @@ export function registerSpoolmanRoutes(router: Router, deps: RouteDependencies):
 
       const response: SpoolSelectResponse = {
         success: true,
-        spool: spoolData
+        spool: spoolData,
       };
       return res.json(response);
     } catch (error) {
@@ -187,11 +183,7 @@ export function registerSpoolmanRoutes(router: Router, deps: RouteDependencies):
       const validation = SpoolClearRequestSchema.safeParse(req.body);
       if (!validation.success) {
         const validationError = createValidationError(validation.error);
-        return sendErrorResponse<StandardAPIResponse>(
-          res,
-          400,
-          validationError.error
-        );
+        return sendErrorResponse<StandardAPIResponse>(res, 400, validationError.error);
       }
 
       const { contextId } = validation.data;
@@ -216,7 +208,7 @@ export function registerSpoolmanRoutes(router: Router, deps: RouteDependencies):
       await deps.spoolmanService.clearActiveSpool(contextResult.contextId);
       return res.json({
         success: true,
-        message: 'Active spool cleared'
+        message: 'Active spool cleared',
       });
     } catch (error) {
       const appError = toAppError(error);

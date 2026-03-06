@@ -26,10 +26,7 @@ export interface DialogHandlers {
   onStartPrintJob?: () => Promise<void> | void;
   onMaterialMatchingClosed?: () => void;
   onMaterialMatchingConfirm?: () => Promise<void> | void;
-  onTemperatureSubmit?: (
-    type: 'bed' | 'extruder',
-    temperature: number,
-  ) => Promise<void> | void;
+  onTemperatureSubmit?: (type: 'bed' | 'extruder', temperature: number) => Promise<void> | void;
 }
 
 let dialogHandlers: DialogHandlers = {};
@@ -209,7 +206,7 @@ export async function setTemperature(): Promise<void> {
     return;
   }
 
-  if (isNaN(temperature) || temperature < 0 || temperature > 300) {
+  if (Number.isNaN(temperature) || temperature < 0 || temperature > 300) {
     showToast('Invalid temperature value', 'error');
     return;
   }

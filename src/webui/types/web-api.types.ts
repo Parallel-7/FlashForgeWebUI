@@ -60,7 +60,13 @@ export type WebSocketCommandType = 'REQUEST_STATUS' | 'EXECUTE_GCODE' | 'PING';
 /**
  * WebSocket message types
  */
-export type WebSocketMessageType = 'AUTH_SUCCESS' | 'STATUS_UPDATE' | 'ERROR' | 'COMMAND_RESULT' | 'PONG' | 'SPOOLMAN_UPDATE';
+export type WebSocketMessageType =
+  | 'AUTH_SUCCESS'
+  | 'STATUS_UPDATE'
+  | 'ERROR'
+  | 'COMMAND_RESULT'
+  | 'PONG'
+  | 'SPOOLMAN_UPDATE';
 
 /**
  * Represents the detailed status data of a printer.
@@ -207,34 +213,34 @@ export const PRINTER_COMMANDS = {
   CLEAR_STATUS: 'clear-status',
   LED_ON: 'led-on',
   LED_OFF: 'led-off',
-  
+
   // Temperature controls
   SET_BED_TEMP: 'set-bed-temp',
   BED_TEMP_OFF: 'bed-temp-off',
   SET_EXTRUDER_TEMP: 'set-extruder-temp',
   EXTRUDER_TEMP_OFF: 'extruder-temp-off',
-  
+
   // Job controls
   PAUSE_PRINT: 'pause-print',
   RESUME_PRINT: 'resume-print',
   CANCEL_PRINT: 'cancel-print',
-  
+
   // Filtration controls
   EXTERNAL_FILTRATION: 'external-filtration',
   INTERNAL_FILTRATION: 'internal-filtration',
   NO_FILTRATION: 'no-filtration',
-  
+
   // Data requests
   REQUEST_PRINTER_DATA: 'request-printer-data',
   GET_RECENT_FILES: 'get-recent-files',
   GET_LOCAL_FILES: 'get-local-files',
-  
+
   // Job operations
   PRINT_FILE: 'print-file',
-  REQUEST_MODEL_PREVIEW: 'request-model-preview'
+  REQUEST_MODEL_PREVIEW: 'request-model-preview',
 } as const;
 
-export type PrinterCommand = typeof PRINTER_COMMANDS[keyof typeof PRINTER_COMMANDS];
+export type PrinterCommand = (typeof PRINTER_COMMANDS)[keyof typeof PRINTER_COMMANDS];
 
 // ============================================================================
 // FEATURE FLAGS
@@ -404,10 +410,10 @@ export const WEB_UI_ERROR_CODES = {
   SERVER_ERROR: 'WEB_SERVER_ERROR',
   PRINTER_NOT_CONNECTED: 'WEB_PRINTER_NOT_CONNECTED',
   COMMAND_FAILED: 'WEB_COMMAND_FAILED',
-  INVALID_REQUEST: 'WEB_INVALID_REQUEST'
+  INVALID_REQUEST: 'WEB_INVALID_REQUEST',
 } as const;
 
-export type WebUIErrorCode = typeof WEB_UI_ERROR_CODES[keyof typeof WEB_UI_ERROR_CODES];
+export type WebUIErrorCode = (typeof WEB_UI_ERROR_CODES)[keyof typeof WEB_UI_ERROR_CODES];
 
 /**
  * WebUI error response
@@ -417,4 +423,3 @@ export interface WebUIError {
   readonly message: string;
   readonly details?: unknown;
 }
-

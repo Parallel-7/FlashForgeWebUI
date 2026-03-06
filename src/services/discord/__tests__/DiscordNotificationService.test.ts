@@ -4,7 +4,13 @@
 
 import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { EventEmitter } from 'events';
+import type { ConfigManager } from '../../../managers/ConfigManager';
+import type {
+  PrinterContext,
+  PrinterContextManager,
+} from '../../../managers/PrinterContextManager';
 import type { PrinterStatus } from '../../../types/polling';
+import type { ContextRemovedEvent } from '../../../types/printer';
 import { PrintStateMonitor } from '../../PrintStateMonitor';
 import { TemperatureMonitoringService } from '../../TemperatureMonitoringService';
 import { DiscordNotificationService } from '../DiscordNotificationService';
@@ -45,20 +51,20 @@ class MockConfigManager extends EventEmitter {
 }
 
 class MockContextManager extends EventEmitter {
-  private readonly contexts = new Map<string, any>();
+  private readonly contexts = new Map<string, PrinterContext>();
 
-  constructor(initialContexts: any[] = []) {
+  constructor(initialContexts: PrinterContext[] = []) {
     super();
     initialContexts.forEach((context) => {
       this.contexts.set(context.id, context);
     });
   }
 
-  public getAllContexts(): any[] {
+  public getAllContexts(): PrinterContext[] {
     return Array.from(this.contexts.values());
   }
 
-  public getContext(contextId: string): any | undefined {
+  public getContext(contextId: string): PrinterContext | undefined {
     return this.contexts.get(contextId);
   }
 
@@ -68,18 +74,39 @@ class MockContextManager extends EventEmitter {
     }
 
     this.contexts.delete(contextId);
-    this.emit('context-removed', {
+    const event: ContextRemovedEvent = {
       contextId,
       wasActive: false,
-    });
+    };
+    this.emit('context-removed', event);
   }
 }
 
-function createContext(contextId: string): any {
+function asConfigManager(manager: MockConfigManager): ConfigManager {
+  return manager as unknown as ConfigManager;
+}
+
+function asContextManager(manager: MockContextManager): PrinterContextManager {
+  return manager as unknown as PrinterContextManager;
+}
+
+function createContext(contextId: string): PrinterContext {
   return {
     id: contextId,
     name: `Printer ${contextId}`,
-    printerDetails: {},
+    printerDetails: {
+      Name: `Printer ${contextId}`,
+      IPAddress: '192.168.1.100',
+      SerialNumber: contextId,
+      CheckCode: '12345678',
+      ClientType: 'new',
+      printerModel: 'Flashforge AD5X',
+      modelType: 'ad5x',
+      customCameraEnabled: false,
+      customCameraUrl: '',
+      customLedsEnabled: false,
+      forceLegacyMode: false,
+    },
     backend: null,
     connectionState: 'connected',
     pollingService: null,
@@ -145,11 +172,14 @@ describe('DiscordNotificationService', () => {
   beforeEach(() => {
     jest.useFakeTimers();
     jest.clearAllMocks();
-    global.fetch = jest.fn(async () => ({
-      ok: true,
-      status: 204,
-      statusText: 'No Content',
-    } as Response)) as unknown as typeof fetch;
+    global.fetch = jest.fn(
+      async () =>
+        ({
+          ok: true,
+          status: 204,
+          statusText: 'No Content',
+        }) as Response
+    ) as typeof fetch;
   });
 
   afterEach(() => {
@@ -160,8 +190,8 @@ describe('DiscordNotificationService', () => {
   it('creates only one periodic timer across multiple registered contexts', () => {
     const setIntervalSpy = jest.spyOn(global, 'setInterval');
     const service = new DiscordNotificationService(
-      new MockConfigManager() as any,
-      new MockContextManager([createContext('ctx-1'), createContext('ctx-2')]) as any
+      asConfigManager(new MockConfigManager()),
+      asContextManager(new MockContextManager([createContext('ctx-1'), createContext('ctx-2')]))
     );
 
     service.initialize();
@@ -176,7 +206,10 @@ describe('DiscordNotificationService', () => {
   it('sends one periodic update per connected context on each interval', async () => {
     const fetchMock = global.fetch as jest.MockedFunction<typeof fetch>;
     const contextManager = new MockContextManager([createContext('ctx-1'), createContext('ctx-2')]);
-    const service = new DiscordNotificationService(new MockConfigManager() as any, contextManager as any);
+    const service = new DiscordNotificationService(
+      asConfigManager(new MockConfigManager()),
+      asContextManager(contextManager)
+    );
 
     service.initialize();
     service.registerContext('ctx-1');
@@ -194,8 +227,8 @@ describe('DiscordNotificationService', () => {
   it('uses elapsed seconds and formatted firmware ETA in webhook payloads', async () => {
     const fetchMock = global.fetch as jest.MockedFunction<typeof fetch>;
     const service = new DiscordNotificationService(
-      new MockConfigManager() as any,
-      new MockContextManager([createContext('ctx-1')]) as any
+      asConfigManager(new MockConfigManager()),
+      asContextManager(new MockContextManager([createContext('ctx-1')]))
     );
 
     service.initialize();
@@ -218,7 +251,10 @@ describe('DiscordNotificationService', () => {
 
   it('stops the periodic timer when the last context is removed', async () => {
     const contextManager = new MockContextManager([createContext('ctx-1')]);
-    const service = new DiscordNotificationService(new MockConfigManager() as any, contextManager as any);
+    const service = new DiscordNotificationService(
+      asConfigManager(new MockConfigManager()),
+      asContextManager(contextManager)
+    );
 
     service.initialize();
     service.registerContext('ctx-1');
@@ -238,11 +274,13 @@ describe('DiscordNotificationService', () => {
   it('does not send idle-transition notifications when Discord is disabled', async () => {
     const fetchMock = global.fetch as jest.MockedFunction<typeof fetch>;
     const service = new DiscordNotificationService(
-      new MockConfigManager({
-        DiscordSync: false,
-        WebhookUrl: '',
-      }) as any,
-      new MockContextManager([createContext('ctx-1')]) as any
+      asConfigManager(
+        new MockConfigManager({
+          DiscordSync: false,
+          WebhookUrl: '',
+        })
+      ),
+      asContextManager(new MockContextManager([createContext('ctx-1')]))
     );
 
     service.initialize();
@@ -263,8 +301,8 @@ describe('DiscordNotificationService', () => {
 
   it('removes attached monitor listeners when a context is unregistered', () => {
     const service = new DiscordNotificationService(
-      new MockConfigManager() as any,
-      new MockContextManager([createContext('ctx-1')]) as any
+      asConfigManager(new MockConfigManager()),
+      asContextManager(new MockContextManager([createContext('ctx-1')]))
     );
     const stateMonitor = new PrintStateMonitor('ctx-1');
     const temperatureMonitor = new TemperatureMonitoringService('ctx-1');

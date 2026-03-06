@@ -6,9 +6,9 @@
  * coupling them to the polling service or duplicating state-tracking logic.
  */
 
+import type { PollingData, PrinterStatus } from '../types/polling';
 import { EventEmitter } from '../utils/EventEmitter';
 import type { PrinterPollingService } from './PrinterPollingService';
-import type { PrinterStatus, PollingData } from '../types/polling';
 
 // ============================================================================
 // TYPES
@@ -18,37 +18,47 @@ import type { PrinterStatus, PollingData } from '../types/polling';
  * Event map for PrintStateMonitor
  */
 interface PrintStateEventMap extends Record<string, unknown[]> {
-  'state-changed': [{
-    contextId: string;
-    previousState: string;
-    currentState: string;
-    status: PrinterStatus;
-    timestamp: Date;
-  }];
-  'print-started': [{
-    contextId: string;
-    jobName: string;
-    status: PrinterStatus;
-    timestamp: Date;
-  }];
-  'print-completed': [{
-    contextId: string;
-    jobName: string;
-    status: PrinterStatus;
-    completedAt: Date;
-  }];
-  'print-cancelled': [{
-    contextId: string;
-    jobName: string | null;
-    status: PrinterStatus;
-    timestamp: Date;
-  }];
-  'print-error': [{
-    contextId: string;
-    jobName: string | null;
-    status: PrinterStatus;
-    timestamp: Date;
-  }];
+  'state-changed': [
+    {
+      contextId: string;
+      previousState: string;
+      currentState: string;
+      status: PrinterStatus;
+      timestamp: Date;
+    },
+  ];
+  'print-started': [
+    {
+      contextId: string;
+      jobName: string;
+      status: PrinterStatus;
+      timestamp: Date;
+    },
+  ];
+  'print-completed': [
+    {
+      contextId: string;
+      jobName: string;
+      status: PrinterStatus;
+      completedAt: Date;
+    },
+  ];
+  'print-cancelled': [
+    {
+      contextId: string;
+      jobName: string | null;
+      status: PrinterStatus;
+      timestamp: Date;
+    },
+  ];
+  'print-error': [
+    {
+      contextId: string;
+      jobName: string | null;
+      status: PrinterStatus;
+      timestamp: Date;
+    },
+  ];
 }
 
 /**
@@ -76,7 +86,7 @@ export class PrintStateMonitor extends EventEmitter<PrintStateEventMap> {
     currentState: null,
     previousState: null,
     currentJobName: null,
-    lastStateChangeTime: null
+    lastStateChangeTime: null,
   };
 
   constructor(contextId: string) {
@@ -178,7 +188,9 @@ export class PrintStateMonitor extends EventEmitter<PrintStateEventMap> {
     const timestamp = new Date();
     this.state.lastStateChangeTime = timestamp;
 
-    console.log(`[PrintStateMonitor] State change for ${this.contextId}: ${previousState} → ${currentState}`);
+    console.log(
+      `[PrintStateMonitor] State change for ${this.contextId}: ${previousState} → ${currentState}`
+    );
 
     // Emit generic state-changed event
     this.emit('state-changed', {
@@ -186,7 +198,7 @@ export class PrintStateMonitor extends EventEmitter<PrintStateEventMap> {
       previousState,
       currentState,
       status,
-      timestamp
+      timestamp,
     });
 
     // Emit specialized lifecycle events
@@ -209,7 +221,7 @@ export class PrintStateMonitor extends EventEmitter<PrintStateEventMap> {
           contextId: this.contextId,
           jobName: this.state.currentJobName,
           status,
-          timestamp
+          timestamp,
         });
         console.log(`[PrintStateMonitor] Print started: ${this.state.currentJobName}`);
       }
@@ -222,7 +234,7 @@ export class PrintStateMonitor extends EventEmitter<PrintStateEventMap> {
         contextId: this.contextId,
         jobName,
         status,
-        completedAt: timestamp
+        completedAt: timestamp,
       });
       console.log(`[PrintStateMonitor] Print completed: ${jobName}`);
     }
@@ -233,7 +245,7 @@ export class PrintStateMonitor extends EventEmitter<PrintStateEventMap> {
         contextId: this.contextId,
         jobName: this.state.currentJobName,
         status,
-        timestamp
+        timestamp,
       });
       console.log(`[PrintStateMonitor] Print cancelled: ${this.state.currentJobName || 'Unknown'}`);
     }
@@ -244,7 +256,7 @@ export class PrintStateMonitor extends EventEmitter<PrintStateEventMap> {
         contextId: this.contextId,
         jobName: this.state.currentJobName,
         status,
-        timestamp
+        timestamp,
       });
       console.log(`[PrintStateMonitor] Print error: ${this.state.currentJobName || 'Unknown'}`);
     }
@@ -254,12 +266,14 @@ export class PrintStateMonitor extends EventEmitter<PrintStateEventMap> {
    * Check if state represents active printing
    */
   private isActivePrintingState(state: string): boolean {
-    return state === 'Busy' ||
-           state === 'Printing' ||
-           state === 'Heating' ||
-           state === 'Calibrating' ||
-           state === 'Paused' ||
-           state === 'Pausing';
+    return (
+      state === 'Busy' ||
+      state === 'Printing' ||
+      state === 'Heating' ||
+      state === 'Calibrating' ||
+      state === 'Paused' ||
+      state === 'Pausing'
+    );
   }
 
   // ============================================================================
@@ -312,7 +326,7 @@ export class PrintStateMonitor extends EventEmitter<PrintStateEventMap> {
       currentState: null,
       previousState: null,
       currentJobName: null,
-      lastStateChangeTime: null
+      lastStateChangeTime: null,
     };
   }
 }

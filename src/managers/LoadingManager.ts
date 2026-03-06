@@ -82,7 +82,7 @@ export class LoadingManager extends EventEmitter {
       state: this.currentState,
       message: this.currentMessage,
       progress: this.currentProgress,
-      canCancel: this.canCancelFlag
+      canCancel: this.canCancelFlag,
     };
 
     this.emit('loading-state-changed', eventData);
@@ -99,7 +99,7 @@ export class LoadingManager extends EventEmitter {
     this.canCancelFlag = false;
 
     const eventData: LoadingEventData = {
-      state: this.currentState
+      state: this.currentState,
     };
 
     this.emit('loading-state-changed', eventData);
@@ -118,7 +118,7 @@ export class LoadingManager extends EventEmitter {
     const eventData: LoadingEventData = {
       state: this.currentState,
       message: this.currentMessage,
-      autoHideAfter: _autoHideAfter
+      autoHideAfter: _autoHideAfter,
     };
 
     this.emit('loading-state-changed', eventData);
@@ -140,7 +140,7 @@ export class LoadingManager extends EventEmitter {
     const eventData: LoadingEventData = {
       state: this.currentState,
       message: this.currentMessage,
-      autoHideAfter: _autoHideAfter
+      autoHideAfter: _autoHideAfter,
     };
 
     this.emit('loading-state-changed', eventData);
@@ -160,7 +160,7 @@ export class LoadingManager extends EventEmitter {
       state: this.currentState,
       message: this.currentMessage,
       progress: this.currentProgress,
-      canCancel: this.canCancelFlag
+      canCancel: this.canCancelFlag,
     };
 
     this.emit('loading-state-changed', eventData);
@@ -178,7 +178,7 @@ export class LoadingManager extends EventEmitter {
       state: this.currentState,
       message: this.currentMessage,
       progress: this.currentProgress,
-      canCancel: this.canCancelFlag
+      canCancel: this.canCancelFlag,
     };
 
     this.emit('loading-state-changed', eventData);

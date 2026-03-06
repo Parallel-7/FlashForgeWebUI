@@ -56,24 +56,32 @@ function httpsGetWithRedirects(url, maxRedirects = 5) {
       const protocol = currentUrl.startsWith('https') ? https : http;
 
       protocol
-        .get(currentUrl, { headers: { 'User-Agent': 'FlashForgeWebUI-Downloader' } }, (response) => {
-          if (response.statusCode >= 300 && response.statusCode < 400 && response.headers.location) {
-            if (redirectsLeft <= 0) {
-              reject(new Error('Too many redirects'));
+        .get(
+          currentUrl,
+          { headers: { 'User-Agent': 'FlashForgeWebUI-Downloader' } },
+          (response) => {
+            if (
+              response.statusCode >= 300 &&
+              response.statusCode < 400 &&
+              response.headers.location
+            ) {
+              if (redirectsLeft <= 0) {
+                reject(new Error('Too many redirects'));
+                return;
+              }
+
+              makeRequest(response.headers.location, redirectsLeft - 1);
               return;
             }
 
-            makeRequest(response.headers.location, redirectsLeft - 1);
-            return;
-          }
+            if (response.statusCode !== 200) {
+              reject(new Error(`HTTP ${response.statusCode} for ${currentUrl}`));
+              return;
+            }
 
-          if (response.statusCode !== 200) {
-            reject(new Error(`HTTP ${response.statusCode} for ${currentUrl}`));
-            return;
+            resolve(response);
           }
-
-          resolve(response);
-        })
+        )
         .on('error', reject);
     };
 
@@ -144,9 +152,7 @@ async function downloadPlatform(platformKey, config, resourcesDir) {
 
   if (fs.existsSync(binaryPath)) {
     const stats = fs.statSync(binaryPath);
-    console.log(
-      `  Already exists: ${binaryPath} (${(stats.size / 1024 / 1024).toFixed(1)} MB)`
-    );
+    console.log(`  Already exists: ${binaryPath} (${(stats.size / 1024 / 1024).toFixed(1)} MB)`);
     return;
   }
 

@@ -18,9 +18,9 @@ import { getCurrentSettings, state } from '../core/AppState.js';
 import { apiRequest, sendCommand } from '../core/Transport.js';
 import { $, hideElement, showToast } from '../shared/dom.js';
 import { isAD5XJobFile } from '../shared/formatting.js';
+import { loadFileList, showTemperatureDialog } from '../ui/dialogs.js';
 import { applySettings, refreshSettingsUI } from './layout-theme.js';
 import { openMaterialMatchingModal } from './material-matching.js';
-import { loadFileList, showTemperatureDialog } from '../ui/dialogs.js';
 
 const KEEP_ALIVE_INTERVAL_MS = 30000;
 let keepAliveTimer: number | null = null;

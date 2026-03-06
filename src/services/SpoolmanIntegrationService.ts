@@ -19,17 +19,17 @@
  * @module services/SpoolmanIntegrationService
  */
 
-import { EventEmitter } from '../utils/EventEmitter';
 import type { ConfigManager } from '../managers/ConfigManager';
 import type { PrinterContextManager } from '../managers/PrinterContextManager';
 // TODO: Import PrinterBackendManager when Phase 1 is complete
 // import type { PrinterBackendManager } from '../managers/PrinterBackendManager';
 import { getPrinterDetailsManager } from '../managers/PrinterDetailsManager';
-import { SpoolmanService } from './SpoolmanService';
-import type { ActiveSpoolData, SpoolResponse, SpoolSearchQuery } from '../types/spoolman';
-import { toAppError } from '../utils/error.utils';
 import type { ConfigUpdateEvent } from '../types/config';
 import type { PrinterDetails } from '../types/printer';
+import type { ActiveSpoolData, SpoolResponse, SpoolSearchQuery } from '../types/spoolman';
+import { EventEmitter } from '../utils/EventEmitter';
+import { toAppError } from '../utils/error.utils';
+import { SpoolmanService } from './SpoolmanService';
 
 // Temporary stub until PrinterBackendManager is implemented
 interface PrinterBackendManager {
@@ -72,7 +72,7 @@ export class SpoolmanIntegrationService extends EventEmitter<SpoolmanIntegration
     this.backendManager = backendManager;
 
     this.handleConfigUpdatedBound = (event: ConfigUpdateEvent) => {
-      this.handleConfigUpdated(event).catch(error => {
+      this.handleConfigUpdated(event).catch((error) => {
         console.error('[SpoolmanIntegrationService] Failed to handle config update:', error);
       });
     };
@@ -133,7 +133,10 @@ export class SpoolmanIntegrationService extends EventEmitter<SpoolmanIntegration
 
       return true;
     } catch (error) {
-      console.error('[SpoolmanIntegrationService] Error checking context support:', toAppError(error).message);
+      console.error(
+        '[SpoolmanIntegrationService] Error checking context support:',
+        toAppError(error).message
+      );
       return false;
     }
   }
@@ -188,7 +191,9 @@ export class SpoolmanIntegrationService extends EventEmitter<SpoolmanIntegration
 
     // Validate context support
     if (!this.isContextSupported(targetContextId)) {
-      throw new Error('Spoolman integration is disabled for this printer (AD5X with material station)');
+      throw new Error(
+        'Spoolman integration is disabled for this printer (AD5X with material station)'
+      );
     }
 
     // Get context and current printer details
@@ -200,7 +205,7 @@ export class SpoolmanIntegrationService extends EventEmitter<SpoolmanIntegration
     // Update printer details with new spool data
     const updatedSpoolData = {
       ...spoolData,
-      lastUpdated: new Date().toISOString()
+      lastUpdated: new Date().toISOString(),
     };
 
     await this.persistSpoolData(targetContextId, updatedSpoolData);
@@ -221,7 +226,9 @@ export class SpoolmanIntegrationService extends EventEmitter<SpoolmanIntegration
 
     // Validate context support (still block AD5X from clearing)
     if (!this.isContextSupported(targetContextId)) {
-      throw new Error('Spoolman integration is disabled for this printer (AD5X with material station)');
+      throw new Error(
+        'Spoolman integration is disabled for this printer (AD5X with material station)'
+      );
     }
 
     // Get context and current printer details
@@ -289,7 +296,7 @@ export class SpoolmanIntegrationService extends EventEmitter<SpoolmanIntegration
       colorHex: spool.filament.color_hex || '#808080', // Default gray
       remainingWeight: spool.remaining_weight || 0,
       remainingLength: spool.remaining_length || 0,
-      lastUpdated: new Date().toISOString()
+      lastUpdated: new Date().toISOString(),
     };
   }
 
@@ -319,7 +326,10 @@ export class SpoolmanIntegrationService extends EventEmitter<SpoolmanIntegration
     try {
       await this.persistSpoolData(contextId, null, { updateLastUsed: false });
     } catch (error) {
-      console.error(`[SpoolmanIntegrationService] Failed to force clear spool for ${contextId}:`, error);
+      console.error(
+        `[SpoolmanIntegrationService] Failed to force clear spool for ${contextId}:`,
+        error
+      );
     }
   }
 
@@ -361,7 +371,10 @@ export class SpoolmanIntegrationService extends EventEmitter<SpoolmanIntegration
       try {
         await this.refreshActiveSpoolFromServer(context.id);
       } catch (error) {
-        console.error(`[SpoolmanIntegrationService] Failed to refresh spool for ${context.id}:`, toAppError(error).message);
+        console.error(
+          `[SpoolmanIntegrationService] Failed to refresh spool for ${context.id}:`,
+          toAppError(error).message
+        );
       }
     }
   }
@@ -399,7 +412,7 @@ export class SpoolmanIntegrationService extends EventEmitter<SpoolmanIntegration
     const printerDetailsManager = getPrinterDetailsManager();
     const updatedDetails = {
       ...context.printerDetails,
-      activeSpoolData: spoolData
+      activeSpoolData: spoolData,
     };
 
     await printerDetailsManager.savePrinter(updatedDetails, targetContextId, options);
@@ -407,7 +420,7 @@ export class SpoolmanIntegrationService extends EventEmitter<SpoolmanIntegration
 
     this.emit('spoolman-changed', {
       contextId: targetContextId,
-      spool: spoolData
+      spool: spoolData,
     });
   }
 
@@ -430,7 +443,7 @@ export class SpoolmanIntegrationService extends EventEmitter<SpoolmanIntegration
       void _lastConnected;
       const updatedDetails: PrinterDetails = {
         ...printerDetails,
-        activeSpoolData: null
+        activeSpoolData: null,
       };
 
       await printerDetailsManager.savePrinter(updatedDetails, undefined, { updateLastUsed: false });
@@ -481,7 +494,9 @@ export function initializeSpoolmanIntegrationService(
  */
 export function getSpoolmanIntegrationService(): SpoolmanIntegrationService {
   if (!instance) {
-    throw new Error('SpoolmanIntegrationService not initialized. Call initializeSpoolmanIntegrationService() first.');
+    throw new Error(
+      'SpoolmanIntegrationService not initialized. Call initializeSpoolmanIntegrationService() first.'
+    );
   }
   return instance;
 }

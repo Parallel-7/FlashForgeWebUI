@@ -20,12 +20,12 @@ import * as fs from 'fs';
 import * as path from 'path';
 import {
   type AppConfig,
-  type MutableAppConfig,
-  DEFAULT_CONFIG,
   type ConfigUpdateEvent,
-  sanitizeConfig,
+  DEFAULT_CONFIG,
   isValidConfig,
-  isValidConfigKey
+  isValidConfigKey,
+  type MutableAppConfig,
+  sanitizeConfig,
 } from '../types/config';
 
 /**
@@ -65,7 +65,7 @@ export class ConfigManager extends EventEmitter {
     this.currentConfig = { ...DEFAULT_CONFIG };
 
     // Load existing configuration
-    void this.loadFromFile().catch(error => {
+    void this.loadFromFile().catch((error) => {
       console.error('Failed to load initial configuration:', error);
     });
   }
@@ -236,7 +236,7 @@ export class ConfigManager extends EventEmitter {
     loadedData: Record<string, unknown>,
     sanitizedConfig: AppConfig
   ): boolean {
-    const hasExtraKeys = Object.keys(loadedData).some(key => !isValidConfigKey(key));
+    const hasExtraKeys = Object.keys(loadedData).some((key) => !isValidConfigKey(key));
     if (hasExtraKeys) {
       return true;
     }
@@ -279,7 +279,7 @@ export class ConfigManager extends EventEmitter {
           this.emitUpdateEvent(previousConfig, changedKeys);
 
           const needsResave = this.configNeedsResave(
-            (loadedData as unknown) as Record<string, unknown>,
+            loadedData as unknown as Record<string, unknown>,
             sanitizedConfig
           );
           if (needsResave) {
@@ -302,7 +302,7 @@ export class ConfigManager extends EventEmitter {
     } catch (error) {
       console.error('Failed to load config file:', error);
       // Keep current defaults and save them immediately
-      void this.forceSave().catch(error => {
+      void this.forceSave().catch((error) => {
         console.error('Failed to force save config after load error:', error);
       });
     } finally {
@@ -325,7 +325,7 @@ export class ConfigManager extends EventEmitter {
 
     // Debounce saves to avoid excessive file I/O
     this.pendingSave = setTimeout(() => {
-      this.saveToFile().catch(error => {
+      this.saveToFile().catch((error) => {
         console.error('Failed to save config:', error);
         this.emit('saveError', error);
       });
@@ -410,17 +410,20 @@ export class ConfigManager extends EventEmitter {
   /**
    * Emits configuration update event
    */
-  private emitUpdateEvent(previousConfig: MutableAppConfig, changedKeys: ReadonlyArray<keyof AppConfig>): void {
+  private emitUpdateEvent(
+    previousConfig: MutableAppConfig,
+    changedKeys: ReadonlyArray<keyof AppConfig>
+  ): void {
     const updateEvent: ConfigUpdateEvent = {
       previous: Object.freeze({ ...previousConfig }),
       current: this.getConfig(),
-      changedKeys
+      changedKeys,
     };
 
     this.emit('configUpdated', updateEvent);
 
     // Emit specific events for each changed key
-    changedKeys.forEach(key => {
+    changedKeys.forEach((key) => {
       this.emit(`config:${key}`, this.currentConfig[key], previousConfig[key]);
     });
   }

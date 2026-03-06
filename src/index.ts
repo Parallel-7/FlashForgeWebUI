@@ -14,26 +14,27 @@
  * - Handle graceful shutdown on SIGINT/SIGTERM
  */
 
+import * as readline from 'readline';
 import { getConfigManager } from './managers/ConfigManager';
 import { getConnectionFlowManager } from './managers/ConnectionFlowManager';
 import { getPrinterBackendManager } from './managers/PrinterBackendManager';
 import { getPrinterContextManager } from './managers/PrinterContextManager';
-import { getWebUIManager } from './webui/server/WebUIManager';
-import { getMultiContextPollingCoordinator } from './services/MultiContextPollingCoordinator';
-import { getMultiContextPrintStateMonitor } from './services/MultiContextPrintStateMonitor';
-import { getMultiContextTemperatureMonitor } from './services/MultiContextTemperatureMonitor';
-import { getMultiContextSpoolmanTracker } from './services/MultiContextSpoolmanTracker';
 import { getDiscordNotificationService } from './services/discord';
 import { getGo2rtcService } from './services/Go2rtcService';
-import { initializeSpoolmanIntegrationService } from './services/SpoolmanIntegrationService';
+import { getMultiContextPollingCoordinator } from './services/MultiContextPollingCoordinator';
+import { getMultiContextPrintStateMonitor } from './services/MultiContextPrintStateMonitor';
+import { getMultiContextSpoolmanTracker } from './services/MultiContextSpoolmanTracker';
+import { getMultiContextTemperatureMonitor } from './services/MultiContextTemperatureMonitor';
 import { getSavedPrinterService } from './services/SavedPrinterService';
-import { parseHeadlessArguments, validateHeadlessConfig } from './utils/HeadlessArguments';
-import * as readline from 'readline';
-import { createHardDeadline } from './utils/ShutdownTimeout';
-import type { HeadlessConfig, PrinterSpec } from './utils/HeadlessArguments';
-import type { PrinterDetails, PrinterClientType } from './types/printer';
+import { initializeSpoolmanIntegrationService } from './services/SpoolmanIntegrationService';
+import type { PollingData } from './types/polling';
+import type { PrinterClientType, PrinterDetails } from './types/printer';
 import { getCameraUserConfig, resolveCameraConfig } from './utils/camera-utils';
+import type { HeadlessConfig, PrinterSpec } from './utils/HeadlessArguments';
+import { parseHeadlessArguments, validateHeadlessConfig } from './utils/HeadlessArguments';
+import { createHardDeadline } from './utils/ShutdownTimeout';
 import { initializeDataDirectory } from './utils/setup';
+import { getWebUIManager } from './webui/server/WebUIManager';
 
 // Initialize global singleton services
 const configManager = getConfigManager();
@@ -65,7 +66,7 @@ const SHUTDOWN_CONFIG = {
   /** Per-printer disconnect timeout (parallelized, so 3 printers = ~5s total) */
   DISCONNECT_TIMEOUT_MS: 5000,
   /** WebUI server graceful close timeout */
-  WEBUI_STOP_TIMEOUT_MS: 3000
+  WEBUI_STOP_TIMEOUT_MS: 3000,
 } as const;
 
 /**
@@ -98,7 +99,9 @@ async function connectLastUsed(): Promise<string[]> {
     return [];
   }
 
-  console.log(`[Connection] Found last used printer: ${lastUsedPrinter.Name} (${lastUsedPrinter.IPAddress})`);
+  console.log(
+    `[Connection] Found last used printer: ${lastUsedPrinter.Name} (${lastUsedPrinter.IPAddress})`
+  );
 
   // Convert StoredPrinterDetails to PrinterDetails
   const printerDetails: PrinterDetails = {
@@ -162,7 +165,9 @@ async function connectExplicit(printerSpecs: PrinterSpec[]): Promise<string[]> {
     return [];
   }
 
-  console.log(`[Connection] Connecting to ${printerSpecs.length} explicitly specified printer(s)...`);
+  console.log(
+    `[Connection] Connecting to ${printerSpecs.length} explicitly specified printer(s)...`
+  );
 
   const results = await connectionManager.connectHeadlessDirect(printerSpecs);
 
@@ -231,7 +236,7 @@ function setupEventForwarding(): void {
   // Forward polling data to WebUI for real-time updates
   // For WebUI (single-printer or multi-printer), forward all context data
   // The WebUI/WebSocket layer will handle filtering if needed
-  pollingCoordinator.on('polling-data', (contextId: string, data: any) => {
+  pollingCoordinator.on('polling-data', (contextId: string, data: PollingData) => {
     if (data?.printerStatus) {
       discordService.updatePrinterStatus(contextId, data.printerStatus);
     }
@@ -322,34 +327,38 @@ function setupSignalHandlers(): void {
     }
     console.log('\n[Shutdown] Received SIGINT signal (Ctrl+C)');
     isShuttingDown = true;
-    void shutdown().then(() => {
-      process.exit(0);
-    }).catch((error) => {
-      console.error('[Shutdown] Error during shutdown:', error);
-      process.exit(1);
-    });
+    void shutdown()
+      .then(() => {
+        process.exit(0);
+      })
+      .catch((error) => {
+        console.error('[Shutdown] Error during shutdown:', error);
+        process.exit(1);
+      });
   });
 
   // Handle termination signal (Linux/Mac)
   process.on('SIGTERM', () => {
     console.log('\n[Shutdown] Received SIGTERM signal');
-    void shutdown().then(() => {
-      process.exit(0);
-    }).catch((error) => {
-      console.error('[Shutdown] Error during shutdown:', error);
-      process.exit(1);
-    });
+    void shutdown()
+      .then(() => {
+        process.exit(0);
+      })
+      .catch((error) => {
+        console.error('[Shutdown] Error during shutdown:', error);
+        process.exit(1);
+      });
   });
 
   // Windows-specific: Handle process termination
   if (process.platform === 'win32') {
     const rl = readline.createInterface({
       input: process.stdin,
-      output: process.stdout
+      output: process.stdout,
     });
 
     rl.on('SIGINT', () => {
-      process.emit('SIGINT' as any);
+      process.emit('SIGINT');
     });
   }
 }
@@ -390,7 +399,9 @@ async function shutdown(): Promise<void> {
     // Step 3: Parallel disconnects (all printers disconnect concurrently)
     console.log(`[Shutdown] Step 3/5: Disconnecting ${connectedContexts.length} context(s)...`);
     if (connectedContexts.length > 0) {
-      const results = await Promise.allSettled(connectedContexts.map((contextId) => connectionManager.disconnectContext(contextId)));
+      const results = await Promise.allSettled(
+        connectedContexts.map((contextId) => connectionManager.disconnectContext(contextId))
+      );
 
       const succeeded = results.filter((result) => result.status === 'fulfilled').length;
       const failed = results.filter((result) => result.status === 'rejected').length;
@@ -420,7 +431,6 @@ async function shutdown(): Promise<void> {
     clearTimeout(hardDeadline);
     const duration = Date.now() - startTime;
     console.log(`[Shutdown] Complete (${duration}ms)`);
-
   } catch (error) {
     console.error('[Shutdown] Error:', error);
     // Hard deadline will still fire if we exceed max time
@@ -605,7 +615,9 @@ async function main(): Promise<void> {
     // 13. Note: Polling, monitors, and camera streams are initialized by backend-initialized handler
     // This handler fires for both startup connections AND dynamic connections
     if (connectedContexts.length > 0) {
-      console.log(`[Init] Services initialized for ${connectedContexts.length} printer(s) via backend-initialized handler`);
+      console.log(
+        `[Init] Services initialized for ${connectedContexts.length} printer(s) via backend-initialized handler`
+      );
     }
 
     // 14. Reconcile camera streams for any contexts already connected

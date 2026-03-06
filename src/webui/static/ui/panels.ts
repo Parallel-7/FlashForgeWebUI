@@ -52,10 +52,16 @@ export function updatePrinterStatus(status: PrinterStatus | null): void {
   state.printerStatus = status;
   updatePrinterStateCard(status);
 
-  const bedTemp = isNaN(status.bedTemperature) ? 0 : Math.round(status.bedTemperature);
-  const bedTarget = isNaN(status.bedTargetTemperature) ? 0 : Math.round(status.bedTargetTemperature);
-  const extruderTemp = isNaN(status.nozzleTemperature) ? 0 : Math.round(status.nozzleTemperature);
-  const extruderTarget = isNaN(status.nozzleTargetTemperature) ? 0 : Math.round(status.nozzleTargetTemperature);
+  const bedTemp = Number.isNaN(status.bedTemperature) ? 0 : Math.round(status.bedTemperature);
+  const bedTarget = Number.isNaN(status.bedTargetTemperature)
+    ? 0
+    : Math.round(status.bedTargetTemperature);
+  const extruderTemp = Number.isNaN(status.nozzleTemperature)
+    ? 0
+    : Math.round(status.nozzleTemperature);
+  const extruderTarget = Number.isNaN(status.nozzleTargetTemperature)
+    ? 0
+    : Math.round(status.nozzleTargetTemperature);
 
   setTextContent('bed-temp', `${bedTemp}°C / ${bedTarget}°C`);
   setTextContent('extruder-temp', `${extruderTemp}°C / ${extruderTarget}°C`);
@@ -63,7 +69,7 @@ export function updatePrinterStatus(status: PrinterStatus | null): void {
   if (status.jobName) {
     setTextContent('current-job', status.jobName);
 
-    const progress = isNaN(status.progress) ? 0 : status.progress;
+    const progress = Number.isNaN(status.progress) ? 0 : status.progress;
     const progressPercent = progress <= 1 ? Math.round(progress * 100) : Math.round(progress);
     setTextContent('progress-percentage', `${progressPercent}%`);
 
@@ -75,17 +81,17 @@ export function updatePrinterStatus(status: PrinterStatus | null): void {
     if (
       status.currentLayer !== undefined &&
       status.totalLayers !== undefined &&
-      !isNaN(status.currentLayer) &&
-      !isNaN(status.totalLayers)
+      !Number.isNaN(status.currentLayer) &&
+      !Number.isNaN(status.totalLayers)
     ) {
       setTextContent('layer-info', `${status.currentLayer} / ${status.totalLayers}`);
     } else {
       setTextContent('layer-info', '-- / --');
     }
 
-    if (status.elapsedTimeSeconds !== undefined && !isNaN(status.elapsedTimeSeconds)) {
+    if (status.elapsedTimeSeconds !== undefined && !Number.isNaN(status.elapsedTimeSeconds)) {
       setTextContent('elapsed-time', formatElapsedSeconds(status.elapsedTimeSeconds));
-    } else if (status.timeElapsed !== undefined && !isNaN(status.timeElapsed)) {
+    } else if (status.timeElapsed !== undefined && !Number.isNaN(status.timeElapsed)) {
       setTextContent('elapsed-time', formatTime(status.timeElapsed));
     } else {
       setTextContent('elapsed-time', '--:--');
@@ -93,19 +99,19 @@ export function updatePrinterStatus(status: PrinterStatus | null): void {
 
     if (status.formattedEta && status.formattedEta !== '--:--') {
       setTextContent('time-remaining', formatETAFromString(status.formattedEta));
-    } else if (status.timeRemaining !== undefined && !isNaN(status.timeRemaining)) {
+    } else if (status.timeRemaining !== undefined && !Number.isNaN(status.timeRemaining)) {
       setTextContent('time-remaining', formatETA(status.timeRemaining));
     } else {
       setTextContent('time-remaining', '--:--');
     }
 
-    if (status.estimatedWeight !== undefined && !isNaN(status.estimatedWeight)) {
+    if (status.estimatedWeight !== undefined && !Number.isNaN(status.estimatedWeight)) {
       setTextContent('job-weight', `${Math.round(status.estimatedWeight)}g`);
     } else {
       setTextContent('job-weight', '--');
     }
 
-    if (status.estimatedLength !== undefined && !isNaN(status.estimatedLength)) {
+    if (status.estimatedLength !== undefined && !Number.isNaN(status.estimatedLength)) {
       setTextContent('job-length', `${status.estimatedLength.toFixed(1)}m`);
     } else {
       setTextContent('job-length', '--');
@@ -169,7 +175,7 @@ export function updateFiltrationStatus(mode?: 'external' | 'internal' | 'none'):
 
 export function updateModelPreview(thumbnailData?: string | null): void {
   const previewContainer = document.querySelector<HTMLElement>(
-    '[data-component-id="model-preview"] .panel-content',
+    '[data-component-id="model-preview"] .panel-content'
   );
   if (!previewContainer) {
     return;
@@ -263,9 +269,10 @@ export function updateSpoolmanPanelState(): void {
   }
 
   if (spoolRemaining) {
-    const remaining = state.spoolmanConfig?.updateMode === 'weight'
-      ? `${state.activeSpool.remainingWeight.toFixed(0)}g`
-      : `${(state.activeSpool.remainingLength / 1000).toFixed(1)}m`;
+    const remaining =
+      state.spoolmanConfig?.updateMode === 'weight'
+        ? `${state.activeSpool.remainingWeight.toFixed(0)}g`
+        : `${(state.activeSpool.remainingLength / 1000).toFixed(1)}m`;
     spoolRemaining.textContent = remaining;
   }
 }
@@ -306,7 +313,6 @@ function updateButtonStates(printerState: string): void {
   if (homeAxesBtn) homeAxesBtn.disabled = isPrintingActive;
   const clearStatusBtn = $('btn-clear-status') as HTMLButtonElement | null;
   if (clearStatusBtn) clearStatusBtn.disabled = isPrintingActive;
-
 
   const bedSetBtn = $('btn-bed-set') as HTMLButtonElement | null;
   const bedOffBtn = $('btn-bed-off') as HTMLButtonElement | null;

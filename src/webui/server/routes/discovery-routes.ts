@@ -3,14 +3,14 @@
  * Handles network scanning and printer discovery
  */
 
-import type { Router, Response } from 'express';
-import type { AuthenticatedRequest } from '../auth-middleware';
-import type { StandardAPIResponse } from '../../types/web-api.types';
-import { toAppError } from '../../../utils/error.utils';
-import type { RouteDependencies } from './route-helpers';
-import { sendErrorResponse } from './route-helpers';
+import type { Response, Router } from 'express';
 import { getPrinterDiscoveryService } from '../../../services/PrinterDiscoveryService';
 import { getSavedPrinterService } from '../../../services/SavedPrinterService';
+import { toAppError } from '../../../utils/error.utils';
+import type { StandardAPIResponse } from '../../types/web-api.types';
+import type { AuthenticatedRequest } from '../auth-middleware';
+import type { RouteDependencies } from './route-helpers';
+import { sendErrorResponse } from './route-helpers';
 
 export function registerDiscoveryRoutes(router: Router, _deps: RouteDependencies): void {
   const discoveryService = getPrinterDiscoveryService();
@@ -53,13 +53,13 @@ export function registerDiscoveryRoutes(router: Router, _deps: RouteDependencies
 
       // Match with saved printers
       const savedPrinters = savedPrinterService.getSavedPrinters();
-      const savedMatches = discoveredPrinters.map(discovered => {
-        const saved = savedPrinters.find(s => s.SerialNumber === discovered.serialNumber);
+      const savedMatches = discoveredPrinters.map((discovered) => {
+        const saved = savedPrinters.find((s) => s.SerialNumber === discovered.serialNumber);
         return {
           discovered,
           saved: saved || null,
           isKnown: !!saved,
-          ipAddressChanged: saved ? saved.IPAddress !== discovered.ipAddress : false
+          ipAddressChanged: saved ? saved.IPAddress !== discovered.ipAddress : false,
         };
       });
 
@@ -67,9 +67,8 @@ export function registerDiscoveryRoutes(router: Router, _deps: RouteDependencies
         success: true,
         printers: discoveredPrinters,
         savedMatches,
-        count: discoveredPrinters.length
+        count: discoveredPrinters.length,
       });
-
     } catch (error) {
       console.error('[API] Discovery scan failed:', error);
       const appError = toAppError(error);
@@ -91,7 +90,8 @@ export function registerDiscoveryRoutes(router: Router, _deps: RouteDependencies
       }
 
       // Basic IP validation
-      const ipRegex = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
+      const ipRegex =
+        /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
       if (!ipRegex.test(ipAddress)) {
         return sendErrorResponse(res, 400, 'Invalid IP address format');
       }
@@ -101,9 +101,8 @@ export function registerDiscoveryRoutes(router: Router, _deps: RouteDependencies
       return res.json({
         success: true,
         printer,
-        found: printer !== null
+        found: printer !== null,
       });
-
     } catch (error) {
       console.error('[API] Single IP scan failed:', error);
       const appError = toAppError(error);
@@ -118,7 +117,7 @@ export function registerDiscoveryRoutes(router: Router, _deps: RouteDependencies
   router.get('/discovery/status', (_req: AuthenticatedRequest, res: Response) => {
     return res.json({
       success: true,
-      inProgress: discoveryService.isDiscoveryInProgress()
+      inProgress: discoveryService.isDiscoveryInProgress(),
     });
   });
 
@@ -130,7 +129,7 @@ export function registerDiscoveryRoutes(router: Router, _deps: RouteDependencies
     discoveryService.cancelDiscovery();
     return res.json({
       success: true,
-      message: 'Discovery cancelled'
+      message: 'Discovery cancelled',
     } as StandardAPIResponse);
   });
 }

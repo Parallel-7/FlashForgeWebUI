@@ -30,11 +30,11 @@
  * Defines the color palette for the WebUI
  */
 export interface ThemeColors {
-  primary: string;    // Main accent color (used for buttons, highlights)
-  secondary: string;  // Secondary accent color or gradient end
+  primary: string; // Main accent color (used for buttons, highlights)
+  secondary: string; // Secondary accent color or gradient end
   background: string; // Base background color
-  surface: string;    // Card/panel background
-  text: string;       // Primary text color
+  surface: string; // Card/panel background
+  text: string; // Primary text color
 }
 
 /**
@@ -87,11 +87,11 @@ export interface MutableAppConfig {
  * Default theme colors - dark theme matching WebUI
  */
 export const DEFAULT_THEME: ThemeColors = {
-  primary: '#4285f4',     // accent blue
-  secondary: '#357abd',   // gradient end
-  background: '#121212',  // dark base
-  surface: '#1e1e1e',     // card background
-  text: '#e0e0e0',        // light text
+  primary: '#4285f4', // accent blue
+  secondary: '#357abd', // gradient end
+  background: '#121212', // dark base
+  surface: '#1e1e1e', // card background
+  text: '#e0e0e0', // light text
 };
 
 /**
@@ -180,6 +180,14 @@ function assignConfigValue<K extends keyof MutableAppConfig>(
   config[key] = value;
 }
 
+type NumberConfigKey = {
+  [K in keyof MutableAppConfig]: MutableAppConfig[K] extends number ? K : never;
+}[keyof MutableAppConfig];
+
+function isNumberConfigKey(key: keyof MutableAppConfig): key is NumberConfigKey {
+  return key === 'WebUIPort' || key === 'DiscordUpdateIntervalMinutes';
+}
+
 /**
  * Validates that a value is a valid 6-digit hex color code
  */
@@ -216,18 +224,17 @@ export function sanitizeConfig(config: Partial<AppConfig>): AppConfig {
       const expectedType = typeof defaultValue;
 
       if (typeof value === expectedType) {
-        if (expectedType === 'number') {
+        if (expectedType === 'number' && isNumberConfigKey(key)) {
           // Ensure numbers are valid and within reasonable bounds
           const numValue = value as number;
           if (Number.isFinite(numValue) && numValue >= 0) {
             if (key === 'WebUIPort') {
               // Validate port numbers
               if (numValue >= 1 && numValue <= 65535) {
-                // Type assertion is safe here because we've validated it's a valid port number
-                (sanitized as any)[key] = numValue;
+                assignConfigValue(sanitized, key, numValue);
               }
             } else {
-              (sanitized as any)[key] = numValue;
+              assignConfigValue(sanitized, key, numValue);
             }
           }
         } else if (expectedType === 'string') {

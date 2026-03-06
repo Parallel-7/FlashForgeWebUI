@@ -7,7 +7,12 @@
  * This adapter allows ConnectionFlowManager to work without requiring Electron dialog windows.
  */
 
-import type { DiscoveredPrinter, SavedPrinterMatch, ConnectionResult, StoredPrinterDetails } from '../types/printer';
+import type {
+  ConnectionResult,
+  DiscoveredPrinter,
+  SavedPrinterMatch,
+  StoredPrinterDetails,
+} from '../types/printer';
 
 /**
  * Branded type for DialogIntegrationService singleton
@@ -30,7 +35,8 @@ export class DialogIntegrationService {
    */
   public static getInstance(): DialogIntegrationServiceInstance {
     if (!DialogIntegrationService.instance) {
-      DialogIntegrationService.instance = new DialogIntegrationService() as DialogIntegrationServiceInstance;
+      DialogIntegrationService.instance =
+        new DialogIntegrationService() as DialogIntegrationServiceInstance;
     }
     return DialogIntegrationService.instance;
   }
@@ -46,7 +52,9 @@ export class DialogIntegrationService {
   /**
    * Show printer selection dialog (headless: return first printer)
    */
-  public async showPrinterSelectionDialog(printers: DiscoveredPrinter[]): Promise<DiscoveredPrinter | null> {
+  public async showPrinterSelectionDialog(
+    printers: DiscoveredPrinter[]
+  ): Promise<DiscoveredPrinter | null> {
     if (printers.length === 0) {
       console.log('[Dialog] No printers available for selection');
       return null;
@@ -69,7 +77,9 @@ export class DialogIntegrationService {
     }
 
     const firstMatch = matches[0];
-    console.log(`[Dialog] Auto-selecting first saved printer: ${firstMatch.savedDetails.Name} (headless mode)`);
+    console.log(
+      `[Dialog] Auto-selecting first saved printer: ${firstMatch.savedDetails.Name} (headless mode)`
+    );
     return await onSelection(firstMatch.savedDetails.SerialNumber);
   }
 
@@ -81,7 +91,9 @@ export class DialogIntegrationService {
     _savedPrinterCount: number
   ): Promise<string | null> {
     if (lastUsedPrinter) {
-      console.log(`[Dialog] Auto-selecting 'connect-last-used': ${lastUsedPrinter.Name} (headless mode)`);
+      console.log(
+        `[Dialog] Auto-selecting 'connect-last-used': ${lastUsedPrinter.Name} (headless mode)`
+      );
       return 'connect-last-used';
     }
 

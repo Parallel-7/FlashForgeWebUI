@@ -18,18 +18,14 @@
  * RTSP camera and filtration control capabilities.
  */
 
+import type { MaterialStationStatus, PrinterFeatureSet } from '../types/printer-backend';
 import { DualAPIBackend } from './DualAPIBackend';
-import type {
-  PrinterFeatureSet,
-  MaterialStationStatus
-} from '../types/printer-backend';
 
 /**
  * Backend implementation for Adventurer 5M Pro
  * Uses dual API with enhanced features including filtration
  */
 export class Adventurer5MProBackend extends DualAPIBackend {
-
   /**
    * Get child-specific base features for Adventurer 5M Pro
    * LED and filtration will be auto-detected from product endpoint
@@ -39,28 +35,28 @@ export class Adventurer5MProBackend extends DualAPIBackend {
       camera: {
         builtin: true,
         customUrl: null,
-        customEnabled: false
+        customEnabled: false,
       },
       ledControl: {
         builtin: true,
         customControlEnabled: false, // Will be overridden by settings
-        usesLegacyAPI: true
+        usesLegacyAPI: true,
       },
       filtration: {
         available: true,
         controllable: true,
-        reason: 'Hardware supports filtration control'
+        reason: 'Hardware supports filtration control',
       },
       gcodeCommands: {
         available: true,
         usesLegacyAPI: true,
-        supportedCommands: this.getSupportedGCodeCommands()
+        supportedCommands: this.getSupportedGCodeCommands(),
       },
       statusMonitoring: {
         available: true,
         usesNewAPI: true,
         usesLegacyAPI: true,
-        realTimeUpdates: true
+        realTimeUpdates: true,
       },
       jobManagement: {
         localJobs: true,
@@ -69,14 +65,14 @@ export class Adventurer5MProBackend extends DualAPIBackend {
         startJobs: true,
         pauseResume: true,
         cancelJobs: true,
-        usesNewAPI: true
+        usesNewAPI: true,
       },
       materialStation: {
         available: false,
         slotCount: 0,
         perSlotInfo: false,
-        materialDetection: false
-      }
+        materialDetection: false,
+      },
     };
   }
 
@@ -89,7 +85,7 @@ export class Adventurer5MProBackend extends DualAPIBackend {
     const info = machineInfo as Record<string, unknown> | null;
     return {
       externalFanOn: info?.ExternalFanOn || false,
-      internalFanOn: info?.InternalFanOn || false
+      internalFanOn: info?.InternalFanOn || false,
     };
   }
 

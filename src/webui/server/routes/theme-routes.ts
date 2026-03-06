@@ -2,12 +2,12 @@
  * @fileoverview WebUI theme configuration routes.
  */
 
-import type { Router, Response } from 'express';
+import type { Response, Router } from 'express';
+import { sanitizeTheme } from '../../../types/config';
+import { toAppError } from '../../../utils/error.utils';
+import type { StandardAPIResponse } from '../../types/web-api.types';
 import type { AuthenticatedRequest } from '../auth-middleware';
 import type { RouteDependencies } from './route-helpers';
-import { sanitizeTheme } from '../../../types/config';
-import type { StandardAPIResponse } from '../../types/web-api.types';
-import { toAppError } from '../../../utils/error.utils';
 
 export function registerPublicThemeRoutes(router: Router, deps: RouteDependencies): void {
   router.get('/api/webui/theme', async (_req, res: Response) => {
@@ -18,7 +18,7 @@ export function registerPublicThemeRoutes(router: Router, deps: RouteDependencie
       const appError = toAppError(error);
       const response: StandardAPIResponse = {
         success: false,
-        error: appError.message
+        error: appError.message,
       };
       return res.status(500).json(response);
     }
@@ -32,19 +32,19 @@ export function registerThemeRoutes(router: Router, deps: RouteDependencies): vo
       const currentConfig = deps.configManager.getConfig();
       deps.configManager.updateConfig({
         ...currentConfig,
-        WebUITheme: sanitizedTheme
+        WebUITheme: sanitizedTheme,
       });
 
       const response: StandardAPIResponse = {
         success: true,
-        message: 'WebUI theme updated successfully'
+        message: 'WebUI theme updated successfully',
       };
       return res.json(response);
     } catch (error) {
       const appError = toAppError(error);
       const response: StandardAPIResponse = {
         success: false,
-        error: appError.message
+        error: appError.message,
       };
       return res.status(500).json(response);
     }
