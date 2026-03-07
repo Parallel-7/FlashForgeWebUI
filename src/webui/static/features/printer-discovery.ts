@@ -11,6 +11,8 @@ interface DiscoveredPrinter {
   ipAddress: string;
   serialNumber: string;
   model?: string;
+  commandPort?: number;
+  eventPort?: number;
 }
 
 interface SavedPrinterMatch {
@@ -18,6 +20,10 @@ interface SavedPrinterMatch {
   saved: unknown | null;
   isKnown: boolean;
   ipAddressChanged: boolean;
+}
+
+interface LucideGlobal {
+  createIcons: () => void;
 }
 
 let scanInProgress = false;
@@ -59,8 +65,9 @@ function setupDiscoveryButton(): void {
   }
 
   // Re-render lucide icons
-  if (typeof (window as never).lucide !== 'undefined') {
-    ((window as never).lucide as { createIcons: () => void }).createIcons();
+  const lucide = (window as Window & { lucide?: LucideGlobal }).lucide;
+  if (lucide) {
+    lucide.createIcons();
   }
 }
 
@@ -203,7 +210,9 @@ function displayDiscoveredPrinters(matches: SavedPrinterMatch[]): void {
                   data-ip="${printer.ipAddress}"
                   data-serial="${printer.serialNumber}"
                   data-name="${printer.name}"
-                  data-model="${printer.model || ''}">
+                  data-model="${printer.model || ''}"
+                  data-command-port="${printer.commandPort ?? ''}"
+                  data-event-port="${printer.eventPort ?? ''}">
             Connect
           </button>
         </div>
@@ -220,9 +229,18 @@ function displayDiscoveredPrinters(matches: SavedPrinterMatch[]): void {
       const serial = btn.getAttribute('data-serial');
       const name = btn.getAttribute('data-name');
       const model = btn.getAttribute('data-model');
+      const commandPort = btn.getAttribute('data-command-port');
+      const eventPort = btn.getAttribute('data-event-port');
 
-      if (ip && serial) {
-        void connectToDiscoveredPrinter(ip, serial, name || '', model || '');
+      if (ip) {
+        void connectToDiscoveredPrinter(
+          ip,
+          serial || '',
+          name || '',
+          model || '',
+          commandPort ? Number(commandPort) : undefined,
+          eventPort ? Number(eventPort) : undefined
+        );
       }
     });
   });
@@ -275,7 +293,9 @@ async function connectToDiscoveredPrinter(
   ip: string,
   serial: string,
   name: string,
-  _model: string
+  _model: string,
+  commandPort?: number,
+  httpPort?: number
 ): Promise<void> {
   try {
     showToast('Detecting printer type...', 'info');
@@ -293,7 +313,11 @@ async function connectToDiscoveredPrinter(
     }>('/api/printers/detect', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ipAddress: ip }),
+      body: JSON.stringify({
+        ipAddress: ip,
+        commandPort,
+        httpPort,
+      }),
     });
 
     if (!detectResponse.success || !detectResponse.typeName) {
@@ -344,6 +368,8 @@ async function connectToDiscoveredPrinter(
         model: typeName,
         type,
         checkCode,
+        commandPort,
+        httpPort,
       }),
     });
 

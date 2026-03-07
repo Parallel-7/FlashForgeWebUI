@@ -9,6 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Playwright E2E testing framework with dual configuration:
+  - Fixture-based E2E tests (`e2e/`) for fast WebUI validation with a stub HTTP+WebSocket server
+  - Emulator-backed E2E tests (`e2e-emulator/`) for full lifecycle testing with `flashforge-emulator-v2` printer emulator
+  - Fixture specs: WebUI smoke tests (asset versioning, context switching) and authentication flow (login, token persistence, logout)
+  - Emulator specs: direct connection for all 5 printer models, network discovery flow, multi-printer context switching
+  - Test helpers: emulator harness, standalone server harness, lifecycle runner, scenario definitions, WebUI page object model
+  - `tsconfig.e2e.json` for E2E TypeScript type checking
+- Comprehensive npm test scripts for all test suites:
+  - `test:e2e`, `test:e2e:smoke`, `test:e2e:auth` for fixture E2E subsets
+  - `test:e2e:emulator`, `test:e2e:emulator:direct`, `test:e2e:emulator:discovery`, `test:e2e:emulator:multi` for emulator E2E subsets
+  - `test:e2e:all` for all Playwright suites and `test:all` for Jest + Playwright combined
+  - `test:e2e:install` for Chromium browser installation
+- `@playwright/test` (^1.58.2) as dev dependency for E2E browser automation
 - go2rtc-based camera streaming with:
   - bundled platform binaries in `resources/bin/`
   - `scripts/download-go2rtc.cjs` postinstall download flow
@@ -27,6 +40,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `type-check` script now runs both `type-check:app` and `type-check:e2e` for full TypeScript validation
 - Camera streaming migrated from the legacy proxy/RTSP stack to go2rtc-managed per-context streams
 - Frontend camera playback now uses the bundled `video-rtc` player instead of the previous streaming path
 - Backend build pipeline now bundles `src/index.ts` before pkg packaging, while leaving runtime packages external for compatibility

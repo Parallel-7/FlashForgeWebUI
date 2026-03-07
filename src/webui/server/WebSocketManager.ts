@@ -74,8 +74,8 @@ export class WebSocketManager extends EventEmitter {
   private readonly clients: Map<WebSocket, ClientInfo> = new Map();
   private readonly clientsByToken: Map<string, Set<WebSocket>> = new Map();
 
-  // Latest polling data storage
-  private latestPollingData: PollingData | null = null;
+  // Latest polling data storage by context
+  private readonly latestPollingDataByContext = new Map<string, PollingData>();
 
   // Server state
   private isRunning: boolean = false;
@@ -420,12 +420,13 @@ export class WebSocketManager extends EventEmitter {
    */
   private async sendInitialStatus(ws: WebSocket): Promise<void> {
     try {
-      // Use latest polling data if available
-      if (this.latestPollingData) {
+      const activePollingData = this.getActivePollingData();
+
+      if (activePollingData) {
         const statusMessage: WebSocketMessage = {
           type: 'STATUS_UPDATE',
           timestamp: new Date().toISOString(),
-          status: this.formatPollingData(this.latestPollingData),
+          status: this.formatPollingData(activePollingData),
         };
         this.sendToClient(ws, statusMessage);
       } else {
@@ -447,12 +448,13 @@ export class WebSocketManager extends EventEmitter {
    */
   private async sendCurrentStatus(ws: WebSocket): Promise<void> {
     try {
-      // Use latest polling data instead of calling backend directly
-      if (this.latestPollingData) {
+      const activePollingData = this.getActivePollingData();
+
+      if (activePollingData) {
         const statusMessage: WebSocketMessage = {
           type: 'STATUS_UPDATE',
           timestamp: new Date().toISOString(),
-          status: this.formatPollingData(this.latestPollingData),
+          status: this.formatPollingData(activePollingData),
         };
         this.sendToClient(ws, statusMessage);
       } else {
@@ -528,18 +530,26 @@ export class WebSocketManager extends EventEmitter {
    * Broadcast printer status to all connected clients
    * Accepts PollingData from the polling service
    */
-  public async broadcastPrinterStatus(data: PollingData): Promise<void> {
+  public async broadcastPrinterStatus(contextId: string, data: PollingData): Promise<void> {
     console.log(
-      `[WebSocketManager] broadcastPrinterStatus called - running: ${this.isRunning}, clients: ${this.clients.size}, hasData: ${!!data.printerStatus}`
+      `[WebSocketManager] broadcastPrinterStatus called - context: ${contextId}, running: ${this.isRunning}, clients: ${this.clients.size}, hasData: ${!!data.printerStatus}`
     );
 
-    // Always store latest data, even if no clients connected (for API access)
-    this.latestPollingData = data;
+    this.latestPollingDataByContext.set(contextId, data);
+
+    const activeContextId = this.getActiveContextId();
 
     // Only broadcast to WebSocket clients if server is running and clients are connected
     if (!this.isRunning || this.clients.size === 0) {
       console.log(
         `[WebSocketManager] Skipping broadcast - running: ${this.isRunning}, clients: ${this.clients.size}`
+      );
+      return;
+    }
+
+    if (!activeContextId || activeContextId !== contextId) {
+      console.log(
+        `[WebSocketManager] Skipping broadcast for inactive context ${contextId} (active: ${activeContextId ?? 'none'})`
       );
       return;
     }
@@ -631,6 +641,20 @@ export class WebSocketManager extends EventEmitter {
     webUIManager.updateClientCount(this.clients.size);
   }
 
+  private getActiveContextId(): string | null {
+    const contextManager = getPrinterContextManager();
+    return contextManager.getActiveContextId();
+  }
+
+  private getActivePollingData(): PollingData | null {
+    const activeContextId = this.getActiveContextId();
+    if (!activeContextId) {
+      return null;
+    }
+
+    return this.latestPollingDataByContext.get(activeContextId) ?? null;
+  }
+
   /**
    * Generate unique client ID
    */
@@ -685,6 +709,7 @@ export class WebSocketManager extends EventEmitter {
     // Clear maps
     this.clients.clear();
     this.clientsByToken.clear();
+    this.latestPollingDataByContext.clear();
 
     // Close server
     this.wss.close(() => {

@@ -10,7 +10,8 @@
  * - Automatic migration of legacy single-printer configurations
  *
  * Standalone Implementation Notes:
- * - Uses process.cwd()/data instead of Electron's userData directory
+ * - Uses the shared standalone data path instead of Electron's userData directory
+ * - Defaults to process.cwd()/data and honors DATA_DIR overrides
  * - Ensures data directory exists before operations
  * - Compatible with standard Node.js (no Electron dependencies)
  */
@@ -24,6 +25,7 @@ import type {
   ValidatedPrinterDetails,
 } from '../types/printer';
 import { detectPrinterModelType } from '../utils/PrinterUtils';
+import { getDataPath } from '../utils/setup';
 
 /**
  * Manager for multi-printer details persistence
@@ -39,7 +41,7 @@ export class PrinterDetailsManager {
 
   constructor() {
     // Store printer details in data directory (standalone)
-    const dataPath = path.join(process.cwd(), 'data');
+    const dataPath = getDataPath();
     this.filePath = path.join(dataPath, 'printer_details.json');
 
     // Ensure data directory exists
@@ -80,6 +82,8 @@ export class PrinterDetailsManager {
       ClientType: details.ClientType,
       printerModel: details.printerModel,
       ...(details.modelType ? { modelType: details.modelType } : {}),
+      ...(details.commandPort !== undefined ? { commandPort: details.commandPort } : {}),
+      ...(details.httpPort !== undefined ? { httpPort: details.httpPort } : {}),
       ...(details.customCameraEnabled !== undefined
         ? { customCameraEnabled: details.customCameraEnabled }
         : {}),
@@ -156,6 +160,13 @@ export class PrinterDetailsManager {
     const ipAddress = detailsObj.IPAddress as string;
     const ipRegex = /^(\d{1,3}\.){3}\d{1,3}$/;
     if (!ipRegex.test(ipAddress)) {
+      return false;
+    }
+
+    if ('commandPort' in detailsObj && !this.isValidOptionalPort(detailsObj.commandPort)) {
+      return false;
+    }
+    if ('httpPort' in detailsObj && !this.isValidOptionalPort(detailsObj.httpPort)) {
       return false;
     }
 
@@ -258,6 +269,13 @@ export class PrinterDetailsManager {
     }
 
     return true;
+  }
+
+  private isValidOptionalPort(value: unknown): value is number {
+    return (
+      value === undefined ||
+      (typeof value === 'number' && Number.isInteger(value) && value >= 1 && value <= 65535)
+    );
   }
 
   /**

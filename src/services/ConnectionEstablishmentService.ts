@@ -25,7 +25,26 @@ import type {
   ExtendedPrinterInfo,
   TemporaryConnectionResult,
 } from '../types/printer';
-import { detectPrinterFamily, getConnectionErrorMessage } from '../utils/PrinterUtils';
+import {
+  detectPrinterFamily,
+  detectPrinterModelType,
+  getConnectionErrorMessage,
+} from '../utils/PrinterUtils';
+
+interface PortMutableFlashForgeClient {
+  port: number;
+  resetSocket: () => void;
+  connect: () => void;
+}
+
+interface PortMutableFiveMClient {
+  PORT: number;
+  tcpClient: PortMutableFlashForgeClient;
+}
+
+interface ModelMutableFiveMClient extends PortMutableFiveMClient {
+  isAD5X: boolean;
+}
 
 // Connection clients interface for dual API support
 interface ConnectionClients {
@@ -42,6 +61,39 @@ export class ConnectionEstablishmentService extends EventEmitter {
 
   private constructor() {
     super();
+  }
+
+  private createLegacyClient(printer: Pick<DiscoveredPrinter, 'ipAddress' | 'commandPort'>): FlashForgeClient {
+    const client = new FlashForgeClient(printer.ipAddress);
+    const mutableClient = client as unknown as PortMutableFlashForgeClient;
+
+    if (printer.commandPort !== undefined && printer.commandPort !== mutableClient.port) {
+      mutableClient.port = printer.commandPort;
+      mutableClient.resetSocket();
+      mutableClient.connect();
+    }
+
+    return client;
+  }
+
+  private createFiveMClient(printer: DiscoveredPrinter, checkCode: string): FiveMClient {
+    const client = new FiveMClient(printer.ipAddress, printer.serialNumber, checkCode);
+    const mutableClient = client as unknown as PortMutableFiveMClient;
+
+    if (printer.eventPort !== undefined && printer.eventPort !== mutableClient.PORT) {
+      mutableClient.PORT = printer.eventPort;
+    }
+
+    if (
+      printer.commandPort !== undefined &&
+      printer.commandPort !== mutableClient.tcpClient.port
+    ) {
+      mutableClient.tcpClient.port = printer.commandPort;
+      mutableClient.tcpClient.resetSocket();
+      mutableClient.tcpClient.connect();
+    }
+
+    return client;
   }
 
   /**
@@ -73,7 +125,7 @@ export class ConnectionEstablishmentService extends EventEmitter {
         console.log(`[Connection] Attempt ${attempt}/${retries} for ${printer.ipAddress}`);
 
         // Always use legacy API for type detection
-        tempClient = new FlashForgeClient(printer.ipAddress);
+        tempClient = this.createLegacyClient(printer);
 
         // Wrap initControl in timeout
         console.log(`[Connection] Initializing control connection (timeout: ${timeout}ms)...`);
@@ -243,7 +295,7 @@ export class ConnectionEstablishmentService extends EventEmitter {
 
     try {
       if (is5MFamily && !forceLegacyMode) {
-        return await this.establishDualAPIConnection(printer, checkCode);
+        return await this.establishDualAPIConnection(printer, typeName, checkCode);
       } else {
         return await this.establishLegacyConnection(printer);
       }
@@ -259,6 +311,7 @@ export class ConnectionEstablishmentService extends EventEmitter {
    */
   private async establishDualAPIConnection(
     printer: DiscoveredPrinter,
+    typeName: string,
     checkCode: string
   ): Promise<ConnectionClients> {
     console.log('Creating dual API connection for 5M family printer');
@@ -276,7 +329,8 @@ export class ConnectionEstablishmentService extends EventEmitter {
     }
 
     // Primary client: FiveMClient for new API operations
-    const primaryClient = new FiveMClient(printer.ipAddress, printer.serialNumber, checkCode);
+    const primaryClient = this.createFiveMClient(printer, checkCode);
+    const mutablePrimaryClient = primaryClient as unknown as ModelMutableFiveMClient;
 
     try {
       console.log('Initializing FiveMClient...');
@@ -286,6 +340,10 @@ export class ConnectionEstablishmentService extends EventEmitter {
         throw new Error('Failed to initialize 5M client - initialization returned false');
       }
       console.log('FiveMClient initialized successfully');
+
+      if (detectPrinterModelType(typeName) === 'ad5x') {
+        mutablePrimaryClient.isAD5X = true;
+      }
 
       console.log('Initializing FiveMClient control...');
       const controlOk = await primaryClient.initControl();
@@ -300,7 +358,7 @@ export class ConnectionEstablishmentService extends EventEmitter {
 
       // Secondary client: FlashForgeClient for legacy API operations (G-code commands)
       console.log('Initializing secondary FlashForgeClient...');
-      const secondaryClient = new FlashForgeClient(printer.ipAddress);
+      const secondaryClient = this.createLegacyClient(printer);
       const legacyConnected = await secondaryClient.initControl();
       if (!legacyConnected) {
         console.error('Secondary FlashForgeClient initialization failed');
@@ -358,7 +416,7 @@ export class ConnectionEstablishmentService extends EventEmitter {
       };
     } else {
       // Create new legacy connection
-      const primaryClient = new FlashForgeClient(printer.ipAddress);
+      const primaryClient = this.createLegacyClient(printer);
       const connected = await primaryClient.initControl();
 
       if (!connected) {

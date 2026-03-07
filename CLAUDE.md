@@ -55,14 +55,43 @@ npm run format            # Preview Biome formatting changes
 npm run format:fix        # Apply Biome formatting changes
 npm run check             # Run Biome check (lint + format combined)
 npm run check:fix         # Auto-fix Biome check issues
-npm run type-check        # TypeScript type checking without emit
+npm run type-check        # TypeScript type checking (app + e2e)
+npm run type-check:app    # Type check main application only
+npm run type-check:e2e    # Type check e2e tests only (tsconfig.e2e.json)
 npm run docs:check        # Validate @fileoverview coverage in source files
 npm run docs:check:debug  # Debug fileoverview validation output
-npm test                  # Run Jest tests
-npm run test:watch        # Run tests in watch mode
-npm run test:coverage     # Run tests with coverage
-npm run test:verbose      # Run tests with verbose output
 npm run clean             # Remove dist directory
+npm run download:go2rtc   # Manually download go2rtc binary
+```
+
+### Testing
+```bash
+# Jest app tests
+npm test                            # Run all Jest tests
+npm run test:watch                  # Jest watch mode
+npm run test:coverage               # Jest with coverage
+npm run test:verbose                # Jest verbose output
+
+# Playwright fixture E2E (fast, stub server)
+npm run test:e2e:install            # Install Chromium for Playwright
+npm run test:e2e                    # Run all fixture E2E specs
+npm run test:e2e:smoke              # Smoke tests only
+npm run test:e2e:auth               # Auth tests only
+
+# Playwright emulator E2E (full server + emulator, workers=1)
+npm run test:e2e:emulator           # Run all emulator E2E specs
+npm run test:e2e:emulator:direct    # Direct connection spec
+npm run test:e2e:emulator:discovery # Discovery spec
+npm run test:e2e:emulator:multi    # Multi-printer spec
+
+# Combined
+npm run test:e2e:all                # All Playwright suites (fixture + emulator)
+npm run test:all                    # Everything (Jest + all Playwright)
+
+# Passthrough: append extra args after --
+# npm run test:e2e -- --grep "login"
+# npm run test:e2e:emulator:direct -- --grep "connect"
+# npm test -- --testPathPattern=Config
 ```
 
 ## Runtime Modes
@@ -147,12 +176,20 @@ src/index.ts                    # Entry point - initializes all singletons, conn
 - `DiscordNotificationService` - Discord webhook notifications for print events and periodic status updates
 - `SavedPrinterService` - Persistent printer storage in `data/printer_details.json`
 - `SpoolmanIntegrationService` / `SpoolmanService` - Spoolman connectivity and synchronization
+- `PrinterDiscoveryService` - Network printer discovery protocol
+- `ConnectionEstablishmentService` - Connection establishment flow orchestration
+- `ConnectionStateManager` - Tracks connection state per context
+- `EnvironmentService` - Package detection, path resolution, environment state
+- `PrinterPollingService` - Per-context status polling (used by `MultiContextPollingCoordinator`)
+- `AutoConnectService` - Auto-reconnect logic for saved printers
+- `PrinterDataTransformer` - Normalizes raw printer data to unified status format
+- `ThumbnailRequestQueue` - Queued thumbnail fetching for print files
 
 **WebUI**:
 - `WebUIManager` - Express HTTP server and static file serving
 - `WebSocketManager` - Real-time bidirectional communication with the frontend
 - `AuthManager` - Optional password authentication
-- API routes organized by feature (printer-control, job, camera, spoolman, theme, discovery, etc.)
+- API routes organized by feature (context, printer-control, printer-status, printer-detection, printer-management, job, camera, temperature, filtration, spoolman, theme, discovery)
 - Frontend uses GridStack for dashboard layout and the bundled `video-rtc` player for go2rtc-backed camera streaming
 
 ### Data Directory
@@ -224,7 +261,8 @@ Default config values live in `src/types/config.ts` and are loaded through `Conf
 - TypeScript 5.7
 - Biome 2 for linting and formatting
 - `esbuild` for backend bundling
-- `jest`, `ts-jest`, `supertest` for testing
+- `jest`, `ts-jest`, `supertest` for unit/integration testing
+- `@playwright/test` for E2E browser testing
 - `concurrently` for parallel build tasks
 - `nodemon` for dev server reloads
 - `tsx` for build scripts
@@ -335,15 +373,32 @@ class Service extends EventEmitter<EventMap> {
 
 ## Testing Notes
 
-Core functionality has been tested and verified:
+**Jest unit/integration tests** (`src/`):
+- ConfigManager, EnvironmentService, DiscordNotificationService, error utilities, WebUIManager integration
+
+**Playwright fixture E2E** (`e2e/`):
+- Fast headless tests against the built WebUI served by a stub HTTP+WebSocket server
+- Specs: smoke (asset versioning, context switching), auth (login, token persistence, logout)
+- Global setup runs `npm run build` before the suite
+- Config: `playwright.config.ts` (30s timeout, single worker)
+
+**Playwright emulator E2E** (`e2e-emulator/`):
+- Full integration tests using the standalone server and `flashforge-emulator-v2` printer emulator
+- Specs: direct connection (all 5 printer models), discovery flow, multi-printer context switching
+- Helpers: emulator harness, standalone server harness, lifecycle runner, scenario definitions, page object model
+- Config: `playwright.emulator.config.ts` (180s timeout, single worker)
+- Requires `flashforge-emulator-v2` cloned at `../flashforge-emulator-v2` (or `FF_EMULATOR_ROOT` env var)
+
+**Verified and tested**:
 - Multi-printer context switching
 - Spoolman integration
 - Platform-specific binary builds (Linux ARM, Linux x64, Windows, macOS)
 - WebUI authentication
 - Static file serving in packaged binaries
 - Discord notification service behavior
+- Direct connection, discovery, and multi-printer E2E workflows via Playwright
 
-Areas for continued testing:
+**Areas for continued testing**:
 - go2rtc binary download and startup across all supported platforms
 - Temperature anomaly detection edge cases
 - Wrapped build flows and packaging verification

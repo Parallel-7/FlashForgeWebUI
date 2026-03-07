@@ -695,6 +695,8 @@ export class ConnectionFlowManager extends EventEmitter {
         ClientType: forceLegacyMode ? 'legacy' : clientType,
         printerModel: tempResult.typeName,
         modelType,
+        commandPort: updatedDiscoveredPrinter.commandPort,
+        httpPort: updatedDiscoveredPrinter.eventPort,
         // Preserve existing per-printer settings or use defaults for new printers
         customCameraEnabled: existingPrinter?.customCameraEnabled ?? false,
         customCameraUrl: existingPrinter?.customCameraUrl ?? '',
@@ -943,6 +945,8 @@ export class ConnectionFlowManager extends EventEmitter {
         ipAddress: detailsWithDefaults.IPAddress,
         serialNumber: detailsWithDefaults.SerialNumber,
         model: detailsWithDefaults.printerModel,
+        commandPort: detailsWithDefaults.commandPort,
+        eventPort: detailsWithDefaults.httpPort,
       };
 
       // Establish connection
@@ -1121,16 +1125,41 @@ export class ConnectionFlowManager extends EventEmitter {
 
           let updatedPrinterDetails = savedPrinter;
 
-          // Step 3: Update IP address if discovered printer has different IP
-          if (discoveredMatch && discoveredMatch.ipAddress !== savedPrinter.IPAddress) {
+          // Step 3: Update network details if discovery reports newer values
+          if (
+            discoveredMatch &&
+            (discoveredMatch.ipAddress !== savedPrinter.IPAddress ||
+              discoveredMatch.commandPort !== savedPrinter.commandPort ||
+              discoveredMatch.eventPort !== savedPrinter.httpPort)
+          ) {
+            const updates: string[] = [];
+            if (discoveredMatch.ipAddress !== savedPrinter.IPAddress) {
+              updates.push(`IP ${savedPrinter.IPAddress} -> ${discoveredMatch.ipAddress}`);
+            }
+            if (discoveredMatch.commandPort !== savedPrinter.commandPort) {
+              updates.push(
+                `commandPort ${String(savedPrinter.commandPort ?? 8899)} -> ${String(
+                  discoveredMatch.commandPort ?? 8899
+                )}`
+              );
+            }
+            if (discoveredMatch.eventPort !== savedPrinter.httpPort) {
+              updates.push(
+                `httpPort ${String(savedPrinter.httpPort ?? 8898)} -> ${String(
+                  discoveredMatch.eventPort ?? 8898
+                )}`
+              );
+            }
             console.log(
               `[Headless] IP changed for ${savedPrinter.Name}: ${savedPrinter.IPAddress} → ${discoveredMatch.ipAddress}`
             );
             updatedPrinterDetails = {
               ...savedPrinter,
               IPAddress: discoveredMatch.ipAddress,
+              commandPort: discoveredMatch.commandPort,
+              httpPort: discoveredMatch.eventPort,
             };
-            // Save updated IP
+            // Persist updated network details
             await this.savedPrinterService.savePrinter(updatedPrinterDetails);
           }
 
@@ -1182,6 +1211,8 @@ export class ConnectionFlowManager extends EventEmitter {
       ip: string;
       type: import('../types/printer').PrinterClientType;
       checkCode?: string;
+      commandPort?: number;
+      httpPort?: number;
     }>
   ): Promise<{ contextId: string; ip: string }[]> {
     const connectedContexts: { contextId: string; ip: string }[] = [];
@@ -1198,6 +1229,8 @@ export class ConnectionFlowManager extends EventEmitter {
           ipAddress: spec.ip,
           serialNumber: '', // Will be determined during connection
           model: undefined,
+          commandPort: spec.commandPort,
+          eventPort: spec.httpPort,
         };
 
         // Determine if this is a 5M family printer
@@ -1238,6 +1271,8 @@ export class ConnectionFlowManager extends EventEmitter {
           ipAddress: spec.ip,
           serialNumber: serialNumber,
           model: tempResult.typeName,
+          commandPort: spec.commandPort,
+          eventPort: spec.httpPort,
         };
 
         const forceLegacyMode = existingPrinter?.forceLegacyMode ?? false;
@@ -1266,6 +1301,8 @@ export class ConnectionFlowManager extends EventEmitter {
           ClientType: forceLegacyMode ? 'legacy' : spec.type,
           printerModel: tempResult.typeName,
           modelType,
+          commandPort: spec.commandPort,
+          httpPort: spec.httpPort,
           // Preserve previously configured per-printer overrides when present
           customCameraEnabled: existingPrinter?.customCameraEnabled ?? false,
           customCameraUrl: existingPrinter?.customCameraUrl ?? '',

@@ -243,7 +243,7 @@ function setupEventForwarding(): void {
 
     // Forward all polling data regardless of active context
     // This ensures data reaches the WebUI even if active context isn't set yet
-    webUIManager.handlePollingUpdate(data);
+    webUIManager.handlePollingUpdate(contextId, data);
     console.log(`[Events] Forwarded polling data for context: ${contextId}`);
   });
 

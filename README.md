@@ -145,7 +145,7 @@ Or if accessing from another device on your network:
 http://<server-ip>:3000
 ```
 
-**Default Login:** The default password is `changeme`. You should change this in `data/config.json` or via the `--webui-password` flag.
+**Default Login:** The default password is `changeme`. You should change this in the active config file (by default `data/config.json`, or the directory pointed to by `DATA_DIR`) or via the `--webui-password` flag.
 
 <div align="center">
   <h2>Command Line Options</h2>
@@ -168,7 +168,18 @@ http://<server-ip>:3000
   <h2>Configuration</h2>
 </div>
 
-The application automatically creates a configuration file at `data/config.json` on first run.
+The application automatically creates a configuration file in the active data directory on first run. By default this is `data/config.json`.
+
+By default, runtime data is stored in `./data` under the working directory. Set `DATA_DIR` to move configuration, logs, and saved printer state elsewhere.
+
+```bash
+# Linux/macOS
+DATA_DIR=/path/to/flashforge-data npm start
+
+# PowerShell
+$env:DATA_DIR = 'C:\FlashForgeWebUI\data'
+npm start
+```
 
 <div align="center">
 
@@ -182,6 +193,53 @@ The application automatically creates a configuration file at `data/config.json`
 | **SpoolmanServerUrl** | `""` | Your Spoolman server URL (e.g., `http://192.168.1.100:7912`) |
 
 </div>
+
+<div align="center">
+  <h2>Testing</h2>
+</div>
+
+```bash
+# Jest app tests
+npm test
+
+# TypeScript checks
+npm run type-check
+
+# Playwright browser E2E (fixture/stub server)
+npm run test:e2e:install
+npm run test:e2e
+npm run test:e2e:smoke
+npm run test:e2e:auth
+
+# Playwright emulator-backed E2E (headless, single worker)
+npm run test:e2e:emulator
+npm run test:e2e:emulator:direct
+npm run test:e2e:emulator:discovery
+npm run test:e2e:emulator:multi
+
+# Combined entry points
+npm run test:e2e:all
+npm run test:all
+```
+
+The fixture Playwright suite in `e2e/` runs against a built standalone WebUI with a local stub server.
+
+The emulator-backed suite in `e2e-emulator/` runs headless Chromium against the real standalone server plus `flashforge-emulator-v2`. Clone the emulator repo next to this one at `../flashforge-emulator-v2`, or point `FF_EMULATOR_ROOT` at it explicitly.
+
+```bash
+# Linux/macOS
+FF_EMULATOR_ROOT=../flashforge-emulator-v2 npm run test:e2e:emulator
+
+# PowerShell
+$env:FF_EMULATOR_ROOT = 'C:\Users\coper\Documents\GitHub\flashforge-emulator-v2'
+npm run test:e2e:emulator
+```
+
+All Playwright scripts support npm passthrough arguments:
+
+```bash
+npm run test:e2e:emulator:direct -- --grep "Adventurer 3"
+```
 
 <div align="center">
   <h2>Building from Source</h2>
@@ -207,7 +265,7 @@ npm run build:mac-arm      # macOS ARM (Apple Silicon)
 | --- | --- |
 | **"Cannot GET /" or blank page when accessing WebUI** | If running from source: Make sure you ran `npm run build` before `npm start`<br>If using a pre-1.0.2 binary: Update to version 1.0.2 or later (fixes static file serving bug) |
 | **"Permission denied" when running binary** | Run `chmod +x flashforge-webui-linux-*` to make executable |
-| **Port already in use** | Change the port in `data/config.json` or use `--webui-port=3001` |
+| **Port already in use** | Change the port in the active config file (default `data/config.json`, or the directory pointed to by `DATA_DIR`) or use `--webui-port=3001` |
 | **Cannot connect to printer** | Ensure your printer is on the same network as the device running WebUI<br>Check that the printer's IP address is correct<br>For legacy printers, ensure TCP port 8899 is accessible |
 | **Selecting the correct binary for your platform** | Windows: `flashforge-webui-win-x64.exe`<br>macOS Intel: `flashforge-webui-macos-x64`<br>macOS Apple Silicon: `flashforge-webui-macos-arm64`<br>Linux x64: `flashforge-webui-linux-x64`<br>Raspberry Pi (64-bit OS): `flashforge-webui-linux-arm64`<br>Raspberry Pi (32-bit OS): `flashforge-webui-linux-armv7`<br>Check your architecture with `uname -m` (x86_64 = x64, aarch64 = ARM64, armv7l = ARMv7) |
 

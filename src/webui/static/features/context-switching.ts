@@ -17,6 +17,7 @@ import {
 } from '../core/AppState.js';
 import { apiRequest, sendCommand } from '../core/Transport.js';
 import { $, hideElement, showElement, showToast } from '../shared/dom.js';
+import { teardownCameraStreamElements } from './camera.js';
 import { loadLayoutForCurrentPrinter, saveCurrentLayoutSnapshot } from './layout-theme.js';
 
 export interface ContextSwitchHandlers {
@@ -143,6 +144,8 @@ export async function switchPrinterContext(contextId: string): Promise<void> {
 
     if (result.success) {
       showToast(result.message || 'Switched printer', 'success');
+      state.printerFeatures = null;
+      teardownCameraStreamElements();
       await fetchPrinterContexts();
       if (contextHandlers.onContextSwitched) {
         await contextHandlers.onContextSwitched(contextId);

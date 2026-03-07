@@ -1,6 +1,7 @@
 /**
- * Jest setup file
- * Runs before each test file
+ * @fileoverview Jest setup hooks for node-side test runs.
+ *
+ * Installs shared console mocking and post-test cleanup before each Jest suite.
  */
 
 import { afterEach, jest } from '@jest/globals';

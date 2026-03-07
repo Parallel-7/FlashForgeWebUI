@@ -649,10 +649,12 @@ export class WebUIManager extends EventEmitter {
    * Receive polling update from external source (main process)
    * This is the primary way Web UI receives printer status updates
    */
-  public handlePollingUpdate(data: PollingData): void {
+  public handlePollingUpdate(contextId: string, data: PollingData): void {
     console.log(
       '[WebUIManager] handlePollingUpdate called, hasStatus:',
       !!data.printerStatus,
+      'contextId:',
+      contextId,
       'wsManager:',
       !!this.webSocketManager
     );
@@ -662,7 +664,7 @@ export class WebUIManager extends EventEmitter {
     // no live WebSocket connections are currently established.
     if (data.printerStatus) {
       console.log('[WebUIManager] Calling webSocketManager.broadcastPrinterStatus...');
-      this.webSocketManager.broadcastPrinterStatus(data).catch((error) => {
+      this.webSocketManager.broadcastPrinterStatus(contextId, data).catch((error) => {
         console.error('[WebUIManager] Error broadcasting printer status:', error);
       });
     } else {

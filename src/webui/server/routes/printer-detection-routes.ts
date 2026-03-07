@@ -26,7 +26,11 @@ export function registerPrinterDetectionRoutes(router: Router, _deps: RouteDepen
    */
   router.post('/printers/detect', async (req: AuthenticatedRequest, res: Response) => {
     try {
-      const body = req.body as { ipAddress?: string };
+      const body = req.body as {
+        ipAddress?: string;
+        commandPort?: number;
+        httpPort?: number;
+      };
       const ipAddress = body.ipAddress;
 
       // Validate IP address
@@ -49,6 +53,8 @@ export function registerPrinterDetectionRoutes(router: Router, _deps: RouteDepen
         ipAddress,
         serialNumber: '', // Will be determined during connection
         model: undefined,
+        commandPort: typeof body.commandPort === 'number' ? body.commandPort : undefined,
+        eventPort: typeof body.httpPort === 'number' ? body.httpPort : undefined,
       };
 
       // Create temporary connection to probe the printer

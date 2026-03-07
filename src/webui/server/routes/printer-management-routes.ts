@@ -28,11 +28,15 @@ export function registerPrinterManagementRoutes(router: Router, deps: RouteDepen
         model?: string;
         type?: string;
         checkCode?: string;
+        commandPort?: number;
+        httpPort?: number;
       };
 
       const ipAddress = body.ipAddress;
       const type = body.type;
       const checkCode = body.checkCode;
+      const commandPort = body.commandPort;
+      const httpPort = body.httpPort;
 
       // Validate required fields
       if (!ipAddress || typeof ipAddress !== 'string') {
@@ -53,6 +57,8 @@ export function registerPrinterManagementRoutes(router: Router, deps: RouteDepen
         ip: ipAddress,
         type: type as PrinterClientType,
         checkCode: type === 'new' ? checkCode : undefined,
+        commandPort: typeof commandPort === 'number' ? commandPort : undefined,
+        httpPort: typeof httpPort === 'number' ? httpPort : undefined,
       };
 
       // Connect via ConnectionFlowManager

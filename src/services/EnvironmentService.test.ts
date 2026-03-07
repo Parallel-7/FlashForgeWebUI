@@ -127,6 +127,18 @@ describe('EnvironmentService', () => {
       expect(testService.getDataPath()).toBe(path.join(mockCwd, 'data'));
     });
 
+    it('should honor DATA_DIR when provided', () => {
+      const mockCwd = '/mock/app/directory';
+      jest.spyOn(process, 'cwd').mockReturnValue(mockCwd);
+      const customDataDir = path.join(os.tmpdir(), 'ffwui-env-service-custom-data');
+      process.env.DATA_DIR = customDataDir;
+
+      const testService = new EnvironmentService();
+
+      expect(testService.getDataPath()).toBe(customDataDir);
+      expect(testService.getLogsPath()).toBe(path.join(customDataDir, 'logs'));
+    });
+
     it('should return correct logs path', () => {
       const mockCwd = '/mock/app/directory';
       jest.spyOn(process, 'cwd').mockReturnValue(mockCwd);

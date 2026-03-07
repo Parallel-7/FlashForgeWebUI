@@ -1,0 +1,16 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "lib": ["ES2022", "DOM"],
+    "noEmit": true,
+    "rootDir": ".",
+    "types": ["node", "@playwright/test"]
+  },
+  "include": [
+    "playwright.config.ts",
+    "playwright.emulator.config.ts",
+    "e2e/**/*.ts",
+    "e2e-emulator/**/*.ts"
+  ],
+  "exclude": ["node_modules", "dist"]
+}

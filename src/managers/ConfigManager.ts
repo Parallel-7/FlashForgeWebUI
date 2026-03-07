@@ -10,7 +10,8 @@
  * - Lock file handling to prevent concurrent modifications
  *
  * Standalone Implementation Notes:
- * - Uses process.cwd()/data instead of Electron's userData directory
+ * - Uses the shared standalone data path instead of Electron's userData directory
+ * - Defaults to process.cwd()/data and honors DATA_DIR overrides
  * - Ensures data directory exists before operations
  * - Compatible with standard Node.js (no Electron dependencies)
  */
@@ -27,6 +28,7 @@ import {
   type MutableAppConfig,
   sanitizeConfig,
 } from '../types/config';
+import { getDataPath } from '../utils/setup';
 
 /**
  * Centralized configuration manager with live access and automatic file syncing.
@@ -54,7 +56,7 @@ export class ConfigManager extends EventEmitter {
     super();
 
     // Determine config file location (standalone: use data/ directory)
-    const dataPath = path.join(process.cwd(), 'data');
+    const dataPath = getDataPath();
     this.configPath = path.join(dataPath, 'config.json');
     this.lockFilePath = path.join(dataPath, 'config.lock');
 

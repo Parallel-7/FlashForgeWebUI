@@ -45,6 +45,7 @@ import { BasePrinterBackend } from './BasePrinterBackend';
  */
 export class GenericLegacyBackend extends BasePrinterBackend {
   private readonly legacyClient: FlashForgeClient;
+  private static readonly LEGACY_FILE_LIST_COMMAND = '~M661';
 
   constructor(options: import('../types/printer-backend').BackendInitOptions) {
     super(options);
@@ -342,8 +343,7 @@ export class GenericLegacyBackend extends BasePrinterBackend {
    */
   public async getLocalJobs(): Promise<JobListResult> {
     try {
-      // Use M661 command via ff-api to list all files on SD card
-      const fileNames = await this.legacyClient.getFileListAsync();
+      const fileNames = await this.getLegacyFileList();
 
       // Convert filenames to BasicJobInfo objects
       const jobs: BasicJobInfo[] = fileNames.map((fileName) => ({
@@ -376,8 +376,7 @@ export class GenericLegacyBackend extends BasePrinterBackend {
    */
   public async getRecentJobs(): Promise<JobListResult> {
     try {
-      // Use M661 command via ff-api to list files, then limit to first 10
-      const fileNames = await this.legacyClient.getFileListAsync();
+      const fileNames = await this.getLegacyFileList();
       const recentFileNames = fileNames.slice(0, 10);
 
       // Convert filenames to BasicJobInfo objects
@@ -644,6 +643,46 @@ export class GenericLegacyBackend extends BasePrinterBackend {
         timestamp: new Date(),
       };
     }
+  }
+
+  /**
+   * Fetches the legacy file list using a direct M661 round-trip.
+   *
+   * The upstream ff-api M661 reader resolves immediately after the `ok` header,
+   * while the emulator sends the actual `/data/...` payload in a follow-up chunk.
+   * Retrying once keeps real-printer behavior intact and recovers the delayed
+   * payload when the first response is header-only.
+   */
+  private async getLegacyFileList(): Promise<string[]> {
+    const firstResponse = await this.legacyClient.sendCommandAsync(
+      GenericLegacyBackend.LEGACY_FILE_LIST_COMMAND
+    );
+    const firstPass = this.parseLegacyFileListResponse(firstResponse);
+
+    if (firstPass.length > 0) {
+      return firstPass;
+    }
+
+    const fallbackResponse = await this.legacyClient.sendCommandAsync(
+      GenericLegacyBackend.LEGACY_FILE_LIST_COMMAND
+    );
+    return this.parseLegacyFileListResponse(fallbackResponse);
+  }
+
+  private parseLegacyFileListResponse(response: string | null): string[] {
+    if (!response) {
+      return [];
+    }
+
+    const matches = response.matchAll(
+      /\/(?:data|user)\/(.*?)(?=::|\r?\n|CMD\s+M\d+\s+Received\.|$)/g
+    );
+
+    const fileNames = Array.from(matches, (match) => match[1]?.trim() ?? '').filter(
+      (fileName) => fileName.length > 0
+    );
+
+    return [...new Set(fileNames)];
   }
 
   // Feature detection methods

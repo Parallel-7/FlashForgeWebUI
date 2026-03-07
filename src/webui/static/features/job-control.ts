@@ -17,7 +17,7 @@ import type {
 import { getCurrentSettings, state } from '../core/AppState.js';
 import { apiRequest, sendCommand } from '../core/Transport.js';
 import { $, hideElement, showToast } from '../shared/dom.js';
-import { isAD5XJobFile } from '../shared/formatting.js';
+import { isAD5XJobFile, isMultiColorJobFile } from '../shared/formatting.js';
 import { loadFileList, showTemperatureDialog } from '../ui/dialogs.js';
 import { applySettings, refreshSettingsUI } from './layout-theme.js';
 import { openMaterialMatchingModal } from './material-matching.js';
@@ -114,7 +114,15 @@ export async function startPrintJob(): Promise<void> {
   const startNow = ($('start-now') as HTMLInputElement | null)?.checked ?? true;
   const jobInfo = state.jobMetadata.get(state.selectedFile);
 
-  if (startNow && hasMaterialStationSupport() && isAD5XJobFile(jobInfo)) {
+  const shouldOpenMaterialMatching =
+    startNow &&
+    hasMaterialStationSupport() &&
+    (isMultiColorJobFile(jobInfo) ||
+      (isAD5XJobFile(jobInfo) &&
+        Boolean(jobInfo.useMatlStation) &&
+        jobInfo.toolDatas.length > 0));
+
+  if (shouldOpenMaterialMatching && isAD5XJobFile(jobInfo)) {
     const pendingJob: PendingJobStart = {
       filename: state.selectedFile,
       leveling: autoLevel,

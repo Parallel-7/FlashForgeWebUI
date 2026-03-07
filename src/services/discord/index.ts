@@ -1,3 +1,7 @@
+/**
+ * @fileoverview Public Discord notification service exports.
+ */
+
 export {
   DiscordNotificationService,
   getDiscordNotificationService,

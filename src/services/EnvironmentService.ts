@@ -7,6 +7,7 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
+import { getDataPath } from '../utils/setup';
 
 interface PkgRuntimeMetadata {
   entrypoint?: string;
@@ -120,10 +121,10 @@ export class EnvironmentService {
 
   /**
    * Get the data directory path for storing configuration and printer details
-   * Uses process.cwd()/data in standalone implementation
+   * Honors DATA_DIR when provided and otherwise defaults to process.cwd()/data
    */
   public getDataPath(): string {
-    return path.join(process.cwd(), 'data');
+    return getDataPath();
   }
 
   /**
