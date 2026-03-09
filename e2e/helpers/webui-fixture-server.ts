@@ -4,7 +4,7 @@
 
 import { readFile } from 'node:fs/promises';
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
-import { AddressInfo } from 'node:net';
+import type { AddressInfo } from 'node:net';
 import path from 'node:path';
 import { WebSocketServer } from 'ws';
 
@@ -168,7 +168,9 @@ export async function startWebUiFixtureServer(
     baseUrl: `http://127.0.0.1:${port}`,
     requests,
     async close() {
-      webSocketServer.clients.forEach((client) => client.close());
+      for (const client of webSocketServer.clients) {
+        client.close();
+      }
       webSocketServer.close();
       await closeServer(server);
     },

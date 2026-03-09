@@ -33,12 +33,12 @@
  */
 
 import { getPrinterContextManager } from '../managers/PrinterContextManager';
-import {
-  type CameraStreamType,
-  type CameraUrlResolutionParams,
-  type CameraUrlValidationResult,
-  type CameraUserConfig,
-  type ResolvedCameraConfig,
+import type {
+  CameraStreamType,
+  CameraUrlResolutionParams,
+  CameraUrlValidationResult,
+  CameraUserConfig,
+  ResolvedCameraConfig,
 } from '../types/camera';
 import { normalizeCustomCameraSettings } from './printerSettingsDefaults';
 
