@@ -25,6 +25,7 @@ import type {
   ValidatedPrinterDetails,
 } from '../types/printer';
 import { detectPrinterModelType } from '../utils/PrinterUtils';
+import { normalizeCustomCameraSettings } from '../utils/printerSettingsDefaults';
 import { getDataPath } from '../utils/setup';
 
 /**
@@ -74,6 +75,11 @@ export class PrinterDetailsManager {
    * Remove unsupported per-printer keys while preserving current behavior.
    */
   private sanitizePrinterDetails(details: PrinterDetails): PrinterDetails {
+    const normalizedCameraSettings = normalizeCustomCameraSettings({
+      customCameraEnabled: details.customCameraEnabled,
+      customCameraUrl: details.customCameraUrl,
+    });
+
     return {
       Name: details.Name,
       IPAddress: details.IPAddress,
@@ -84,11 +90,11 @@ export class PrinterDetailsManager {
       ...(details.modelType ? { modelType: details.modelType } : {}),
       ...(details.commandPort !== undefined ? { commandPort: details.commandPort } : {}),
       ...(details.httpPort !== undefined ? { httpPort: details.httpPort } : {}),
-      ...(details.customCameraEnabled !== undefined
-        ? { customCameraEnabled: details.customCameraEnabled }
+      ...(normalizedCameraSettings.customCameraEnabled !== undefined
+        ? { customCameraEnabled: normalizedCameraSettings.customCameraEnabled }
         : {}),
-      ...(details.customCameraUrl !== undefined
-        ? { customCameraUrl: details.customCameraUrl }
+      ...(normalizedCameraSettings.customCameraUrl !== undefined
+        ? { customCameraUrl: normalizedCameraSettings.customCameraUrl }
         : {}),
       ...(details.customLedsEnabled !== undefined
         ? { customLedsEnabled: details.customLedsEnabled }
@@ -307,8 +313,9 @@ export class PrinterDetailsManager {
     // Ensure modelType is set if missing
     const modelType = oldData.modelType || detectPrinterModelType(oldData.printerModel);
 
+    const normalizedOldData = this.sanitizePrinterDetails(oldData);
     const storedDetails: StoredPrinterDetails = {
-      ...oldData,
+      ...normalizedOldData,
       modelType,
       lastConnected: new Date().toISOString(),
     };

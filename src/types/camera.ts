@@ -4,7 +4,7 @@
 
 import type { PrinterFeatureSet } from './printer-backend';
 
-export type CameraSourceType = 'builtin' | 'custom' | 'none';
+export type CameraSourceType = 'oem' | 'custom' | 'none';
 
 export type CameraStreamType = 'mjpeg' | 'rtsp';
 
@@ -47,6 +47,6 @@ export function isCustomCamera(config: ResolvedCameraConfig): boolean {
   return config.sourceType === 'custom';
 }
 
-export function isBuiltinCamera(config: ResolvedCameraConfig): boolean {
-  return config.sourceType === 'builtin';
+export function isOEMCamera(config: ResolvedCameraConfig): boolean {
+  return config.sourceType === 'oem';
 }

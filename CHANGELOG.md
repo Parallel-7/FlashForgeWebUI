@@ -7,8 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-03-08
+
 ### Added
 
+- `CameraStreamCoordinator` service to detect and register OEM camera streams from printer-reported stream URLs without manual configuration
+- `printerSettingsDefaults` utility for consistent per-printer settings initialization across backends
+- Test coverage for `camera-utils`, `printerSettingsDefaults`, and OEM stream coordinator behavior
 - Playwright E2E testing framework with dual configuration:
   - Fixture-based E2E tests (`e2e/`) for fast WebUI validation with a stub HTTP+WebSocket server
   - Emulator-backed E2E tests (`e2e-emulator/`) for full lifecycle testing with `flashforge-emulator-v2` printer emulator
@@ -40,6 +45,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Camera configuration resolution now uses `CameraStreamCoordinator` for OEM stream URL detection before falling back to per-printer overrides
+- All printer backends updated to expose the printer-reported OEM stream URL for coordinator use
 - `type-check` script now runs both `type-check:app` and `type-check:e2e` for full TypeScript validation
 - Camera streaming migrated from the legacy proxy/RTSP stack to go2rtc-managed per-context streams
 - Frontend camera playback now uses the bundled `video-rtc` player instead of the previous streaming path
@@ -152,7 +159,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Optional password authentication
 - Configuration persistence in `data/config.json`
 
-[Unreleased]: https://github.com/Parallel-7/FlashForgeWebUI/compare/v1.0.2...HEAD
+[Unreleased]: https://github.com/Parallel-7/FlashForgeWebUI/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/Parallel-7/FlashForgeWebUI/compare/v1.0.2...v1.1.0
 [1.0.2]: https://github.com/Parallel-7/FlashForgeWebUI/compare/v1.0.1...v1.0.2
 [1.0.1]: https://github.com/Parallel-7/FlashForgeWebUI/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/Parallel-7/FlashForgeWebUI/releases/tag/v1.0.0

@@ -17,7 +17,7 @@ interface ManagedStream {
   contextId: string;
   streamName: string;
   sourceUrl: string;
-  sourceType: 'builtin' | 'custom';
+  sourceType: 'oem' | 'custom';
   streamType: 'mjpeg' | 'rtsp';
   addedAt: number;
 }
@@ -145,7 +145,7 @@ export class Go2rtcService extends EventEmitter<Go2rtcServiceEvents> {
   public hasMatchingStream(
     contextId: string,
     sourceUrl: string,
-    sourceType: 'builtin' | 'custom',
+    sourceType: 'oem' | 'custom',
     streamType: 'mjpeg' | 'rtsp'
   ): boolean {
     const stream = this.streams.get(contextId);
@@ -162,7 +162,7 @@ export class Go2rtcService extends EventEmitter<Go2rtcServiceEvents> {
   public async addStream(
     contextId: string,
     sourceUrl: string,
-    sourceType: 'builtin' | 'custom',
+    sourceType: 'oem' | 'custom',
     streamType: 'mjpeg' | 'rtsp'
   ): Promise<void> {
     if (!this.isRunning()) {

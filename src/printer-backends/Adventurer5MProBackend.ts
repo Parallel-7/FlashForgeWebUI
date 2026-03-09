@@ -3,7 +3,7 @@
  *
  * Provides backend functionality specific to the Adventurer 5M Pro model:
  * - Dual API support (FiveMClient + FlashForgeClient)
- * - Built-in RTSP camera support (rtsp://printer-ip:8554/stream)
+ * - OEM camera auto-detection when the printer reports a stream URL
  * - Built-in LED control via new API
  * - Filtration control (off/internal/external modes)
  * - Full job management capabilities (local/recent jobs, upload, start/pause/resume/cancel)
@@ -14,8 +14,8 @@
  * - Adventurer5MProBackend class: Backend for Adventurer 5M Pro printers
  *
  * This backend extends DualAPIBackend to leverage common dual-API functionality while
- * defining Pro-specific features. Key differences from standard 5M include built-in
- * RTSP camera and filtration control capabilities.
+ * defining Pro-specific features. Key differences from standard 5M include factory
+ * camera support and filtration control capabilities.
  */
 
 import type { MaterialStationStatus, PrinterFeatureSet } from '../types/printer-backend';
@@ -33,7 +33,7 @@ export class Adventurer5MProBackend extends DualAPIBackend {
   protected getChildBaseFeatures(): PrinterFeatureSet {
     return {
       camera: {
-        builtin: true,
+        oemStreamUrl: '',
         customUrl: null,
         customEnabled: false,
       },

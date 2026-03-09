@@ -9,7 +9,7 @@
       "ClientType": "new",
       "printerModel": "Flashforge AD5X",
       "modelType": "ad5x",
-      "customCameraEnabled": true,
+      "customCameraEnabled": false,
       "customCameraUrl": "",
       "customLedsEnabled": false,
       "forceLegacyMode": false,

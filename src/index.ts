@@ -26,12 +26,14 @@ import { getMultiContextPrintStateMonitor } from './services/MultiContextPrintSt
 import { getMultiContextSpoolmanTracker } from './services/MultiContextSpoolmanTracker';
 import { getMultiContextTemperatureMonitor } from './services/MultiContextTemperatureMonitor';
 import { getSavedPrinterService } from './services/SavedPrinterService';
+import { resolveAndEnsureCameraStream } from './services/CameraStreamCoordinator';
 import { initializeSpoolmanIntegrationService } from './services/SpoolmanIntegrationService';
 import type { PollingData } from './types/polling';
 import type { PrinterClientType, PrinterDetails } from './types/printer';
-import { getCameraUserConfig, resolveCameraConfig } from './utils/camera-utils';
+import { getCameraUserConfig } from './utils/camera-utils';
 import type { HeadlessConfig, PrinterSpec } from './utils/HeadlessArguments';
 import { parseHeadlessArguments, validateHeadlessConfig } from './utils/HeadlessArguments';
+import { applyPerPrinterDefaults } from './utils/printerSettingsDefaults';
 import { createHardDeadline } from './utils/ShutdownTimeout';
 import { initializeDataDirectory } from './utils/setup';
 import { getWebUIManager } from './webui/server/WebUIManager';
@@ -104,7 +106,7 @@ async function connectLastUsed(): Promise<string[]> {
   );
 
   // Convert StoredPrinterDetails to PrinterDetails
-  const printerDetails: PrinterDetails = {
+  const printerDetails: PrinterDetails = applyPerPrinterDefaults({
     Name: lastUsedPrinter.Name,
     IPAddress: lastUsedPrinter.IPAddress,
     SerialNumber: lastUsedPrinter.SerialNumber,
@@ -116,7 +118,7 @@ async function connectLastUsed(): Promise<string[]> {
     customCameraUrl: lastUsedPrinter.customCameraUrl,
     customLedsEnabled: lastUsedPrinter.customLedsEnabled,
     forceLegacyMode: lastUsedPrinter.forceLegacyMode,
-  };
+  });
 
   const results = await connectionManager.connectHeadlessFromSaved([printerDetails]);
 
@@ -137,7 +139,7 @@ async function connectAllSaved(): Promise<string[]> {
   console.log(`[Connection] Connecting to ${savedPrinters.length} saved printer(s)...`);
 
   // Convert StoredPrinterDetails to PrinterDetails
-  const printerDetailsList: PrinterDetails[] = savedPrinters.map((saved) => ({
+  const printerDetailsList: PrinterDetails[] = savedPrinters.map((saved) => applyPerPrinterDefaults({
     Name: saved.Name,
     IPAddress: saved.IPAddress,
     SerialNumber: saved.SerialNumber,
@@ -261,45 +263,24 @@ async function reconcileCameraStream(contextId: string): Promise<void> {
       return;
     }
 
-    const features = backendManager.getFeatures(contextId);
-    if (!features) {
+    const backend = backendManager.getBackendForContext(contextId);
+    if (!backend) {
       await go2rtcService.removeStream(contextId);
       return;
     }
 
-    const cameraConfig = resolveCameraConfig({
+    const ensuredStream = await resolveAndEnsureCameraStream({
+      contextId,
       printerIpAddress: context.printerDetails.IPAddress,
-      printerFeatures: features,
+      printerFeatures: backend.getBackendStatus().features,
       userConfig: getCameraUserConfig(contextId),
+      go2rtcService,
     });
 
-    if (
-      !cameraConfig.isAvailable ||
-      !cameraConfig.streamUrl ||
-      !cameraConfig.streamType ||
-      (cameraConfig.sourceType !== 'builtin' && cameraConfig.sourceType !== 'custom')
-    ) {
-      await go2rtcService.removeStream(contextId);
+    if (!ensuredStream) {
       return;
     }
 
-    if (
-      go2rtcService.hasMatchingStream(
-        contextId,
-        cameraConfig.streamUrl,
-        cameraConfig.sourceType,
-        cameraConfig.streamType
-      )
-    ) {
-      return;
-    }
-
-    await go2rtcService.addStream(
-      contextId,
-      cameraConfig.streamUrl,
-      cameraConfig.sourceType,
-      cameraConfig.streamType
-    );
     console.log(`[Camera] Stream ready for context: ${contextId}`);
   } catch (error) {
     console.error(`[Camera] Failed to reconcile stream for context ${contextId}:`, error);
@@ -580,6 +561,21 @@ async function main(): Promise<void> {
       void reconcileCameraStream(contextId);
     });
     console.log('[Events] Context-updated hook configured');
+
+    connectionManager.on('feature-updated', (event: { contextId?: string; changedKeys?: readonly string[] }) => {
+      const contextId = event.contextId;
+      if (!contextId) {
+        return;
+      }
+
+      const changedKeys = event.changedKeys || [];
+      if (!changedKeys.includes('oemCameraStreamUrl')) {
+        return;
+      }
+
+      void reconcileCameraStream(contextId);
+    });
+    console.log('[Events] Feature-updated hook configured');
 
     connectionManager.on('pre-disconnect', (contextId: string) => {
       void go2rtcService.removeStream(contextId);

@@ -3,7 +3,7 @@
  *
  * Provides backend functionality specific to the Adventurer 5M standard model:
  * - Dual API support (FiveMClient + FlashForgeClient)
- * - No built-in camera (custom camera URL supported)
+ * - OEM camera auto-detection when the printer reports a stream URL
  * - LED control via G-code (auto-detected from product endpoint)
  * - No filtration control (5M standard lacks this feature)
  * - Full job management capabilities (local/recent jobs, upload, start/pause/resume/cancel)
@@ -15,7 +15,7 @@
  *
  * This backend extends DualAPIBackend to leverage common dual-API functionality while
  * defining model-specific features. The main difference from the Pro model is the lack
- * of built-in camera and filtration control features.
+ * of factory camera and filtration control features.
  */
 
 import type { MaterialStationStatus, PrinterFeatureSet } from '../types/printer-backend';
@@ -33,7 +33,7 @@ export class Adventurer5MBackend extends DualAPIBackend {
   protected getChildBaseFeatures(): PrinterFeatureSet {
     return {
       camera: {
-        builtin: false,
+        oemStreamUrl: '',
         customUrl: null,
         customEnabled: false,
       },

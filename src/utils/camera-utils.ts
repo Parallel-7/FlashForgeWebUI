@@ -1,20 +1,20 @@
 /**
  * @fileoverview Camera configuration resolution and validation utilities implementing priority-based
- * camera URL selection logic. Supports both built-in printer cameras and custom camera URLs (MJPEG/RTSP),
+ * camera URL selection logic. Supports both OEM printer cameras and custom camera URLs (MJPEG/RTSP),
  * with context-aware settings retrieval for multi-printer environments. Provides stream type detection,
  * URL validation, and human-readable status messaging.
  *
  * Key Features:
- * - Priority-based camera resolution: custom camera > built-in camera > none
+ * - Priority-based camera resolution: custom camera > OEM camera > none
  * - MJPEG and RTSP stream type detection and validation
  * - Context-aware camera configuration (per-printer or global settings)
- * - Automatic URL generation for custom cameras without explicit URLs
+ * - Settings normalization for stale custom-camera configurations
  * - Comprehensive URL validation (protocol, hostname, format)
  * - Camera availability checking with detailed unavailability reasons
  *
  * Resolution Priority:
- * 1. Custom camera (if enabled): Uses user-provided URL or auto-generates default FlashForge URL
- * 2. Built-in camera: Uses default FlashForge MJPEG pattern if printer supports camera
+ * 1. Custom camera (if enabled): Uses explicit user-provided URL only
+ * 2. OEM camera: Uses the runtime stream URL reported by the printer
  * 3. No camera: Returns unavailable status with reason
  *
  * Stream Types Supported:
@@ -38,9 +38,9 @@ import {
   type CameraUrlResolutionParams,
   type CameraUrlValidationResult,
   type CameraUserConfig,
-  DEFAULT_CAMERA_PATTERNS,
   type ResolvedCameraConfig,
 } from '../types/camera';
+import { normalizeCustomCameraSettings } from './printerSettingsDefaults';
 
 /**
  * Detect stream type from camera URL
@@ -104,33 +104,22 @@ export function validateCameraUrl(url: string | null | undefined): CameraUrlVali
  * Resolve camera configuration based on priority rules
  */
 export function resolveCameraConfig(params: CameraUrlResolutionParams): ResolvedCameraConfig {
-  const { printerIpAddress, printerFeatures, userConfig } = params;
+  const { printerFeatures } = params;
+  const normalizedUserConfig = normalizeCustomCameraSettings({
+    customCameraEnabled: params.userConfig.customCameraEnabled,
+    customCameraUrl: params.userConfig.customCameraUrl ?? '',
+  });
 
   // Priority 1: Check custom camera
-  if (userConfig.customCameraEnabled) {
-    // If custom camera is enabled but no URL provided, use automatic URL
-    if (!userConfig.customCameraUrl || userConfig.customCameraUrl.trim() === '') {
-      // Use the default FlashForge camera URL pattern when custom camera is enabled
-      // but no URL is specified. This supports cameras installed on printers that
-      // don't have them by default.
-      const autoUrl = `http://${printerIpAddress}:8080/?action=stream`;
-
-      return {
-        sourceType: 'custom',
-        streamType: 'mjpeg', // Auto URL is always MJPEG
-        streamUrl: autoUrl,
-        isAvailable: true,
-      };
-    }
-
+  if (normalizedUserConfig.customCameraEnabled) {
     // Custom camera enabled with a user-provided URL
-    const validation = validateCameraUrl(userConfig.customCameraUrl);
+    const validation = validateCameraUrl(normalizedUserConfig.customCameraUrl);
 
     if (validation.isValid) {
       return {
         sourceType: 'custom',
-        streamType: detectStreamType(userConfig.customCameraUrl),
-        streamUrl: userConfig.customCameraUrl,
+        streamType: detectStreamType(normalizedUserConfig.customCameraUrl),
+        streamUrl: normalizedUserConfig.customCameraUrl,
         isAvailable: true,
       };
     } else {
@@ -144,15 +133,12 @@ export function resolveCameraConfig(params: CameraUrlResolutionParams): Resolved
     }
   }
 
-  // Priority 2: Check built-in camera
-  if (printerFeatures.camera.builtin) {
-    // Use default FlashForge MJPEG pattern
-    const streamUrl = DEFAULT_CAMERA_PATTERNS.FLASHFORGE_MJPEG(printerIpAddress);
-
+  // Priority 2: Check OEM camera reported by the printer
+  if (printerFeatures.camera.oemStreamUrl.trim() !== '') {
     return {
-      sourceType: 'builtin',
-      streamType: 'mjpeg', // Built-in cameras are always MJPEG
-      streamUrl,
+      sourceType: 'oem',
+      streamType: detectStreamType(printerFeatures.camera.oemStreamUrl),
+      streamUrl: printerFeatures.camera.oemStreamUrl,
       isAvailable: true,
     };
   }
@@ -162,7 +148,7 @@ export function resolveCameraConfig(params: CameraUrlResolutionParams): Resolved
     sourceType: 'none',
     streamUrl: null,
     isAvailable: false,
-    unavailableReason: 'Printer does not have built-in camera and custom camera is not configured',
+    unavailableReason: 'Printer is not reporting an OEM camera stream and no custom camera URL is configured',
   };
 }
 
@@ -182,9 +168,13 @@ export function getCameraUserConfig(contextId?: string): CameraUserConfig {
 
       // Per-printer settings override global config
       if (customCameraEnabled !== undefined) {
-        return {
+        const normalized = normalizeCustomCameraSettings({
           customCameraEnabled,
-          customCameraUrl: customCameraUrl || null,
+          customCameraUrl: customCameraUrl || '',
+        });
+        return {
+          customCameraEnabled: normalized.customCameraEnabled ?? false,
+          customCameraUrl: normalized.customCameraUrl || null,
         };
       }
     }
@@ -210,8 +200,8 @@ export function isCameraFeatureAvailable(params: CameraUrlResolutionParams): boo
 export function getCameraStatusMessage(config: ResolvedCameraConfig): string {
   if (config.isAvailable) {
     switch (config.sourceType) {
-      case 'builtin':
-        return 'Using printer built-in camera';
+      case 'oem':
+        return 'Using printer OEM camera';
       case 'custom':
         return 'Using custom camera URL';
       default:

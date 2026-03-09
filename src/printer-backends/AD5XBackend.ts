@@ -7,7 +7,7 @@
  * - Multi-color printing support with material mapping
  * - AD5X-specific job operations (upload 3MF with material mappings)
  * - Material station status monitoring (slot contents, active slot, heating status)
- * - No built-in camera (custom camera URL supported)
+ * - OEM camera auto-detection when the printer reports a stream URL
  * - Custom LED control via G-code (when enabled)
  * - No built-in filtration control
  *
@@ -47,7 +47,7 @@ export class AD5XBackend extends DualAPIBackend {
   protected getChildBaseFeatures(): PrinterFeatureSet {
     return {
       camera: {
-        builtin: false, // AD5X doesn't have built-in camera
+        oemStreamUrl: '',
         customUrl: null,
         customEnabled: false,
       },
@@ -124,6 +124,8 @@ export class AD5XBackend extends DualAPIBackend {
    * Override from DualAPIBackend
    */
   protected async processMachineInfo(_machineInfo: unknown): Promise<void> {
+    await super.processMachineInfo(_machineInfo);
+
     // Store machine info for material station data extraction with type validation
     if (isAD5XMachineInfo(_machineInfo)) {
       this.lastMachineInfo = _machineInfo;

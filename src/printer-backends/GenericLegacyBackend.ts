@@ -6,9 +6,9 @@
  * - Basic job control (pause/resume/cancel via G-code)
  * - G-code command execution
  * - Status monitoring through legacy status parsing
- * - Custom camera URL support (no built-in camera)
+ * - Custom camera URL support (no OEM camera auto-detection)
  * - Custom LED control via G-code (when enabled)
- * - No built-in features (filtration, material station)
+ * - No factory-managed features (filtration, material station)
  *
  * Key exports:
  * - GenericLegacyBackend class: Backend for legacy printer models
@@ -41,7 +41,7 @@ import { BasePrinterBackend } from './BasePrinterBackend';
 
 /**
  * Backend implementation for legacy printers
- * Uses FlashForgeClient only with no built-in features
+ * Uses FlashForgeClient only with no factory-managed features
  */
 export class GenericLegacyBackend extends BasePrinterBackend {
   private readonly legacyClient: FlashForgeClient;
@@ -59,12 +59,12 @@ export class GenericLegacyBackend extends BasePrinterBackend {
   }
 
   /**
-   * Get base features for legacy printers (no built-in features)
+   * Get base features for legacy printers (no OEM camera auto-detection)
    */
   protected getBaseFeatures(): PrinterFeatureSet {
     return {
       camera: {
-        builtin: false,
+        oemStreamUrl: '',
         customUrl: null,
         customEnabled: false,
       },

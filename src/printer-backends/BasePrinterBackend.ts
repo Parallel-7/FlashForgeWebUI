@@ -49,6 +49,12 @@ import {
   getModelDisplayName,
   supportsDualAPI,
 } from '../utils/PrinterUtils';
+import { normalizeCustomCameraSettings } from '../utils/printerSettingsDefaults';
+
+type PerPrinterFeatureSettings = Pick<
+  BackendInitOptions['printerDetails'],
+  'customCameraEnabled' | 'customCameraUrl' | 'customLedsEnabled' | 'forceLegacyMode'
+>;
 
 /**
  * Abstract base class for all printer backends
@@ -70,10 +76,11 @@ export abstract class BasePrinterBackend extends EventEmitter {
   private lastStatusUpdate = new Date();
 
   // Per-printer settings
-  protected readonly customCameraEnabled: boolean;
-  protected readonly customCameraUrl: string;
-  protected readonly customLedsEnabled: boolean;
-  protected readonly forceLegacyMode: boolean;
+  protected customCameraEnabled: boolean;
+  protected customCameraUrl: string;
+  protected customLedsEnabled: boolean;
+  protected forceLegacyMode: boolean;
+  protected oemCameraStreamUrl: string = '';
 
   constructor(options: BackendInitOptions) {
     super();
@@ -92,6 +99,70 @@ export abstract class BasePrinterBackend extends EventEmitter {
 
     this.primaryClient = options.primaryClient;
     this.secondaryClient = options.secondaryClient || null;
+  }
+
+  private rebuildFeatureSet(emitUpdateEvent = false, changedKeys: readonly string[] = []): void {
+    this.features = this.buildFeatureSet();
+
+    if (!emitUpdateEvent) {
+      return;
+    }
+
+    this.emitEvent('feature-updated', {
+      features: this.features,
+      changedKeys,
+    });
+  }
+
+  public refreshPerPrinterSettings(settings: PerPrinterFeatureSettings): readonly string[] {
+    const changedKeys: string[] = [];
+    const normalizedCameraSettings = normalizeCustomCameraSettings({
+      customCameraEnabled: settings.customCameraEnabled ?? false,
+      customCameraUrl: settings.customCameraUrl ?? '',
+    });
+    const nextCustomCameraEnabled = normalizedCameraSettings.customCameraEnabled ?? false;
+    const nextCustomCameraUrl = normalizedCameraSettings.customCameraUrl ?? '';
+    const nextCustomLedsEnabled = settings.customLedsEnabled ?? false;
+    const nextForceLegacyMode = settings.forceLegacyMode ?? false;
+
+    if (this.customCameraEnabled !== nextCustomCameraEnabled) {
+      this.customCameraEnabled = nextCustomCameraEnabled;
+      changedKeys.push('customCameraEnabled');
+    }
+
+    if (this.customCameraUrl !== nextCustomCameraUrl) {
+      this.customCameraUrl = nextCustomCameraUrl;
+      changedKeys.push('customCameraUrl');
+    }
+
+    if (this.customLedsEnabled !== nextCustomLedsEnabled) {
+      this.customLedsEnabled = nextCustomLedsEnabled;
+      changedKeys.push('customLedsEnabled');
+    }
+
+    if (this.forceLegacyMode !== nextForceLegacyMode) {
+      this.forceLegacyMode = nextForceLegacyMode;
+      changedKeys.push('forceLegacyMode');
+    }
+
+    if (changedKeys.length === 0) {
+      return changedKeys;
+    }
+
+    this.rebuildFeatureSet(true, changedKeys);
+    return changedKeys;
+  }
+
+  protected updateOEMCameraStreamUrl(streamUrl: string | null | undefined): boolean {
+    const nextOEMCameraStreamUrl = typeof streamUrl === 'string' ? streamUrl.trim() : '';
+
+    if (this.oemCameraStreamUrl === nextOEMCameraStreamUrl) {
+      return false;
+    }
+
+    this.oemCameraStreamUrl = nextOEMCameraStreamUrl;
+    this.rebuildFeatureSet(true, ['oemCameraStreamUrl']);
+    return true;
   }
 
   /**
@@ -128,7 +199,7 @@ export abstract class BasePrinterBackend extends EventEmitter {
       }
 
       // Build feature set
-      this.features = this.buildFeatureSet();
+      this.rebuildFeatureSet();
 
       // Perform backend-specific initialization
       await this.initializeBackend();
@@ -180,7 +251,7 @@ export abstract class BasePrinterBackend extends EventEmitter {
 
     return {
       camera: {
-        builtin: baseFeatures.camera.builtin,
+        oemStreamUrl: baseFeatures.camera.oemStreamUrl || this.oemCameraStreamUrl,
         customUrl: settingsOverrides.customCameraEnabled
           ? String(settingsOverrides.customCameraUrl)
           : null,
@@ -234,9 +305,13 @@ export abstract class BasePrinterBackend extends EventEmitter {
    * NOTE: Per-printer settings are now stored in printer_details.json, not config.json
    */
   private getSettingsOverrides(): Record<string, unknown> {
-    return {
+    const normalizedCameraSettings = normalizeCustomCameraSettings({
       customCameraEnabled: this.customCameraEnabled,
       customCameraUrl: this.customCameraUrl,
+    });
+    return {
+      customCameraEnabled: normalizedCameraSettings.customCameraEnabled ?? false,
+      customCameraUrl: normalizedCameraSettings.customCameraUrl ?? '',
       customLEDControl: this.customLedsEnabled,
       forceLegacyMode: this.forceLegacyMode,
     };
@@ -252,7 +327,12 @@ export abstract class BasePrinterBackend extends EventEmitter {
 
     switch (feature) {
       case 'camera':
-        return this.features.camera.builtin || this.features.camera.customEnabled;
+        return (
+          this.features.camera.oemStreamUrl.trim() !== '' ||
+          (this.features.camera.customEnabled &&
+            this.features.camera.customUrl !== null &&
+            this.features.camera.customUrl.trim() !== '')
+        );
       case 'led-control':
         // 5M Pro has builtin LEDs detected via HTTP API
         if (this.features.ledControl.builtin) return true;

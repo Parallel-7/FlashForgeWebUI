@@ -19,10 +19,10 @@
  * - Legacy: All other models (legacy API, direct connection)
  *
  * Model-Specific Features:
- * - Adventurer 5M Pro: Built-in camera, LED, filtration
- * - Adventurer 5M: No built-in peripherals
- * - AD5X: Material station support, no built-in camera/LED/filtration
- * - Generic Legacy: No built-in peripherals, no material station
+ * - Adventurer 5M Pro: Factory camera, LED, filtration
+ * - Adventurer 5M: No factory-installed peripherals
+ * - AD5X: Material station support, no factory camera/LED/filtration
+ * - Generic Legacy: No factory-installed peripherals, no material station
  *
  * Key Functions:
  * - detectPrinterModelType(typeName): Returns PrinterModelType enum

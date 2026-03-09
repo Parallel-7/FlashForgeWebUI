@@ -50,6 +50,7 @@ import {
   getDefaultCheckCode,
   shouldPromptForCheckCode,
 } from '../utils/PrinterUtils';
+import { applyPerPrinterDefaults } from '../utils/printerSettingsDefaults';
 import { TimeoutError, withTimeout } from '../utils/ShutdownTimeout';
 import { IPAddressSchema } from '../utils/validation.utils';
 import { getLoadingManager } from './LoadingManager';
@@ -687,7 +688,7 @@ export class ConnectionFlowManager extends EventEmitter {
         forceLegacyMode: existingPrinter?.forceLegacyMode,
       });
 
-      const printerDetails: PrinterDetails = {
+      const printerDetails: PrinterDetails = applyPerPrinterDefaults({
         Name: formatPrinterName(printerName, serialNumber),
         IPAddress: discoveredPrinter.ipAddress,
         SerialNumber: serialNumber,
@@ -703,7 +704,7 @@ export class ConnectionFlowManager extends EventEmitter {
         customLedsEnabled: existingPrinter?.customLedsEnabled ?? false,
         forceLegacyMode,
         activeSpoolData: existingPrinter?.activeSpoolData ?? null,
-      };
+      });
 
       console.log('[ConnectionFlow] Final printer details to save:', printerDetails);
 
@@ -918,21 +919,10 @@ export class ConnectionFlowManager extends EventEmitter {
 
     try {
       // Ensure per-printer settings have defaults if not set
-      const detailsWithDefaults: PrinterDetails = {
-        ...details,
-        customCameraEnabled: details.customCameraEnabled ?? false,
-        customCameraUrl: details.customCameraUrl ?? '',
-        customLedsEnabled: details.customLedsEnabled ?? false,
-        forceLegacyMode: details.forceLegacyMode ?? false,
-      };
+      const detailsWithDefaults: PrinterDetails = applyPerPrinterDefaults(details);
 
       // If we added defaults, save them back to printer_details.json
-      if (
-        details.customCameraEnabled === undefined ||
-        details.customCameraUrl === undefined ||
-        details.customLedsEnabled === undefined ||
-        details.forceLegacyMode === undefined
-      ) {
+      if (JSON.stringify(detailsWithDefaults) !== JSON.stringify(details)) {
         await this.savedPrinterService.savePrinter(detailsWithDefaults);
         console.log(`Initialized default per-printer settings for ${detailsWithDefaults.Name}`);
       }
@@ -1293,7 +1283,7 @@ export class ConnectionFlowManager extends EventEmitter {
         }
 
         // Save printer details
-        const printerDetails: PrinterDetails = {
+        const printerDetails: PrinterDetails = applyPerPrinterDefaults({
           Name: formatPrinterName(printerName, serialNumber),
           IPAddress: spec.ip,
           SerialNumber: serialNumber,
@@ -1308,7 +1298,7 @@ export class ConnectionFlowManager extends EventEmitter {
           customCameraUrl: existingPrinter?.customCameraUrl ?? '',
           customLedsEnabled: existingPrinter?.customLedsEnabled ?? false,
           forceLegacyMode,
-        };
+        });
 
         await this.savedPrinterService.savePrinter(printerDetails);
         await this.savedPrinterService.updateLastConnected(serialNumber);
