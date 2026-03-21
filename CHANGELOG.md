@@ -7,11 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [1.1.0] - 2026-03-08
+## [1.1.0] - 2026-03-21
 
 ### Added
 
 - `CameraStreamCoordinator` service to detect and register OEM camera streams from printer-reported stream URLs without manual configuration
+- Intelligent OEM camera fallback detection that probes `http://<printer-ip>:8080/?action=stream` when firmware omits the camera stream URL
 - `printerSettingsDefaults` utility for consistent per-printer settings initialization across backends
 - Test coverage for `camera-utils`, `printerSettingsDefaults`, and OEM stream coordinator behavior
 - Playwright E2E testing framework with dual configuration:
@@ -46,6 +47,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Camera configuration resolution now uses `CameraStreamCoordinator` for OEM stream URL detection before falling back to per-printer overrides
+- Camera configuration resolution now falls back to the known OEM MJPEG endpoint when firmware does not report a stream URL
+- go2rtc camera stream reconciliation now handles OEM, custom, and intelligent fallback camera sources through the same managed stream path
+- `@ghosttypes/ff-api` is now pinned to `^1.3.0` to use `FiveMClient.detectCameraStream()` for intelligent fallback detection
 - All printer backends updated to expose the printer-reported OEM stream URL for coordinator use
 - `type-check` script now runs both `type-check:app` and `type-check:e2e` for full TypeScript validation
 - Camera streaming migrated from the legacy proxy/RTSP stack to go2rtc-managed per-context streams
