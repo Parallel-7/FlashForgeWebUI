@@ -208,7 +208,7 @@ jobs:
 
           VERSION_TAG="v${VERSION}"
           PREVIOUS_TAG=$(git tag -l 'v*' --sort=-version:refname | grep -vx "${VERSION_TAG}" | head -n 1)
-          CHANGELOG_URL="https://github.com/${{ github.repository }}/blob/${{ github.sha }}/CHANGELOG.md"
+          CHANGELOG_URL="https://github.com/${{ github.repository }}/blob/${VERSION_TAG}/CHANGELOG.md"
           COMPARE_URL=""
 
           if [[ -n "$PREVIOUS_TAG" ]]; then
