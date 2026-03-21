@@ -65,6 +65,7 @@ export class GenericLegacyBackend extends BasePrinterBackend {
     return {
       camera: {
         oemStreamUrl: '',
+        fallbackStreamUrl: '',
         customUrl: null,
         customEnabled: false,
       },

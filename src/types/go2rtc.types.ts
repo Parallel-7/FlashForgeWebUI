@@ -156,7 +156,7 @@ export interface CameraStreamConfig {
   /** WebSocket URL for stream negotiation. */
   wsUrl: string;
   /** Original source type. */
-  sourceType: 'oem' | 'custom';
+  sourceType: 'oem' | 'custom' | 'intelligent-fallback';
   /** Original stream type (before go2rtc conversion). */
   streamType: 'mjpeg' | 'rtsp';
   /** Preferred playback modes. */

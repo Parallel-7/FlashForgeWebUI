@@ -39,9 +39,12 @@ import { BasePrinterBackend } from './BasePrinterBackend';
  * Provides common implementation for printers using both FiveMClient and FlashForgeClient
  */
 export abstract class DualAPIBackend extends BasePrinterBackend {
+  private static readonly FALLBACK_CAMERA_RETRY_MS = 60_000;
+
   protected fiveMClient!: FiveMClient;
   protected legacyClient!: FlashForgeClient;
   protected productInfo: Product | null = null;
+  private lastFallbackCameraProbeAt = 0;
 
   /**
    * Cache for last known filament usage data while printing
@@ -861,6 +864,25 @@ export abstract class DualAPIBackend extends BasePrinterBackend {
     const info = _machineInfo as { CameraStreamUrl?: unknown } | null;
     const cameraStreamUrl = typeof info?.CameraStreamUrl === 'string' ? info.CameraStreamUrl : '';
     this.updateOEMCameraStreamUrl(cameraStreamUrl);
+
+    if (cameraStreamUrl.trim() !== '') {
+      this.updateFallbackCameraStreamUrl('');
+      this.lastFallbackCameraProbeAt = 0;
+      return;
+    }
+
+    if (this.fallbackCameraStreamUrl.trim() !== '') {
+      return;
+    }
+
+    const now = Date.now();
+    if (now - this.lastFallbackCameraProbeAt < DualAPIBackend.FALLBACK_CAMERA_RETRY_MS) {
+      return;
+    }
+
+    this.lastFallbackCameraProbeAt = now;
+    const detectedCameraStreamUrl = await this.fiveMClient.detectCameraStream();
+    this.updateFallbackCameraStreamUrl(detectedCameraStreamUrl);
   }
 
   /**
@@ -889,6 +911,7 @@ export abstract class DualAPIBackend extends BasePrinterBackend {
   public async dispose(): Promise<void> {
     // Clear filament usage cache on disconnect
     this.lastFilamentUsageCache = null;
+    this.lastFallbackCameraProbeAt = 0;
 
     // Call parent dispose to clean up clients
     await super.dispose();

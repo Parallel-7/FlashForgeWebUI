@@ -6,6 +6,7 @@ function createFeatures(oemStreamUrl = ''): PrinterFeatureSet {
   return {
     camera: {
       oemStreamUrl,
+      fallbackStreamUrl: '',
       customUrl: null,
       customEnabled: false,
     },
@@ -99,6 +100,30 @@ describe('resolveCameraConfig', () => {
       sourceType: 'none',
       streamUrl: null,
       isAvailable: false,
+    });
+  });
+
+  it('uses the intelligent fallback camera URL when firmware omits the OEM stream', () => {
+    expect(
+      resolveCameraConfig({
+        printerIpAddress: '192.168.1.50',
+        printerFeatures: {
+          ...createFeatures(''),
+          camera: {
+            ...createFeatures('').camera,
+            fallbackStreamUrl: 'http://192.168.1.50:8080/?action=stream',
+          },
+        },
+        userConfig: {
+          customCameraEnabled: false,
+          customCameraUrl: null,
+        },
+      })
+    ).toMatchObject({
+      sourceType: 'intelligent-fallback',
+      streamType: 'mjpeg',
+      streamUrl: 'http://192.168.1.50:8080/?action=stream',
+      isAvailable: true,
     });
   });
 });

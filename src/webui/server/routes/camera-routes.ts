@@ -42,7 +42,7 @@ export function registerCameraRoutes(router: Router, deps: RouteDependencies): v
         cameraConfig.isAvailable &&
         !!cameraConfig.streamUrl &&
         !!cameraConfig.streamType &&
-        (cameraConfig.sourceType === 'oem' || cameraConfig.sourceType === 'custom') &&
+        cameraConfig.sourceType !== 'none' &&
         go2rtcService.hasMatchingStream(
           contextResult.contextId,
           cameraConfig.streamUrl,

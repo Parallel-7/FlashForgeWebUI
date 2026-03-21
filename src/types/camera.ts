@@ -4,7 +4,7 @@
 
 import type { PrinterFeatureSet } from './printer-backend';
 
-export type CameraSourceType = 'oem' | 'custom' | 'none';
+export type CameraSourceType = 'oem' | 'custom' | 'intelligent-fallback' | 'none';
 
 export type CameraStreamType = 'mjpeg' | 'rtsp';
 

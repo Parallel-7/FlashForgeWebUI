@@ -21,8 +21,10 @@ export interface EnsuredCameraStream {
   readonly streamConfig: CameraStreamConfig;
 }
 
-function isGo2rtcSourceType(sourceType: CameraSourceType): sourceType is 'oem' | 'custom' {
-  return sourceType === 'oem' || sourceType === 'custom';
+function isGo2rtcSourceType(
+  sourceType: CameraSourceType
+): sourceType is 'oem' | 'custom' | 'intelligent-fallback' {
+  return sourceType === 'oem' || sourceType === 'custom' || sourceType === 'intelligent-fallback';
 }
 
 export async function resolveAndEnsureCameraStream(
