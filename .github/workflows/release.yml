@@ -150,6 +150,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Download all build artifacts
         uses: actions/download-artifact@v4
@@ -204,6 +206,15 @@ jobs:
             RELEASE_TYPE_BADGE=" (Pre-release)"
           fi
 
+          VERSION_TAG="v${VERSION}"
+          PREVIOUS_TAG=$(git tag -l 'v*' --sort=-version:refname | grep -vx "${VERSION_TAG}" | head -n 1)
+          CHANGELOG_URL="https://github.com/${{ github.repository }}/blob/${{ github.sha }}/CHANGELOG.md"
+          COMPARE_URL=""
+
+          if [[ -n "$PREVIOUS_TAG" ]]; then
+            COMPARE_URL="https://github.com/${{ github.repository }}/compare/${PREVIOUS_TAG}...${VERSION_TAG}"
+          fi
+
           cat > RELEASE_NOTES.md << EOF
           # FlashForgeWebUI v${VERSION}${RELEASE_TYPE_BADGE}
 
@@ -233,6 +244,9 @@ jobs:
           ./flashforge-webui-linux-x64.bin
           \`\`\`
 
+          After startup, open \`http://localhost:3000\` in your browser by default.
+          The default password is \`changeme\` unless you override it in your config or via \`--webui-password\`.
+
           Or use CLI options to auto-connect to printers:
           \`\`\`bash
           # Connect to last used printer
@@ -248,11 +262,20 @@ jobs:
           ./flashforge-webui-linux-x64.bin --webui-port=3001 --webui-password=mypassword
           \`\`\`
 
-          See the [README](https://github.com/Parallel-7/FlashForgeWebUI) for full documentation.
+          ## More Information
 
+          - [README](https://github.com/${{ github.repository }}) for full documentation
+          - [CHANGELOG](${CHANGELOG_URL}) for the full release history
           EOF
 
-          echo "VERSION_TAG=v${VERSION}" >> $GITHUB_ENV
+          if [[ -n "$COMPARE_URL" ]]; then
+            cat >> RELEASE_NOTES.md << EOF
+          - [Compare changes since ${PREVIOUS_TAG}](${COMPARE_URL})
+
+          EOF
+          fi
+
+          echo "VERSION_TAG=${VERSION_TAG}" >> $GITHUB_ENV
           echo "RELEASE_NAME=FlashForgeWebUI v${VERSION}${RELEASE_TYPE_BADGE}" >> $GITHUB_ENV
           echo "RELEASE_NOTES_PATH=RELEASE_NOTES.md" >> $GITHUB_ENV
 
