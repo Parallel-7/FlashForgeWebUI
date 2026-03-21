@@ -7,8 +7,8 @@
  */
 
 import type { Response, Router } from 'express';
-import { getGo2rtcService } from '../../../services/Go2rtcService';
 import { resolveAndEnsureCameraStream } from '../../../services/CameraStreamCoordinator';
+import { getGo2rtcService } from '../../../services/Go2rtcService';
 import { getCameraUserConfig, resolveCameraConfig } from '../../../utils/camera-utils';
 import { toAppError } from '../../../utils/error.utils';
 import type { CameraStatusResponse, StandardAPIResponse } from '../../types/web-api.types';

@@ -118,9 +118,7 @@ export async function startPrintJob(): Promise<void> {
     startNow &&
     hasMaterialStationSupport() &&
     (isMultiColorJobFile(jobInfo) ||
-      (isAD5XJobFile(jobInfo) &&
-        Boolean(jobInfo.useMatlStation) &&
-        jobInfo.toolDatas.length > 0));
+      (isAD5XJobFile(jobInfo) && Boolean(jobInfo.useMatlStation) && jobInfo.toolDatas.length > 0));
 
   if (shouldOpenMaterialMatching && isAD5XJobFile(jobInfo)) {
     const pendingJob: PendingJobStart = {

@@ -148,7 +148,8 @@ export function resolveCameraConfig(params: CameraUrlResolutionParams): Resolved
     sourceType: 'none',
     streamUrl: null,
     isAvailable: false,
-    unavailableReason: 'Printer is not reporting an OEM camera stream and no custom camera URL is configured',
+    unavailableReason:
+      'Printer is not reporting an OEM camera stream and no custom camera URL is configured',
   };
 }
 

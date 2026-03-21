@@ -28,7 +28,9 @@ type CameraSettingSubset = Pick<Partial<PrinterDetails>, 'customCameraEnabled' |
  */
 export function normalizeCustomCameraSettings<T extends CameraSettingSubset>(details: T): T {
   const customCameraUrl =
-    typeof details.customCameraUrl === 'string' ? details.customCameraUrl.trim() : details.customCameraUrl;
+    typeof details.customCameraUrl === 'string'
+      ? details.customCameraUrl.trim()
+      : details.customCameraUrl;
 
   if (details.customCameraEnabled && (!customCameraUrl || customCameraUrl === '')) {
     return {
@@ -48,10 +50,13 @@ export function normalizeCustomCameraSettings<T extends CameraSettingSubset>(det
   return { ...details };
 }
 
-export function applyPerPrinterDefaults<T extends Partial<PrinterDetails>>(details: T): T & PerPrinterSettings {
+export function applyPerPrinterDefaults<T extends Partial<PrinterDetails>>(
+  details: T
+): T & PerPrinterSettings {
   return normalizeCustomCameraSettings({
     ...details,
-    customCameraEnabled: details.customCameraEnabled ?? PER_PRINTER_SETTINGS_DEFAULTS.customCameraEnabled,
+    customCameraEnabled:
+      details.customCameraEnabled ?? PER_PRINTER_SETTINGS_DEFAULTS.customCameraEnabled,
     customCameraUrl: details.customCameraUrl ?? PER_PRINTER_SETTINGS_DEFAULTS.customCameraUrl,
     customLedsEnabled: details.customLedsEnabled ?? PER_PRINTER_SETTINGS_DEFAULTS.customLedsEnabled,
     forceLegacyMode: details.forceLegacyMode ?? PER_PRINTER_SETTINGS_DEFAULTS.forceLegacyMode,

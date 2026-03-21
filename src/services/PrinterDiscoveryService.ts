@@ -26,8 +26,8 @@ import type { DiscoveredPrinter } from '../types/printer';
 
 const DISCOVERY_BIND_PORT = 18007;
 const DISCOVERY_MESSAGE = Buffer.from([
-  0x77, 0x77, 0x77, 0x2e, 0x75, 0x73, 0x72, 0x22, 0x65, 0x36, 0xc0, 0x00, 0x00, 0x00, 0x00,
-  0x00, 0x00, 0x00, 0x00, 0x00,
+  0x77, 0x77, 0x77, 0x2e, 0x75, 0x73, 0x72, 0x22, 0x65, 0x36, 0xc0, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00,
 ]);
 const BROADCAST_DISCOVERY_PORT = 48899;
 const MODERN_MULTICAST_PORT = 19000;
@@ -105,7 +105,8 @@ export class PrinterDiscoveryService extends EventEmitter {
 
     try {
       const rawPrinters = await this.discoverPrintersAsync(5000, 1000, 1);
-      const matchingPrinter = rawPrinters.find((printer) => printer.ipAddress === ipAddress) ?? null;
+      const matchingPrinter =
+        rawPrinters.find((printer) => printer.ipAddress === ipAddress) ?? null;
 
       this.emit('single-scan-completed', matchingPrinter);
       return matchingPrinter;
@@ -281,7 +282,10 @@ export class PrinterDiscoveryService extends EventEmitter {
   }
 
   private readNullTerminatedAscii(buffer: Buffer, offset: number, length: number): string {
-    return buffer.toString('ascii', offset, offset + length).replace(/\0.*$/, '').trim();
+    return buffer
+      .toString('ascii', offset, offset + length)
+      .replace(/\0.*$/, '')
+      .trim();
   }
 
   private getDiscoveryTargets(): DiscoveryTarget[] {

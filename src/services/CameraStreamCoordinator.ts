@@ -3,10 +3,10 @@
  */
 
 import type { CameraSourceType, CameraUserConfig, ResolvedCameraConfig } from '../types/camera';
-import type { PrinterFeatureSet } from '../types/printer-backend';
 import type { CameraStreamConfig } from '../types/go2rtc.types';
-import type { Go2rtcService } from './Go2rtcService';
+import type { PrinterFeatureSet } from '../types/printer-backend';
 import { resolveCameraConfig } from '../utils/camera-utils';
+import type { Go2rtcService } from './Go2rtcService';
 
 export interface CameraStreamResolutionParams {
   readonly contextId: string;

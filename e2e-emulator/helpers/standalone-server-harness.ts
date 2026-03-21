@@ -55,6 +55,7 @@ export interface StartStandaloneServerOptions {
   authRequired?: boolean;
   password?: string;
   seededPrinters?: readonly SeededPrinterDetailsEntry[];
+  configOverrides?: Partial<AppConfig>;
   startupTimeoutMs?: number;
 }
 
@@ -306,14 +307,19 @@ const buildConfigPayload = (params: {
   webUiPort: number;
   authRequired: boolean;
   password: string;
+  configOverrides?: Partial<AppConfig>;
 }): AppConfig => {
   return {
     ...DEFAULT_CONFIG,
+    ...(params.configOverrides ?? {}),
     WebUIEnabled: true,
     WebUIPort: params.webUiPort,
     WebUIPassword: params.password,
     WebUIPasswordRequired: params.authRequired,
-    WebUITheme: { ...DEFAULT_CONFIG.WebUITheme },
+    WebUITheme: {
+      ...DEFAULT_CONFIG.WebUITheme,
+      ...(params.configOverrides?.WebUITheme ?? {}),
+    },
   };
 };
 
@@ -322,6 +328,7 @@ const writeSeededConfig = async (params: {
   webUiPort: number;
   authRequired: boolean;
   password: string;
+  configOverrides?: Partial<AppConfig>;
 }): Promise<void> => {
   const configPath = path.join(params.dataDir, 'config.json');
   const payload = buildConfigPayload(params);
@@ -379,6 +386,7 @@ export const startStandaloneServer = async (
     webUiPort,
     authRequired,
     password,
+    configOverrides: options.configOverrides,
   });
   await writeSeededPrinters(dataDir, options.seededPrinters ?? []);
 

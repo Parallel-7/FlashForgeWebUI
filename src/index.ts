@@ -19,6 +19,7 @@ import { getConfigManager } from './managers/ConfigManager';
 import { getConnectionFlowManager } from './managers/ConnectionFlowManager';
 import { getPrinterBackendManager } from './managers/PrinterBackendManager';
 import { getPrinterContextManager } from './managers/PrinterContextManager';
+import { resolveAndEnsureCameraStream } from './services/CameraStreamCoordinator';
 import { getDiscordNotificationService } from './services/discord';
 import { getGo2rtcService } from './services/Go2rtcService';
 import { getMultiContextPollingCoordinator } from './services/MultiContextPollingCoordinator';
@@ -26,7 +27,6 @@ import { getMultiContextPrintStateMonitor } from './services/MultiContextPrintSt
 import { getMultiContextSpoolmanTracker } from './services/MultiContextSpoolmanTracker';
 import { getMultiContextTemperatureMonitor } from './services/MultiContextTemperatureMonitor';
 import { getSavedPrinterService } from './services/SavedPrinterService';
-import { resolveAndEnsureCameraStream } from './services/CameraStreamCoordinator';
 import { initializeSpoolmanIntegrationService } from './services/SpoolmanIntegrationService';
 import type { PollingData } from './types/polling';
 import type { PrinterClientType, PrinterDetails } from './types/printer';
@@ -139,19 +139,21 @@ async function connectAllSaved(): Promise<string[]> {
   console.log(`[Connection] Connecting to ${savedPrinters.length} saved printer(s)...`);
 
   // Convert StoredPrinterDetails to PrinterDetails
-  const printerDetailsList: PrinterDetails[] = savedPrinters.map((saved) => applyPerPrinterDefaults({
-    Name: saved.Name,
-    IPAddress: saved.IPAddress,
-    SerialNumber: saved.SerialNumber,
-    CheckCode: saved.CheckCode,
-    ClientType: saved.ClientType as PrinterClientType,
-    printerModel: saved.printerModel,
-    modelType: saved.modelType,
-    customCameraEnabled: saved.customCameraEnabled,
-    customCameraUrl: saved.customCameraUrl,
-    customLedsEnabled: saved.customLedsEnabled,
-    forceLegacyMode: saved.forceLegacyMode,
-  }));
+  const printerDetailsList: PrinterDetails[] = savedPrinters.map((saved) =>
+    applyPerPrinterDefaults({
+      Name: saved.Name,
+      IPAddress: saved.IPAddress,
+      SerialNumber: saved.SerialNumber,
+      CheckCode: saved.CheckCode,
+      ClientType: saved.ClientType as PrinterClientType,
+      printerModel: saved.printerModel,
+      modelType: saved.modelType,
+      customCameraEnabled: saved.customCameraEnabled,
+      customCameraUrl: saved.customCameraUrl,
+      customLedsEnabled: saved.customLedsEnabled,
+      forceLegacyMode: saved.forceLegacyMode,
+    })
+  );
 
   const results = await connectionManager.connectHeadlessFromSaved(printerDetailsList);
 
@@ -562,19 +564,22 @@ async function main(): Promise<void> {
     });
     console.log('[Events] Context-updated hook configured');
 
-    connectionManager.on('feature-updated', (event: { contextId?: string; changedKeys?: readonly string[] }) => {
-      const contextId = event.contextId;
-      if (!contextId) {
-        return;
-      }
+    connectionManager.on(
+      'feature-updated',
+      (event: { contextId?: string; changedKeys?: readonly string[] }) => {
+        const contextId = event.contextId;
+        if (!contextId) {
+          return;
+        }
 
-      const changedKeys = event.changedKeys || [];
-      if (!changedKeys.includes('oemCameraStreamUrl')) {
-        return;
-      }
+        const changedKeys = event.changedKeys || [];
+        if (!changedKeys.includes('oemCameraStreamUrl')) {
+          return;
+        }
 
-      void reconcileCameraStream(contextId);
-    });
+        void reconcileCameraStream(contextId);
+      }
+    );
     console.log('[Events] Feature-updated hook configured');
 
     connectionManager.on('pre-disconnect', (contextId: string) => {

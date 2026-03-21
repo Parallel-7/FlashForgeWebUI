@@ -63,7 +63,9 @@ export class ConnectionEstablishmentService extends EventEmitter {
     super();
   }
 
-  private createLegacyClient(printer: Pick<DiscoveredPrinter, 'ipAddress' | 'commandPort'>): FlashForgeClient {
+  private createLegacyClient(
+    printer: Pick<DiscoveredPrinter, 'ipAddress' | 'commandPort'>
+  ): FlashForgeClient {
     const client = new FlashForgeClient(printer.ipAddress);
     const mutableClient = client as unknown as PortMutableFlashForgeClient;
 
@@ -84,10 +86,7 @@ export class ConnectionEstablishmentService extends EventEmitter {
       mutableClient.PORT = printer.eventPort;
     }
 
-    if (
-      printer.commandPort !== undefined &&
-      printer.commandPort !== mutableClient.tcpClient.port
-    ) {
+    if (printer.commandPort !== undefined && printer.commandPort !== mutableClient.tcpClient.port) {
       mutableClient.tcpClient.port = printer.commandPort;
       mutableClient.tcpClient.resetSocket();
       mutableClient.tcpClient.connect();

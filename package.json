@@ -53,6 +53,7 @@
     "test:e2e": "playwright test -c playwright.config.ts",
     "test:e2e:smoke": "playwright test -c playwright.config.ts e2e/webui-smoke.spec.ts",
     "test:e2e:auth": "playwright test -c playwright.config.ts e2e/webui-auth.spec.ts",
+    "test:e2e:hardware": "node scripts/run-playwright-hardware.cjs",
     "test:e2e:emulator": "playwright test -c playwright.emulator.config.ts",
     "test:e2e:emulator:direct": "playwright test -c playwright.emulator.config.ts e2e-emulator/direct.spec.ts",
     "test:e2e:emulator:discovery": "playwright test -c playwright.emulator.config.ts e2e-emulator/discovery.spec.ts",

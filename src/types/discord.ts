@@ -15,13 +15,22 @@ export interface DiscordEmbedField {
 }
 
 /**
+ * Discord embed image structure.
+ */
+export interface DiscordEmbedImage {
+  readonly url: string;
+}
+
+/**
  * Discord embed structure.
  */
 export interface DiscordEmbed {
   readonly title: string;
+  readonly description?: string;
   readonly color: number;
   readonly timestamp: string;
   readonly fields: DiscordEmbedField[];
+  readonly image?: DiscordEmbedImage;
 }
 
 /**
@@ -36,6 +45,7 @@ export interface DiscordWebhookPayload {
  */
 export interface DiscordServiceConfig {
   readonly enabled: boolean;
+  readonly includeCameraSnapshots: boolean;
   readonly webhookUrl: string;
   readonly updateIntervalMinutes: number;
 }

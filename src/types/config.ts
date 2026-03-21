@@ -50,6 +50,7 @@ export interface AppConfig {
 
   // Discord Webhooks
   readonly DiscordSync: boolean;
+  readonly DiscordIncludeCameraSnapshots: boolean;
   readonly WebhookUrl: string;
   readonly DiscordUpdateIntervalMinutes: number;
 
@@ -74,6 +75,7 @@ export interface MutableAppConfig {
   WebUIPassword: string;
   WebUIPasswordRequired: boolean;
   DiscordSync: boolean;
+  DiscordIncludeCameraSnapshots: boolean;
   WebhookUrl: string;
   DiscordUpdateIntervalMinutes: number;
   SpoolmanEnabled: boolean;
@@ -106,6 +108,7 @@ export const DEFAULT_CONFIG: AppConfig = {
 
   // Discord
   DiscordSync: false,
+  DiscordIncludeCameraSnapshots: false,
   WebhookUrl: '',
   DiscordUpdateIntervalMinutes: 5,
 

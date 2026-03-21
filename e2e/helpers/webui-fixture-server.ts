@@ -344,11 +344,7 @@ async function handleApiRoute(
       });
     }
 
-    return sendJson(
-      response,
-      options.cameraConfig.success ? 200 : 503,
-      options.cameraConfig
-    );
+    return sendJson(response, options.cameraConfig.success ? 200 : 503, options.cameraConfig);
   }
 
   if (pathname.startsWith('/api/')) {
