@@ -239,6 +239,25 @@
         </div>
       </div>
 
+      <!-- AD5X IFS Material Station Slot Editor Modal -->
+      <div id="ifs-station-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="ifs-station-modal-title">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h2 id="ifs-station-modal-title">Material Station Slots</h2>
+            <button id="ifs-station-modal-close" class="close-btn" aria-label="Close slot editor" type="button">&times;</button>
+          </div>
+          <div class="modal-body">
+            <p class="ifs-station-hint">Pick a slot and choose "Set from Spoolman" to snap a spool's material and color to the printer's fixed palette.</p>
+            <div id="ifs-slot-list" class="ifs-slot-list">
+              <!-- Populated dynamically -->
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button id="ifs-station-modal-cancel" class="secondary-btn" type="button">Close</button>
+          </div>
+        </div>
+      </div>
+
       <!-- Temperature Input Dialog -->
       <div id="temp-dialog" class="modal hidden">
         <div class="modal-content small">

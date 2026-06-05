@@ -62,6 +62,7 @@ import {
   confirmMaterialMatching,
   setupMaterialMatchingHandlers,
 } from './features/material-matching.js';
+import { setupIfsStationHandlers } from './features/ifs-station.js';
 import { initializeDiscovery } from './features/printer-discovery.js';
 import { loadSpoolmanConfig, setupSpoolmanHandlers } from './features/spoolman.js';
 import { $, hideElement, showElement } from './shared/dom.js';
@@ -272,6 +273,8 @@ export interface SpoolSummary {
   readonly vendor: string | null;
   readonly material: string | null;
   readonly colorHex: string;
+  readonly rawColorHex: string | null;
+  readonly multiColorHexes: string | null;
   readonly remainingWeight: number;
   readonly remainingLength: number;
   readonly archived: boolean;
@@ -295,6 +298,12 @@ export interface SpoolSearchResponse extends ApiResponse {
 
 export interface SpoolSelectResponse extends ApiResponse {
   spool: ActiveSpoolData;
+}
+
+export interface SlotConfigResponse extends ApiResponse {
+  slot: number;
+  material: string;
+  colorHex: string;
 }
 
 // ============================================================================
@@ -365,6 +374,7 @@ async function initialize(): Promise<void> {
   setupJobControlEventHandlers();
   setupMaterialMatchingHandlers();
   setupSpoolmanHandlers();
+  setupIfsStationHandlers();
   initializeDiscovery();
 
   const contextHandlers = {

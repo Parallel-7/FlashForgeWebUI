@@ -28,6 +28,9 @@ module.exports = {
   coverageReporters: ['text', 'lcov', 'html'],
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
+    // Static browser modules use explicit `.js` ESM specifiers; map them back to
+    // the `.ts` sources so ts-jest can resolve them under test.
+    '^(\\.{1,2}/.*)\\.js$': '$1',
   },
   moduleFileExtensions: ['ts', 'js', 'json'],
   verbose: true,

@@ -1882,6 +1882,60 @@ body {
   color: #f44336;
 }
 
+/* AD5X IFS material-station slot editor */
+.ifs-station-hint {
+  margin-bottom: 12px;
+  font-size: 14px;
+  color: var(--text-color-secondary);
+}
+
+.ifs-slot-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ifs-slot-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  background-color: var(--darker-bg);
+}
+
+.ifs-slot-item.empty {
+  opacity: 0.85;
+}
+
+.ifs-slot-swatch {
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  background-color: #555555;
+  border: 1px solid rgba(0, 0, 0, 0.5);
+  flex-shrink: 0;
+}
+
+.ifs-slot-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 14px;
+  color: var(--text-color-secondary);
+  flex: 1;
+}
+
+.ifs-slot-label {
+  font-weight: 600;
+  color: var(--text-color);
+}
+
+.ifs-slot-set-btn {
+  flex-shrink: 0;
+}
+
 /* Keep visibility toggles after component display rules without relying on !important. */
 .hidden,
 .grid-item-hidden {

@@ -25,6 +25,13 @@ import { applySettings, refreshSettingsUI } from './layout-theme.js';
 let spoolSearchDebounceTimer: number | null = null;
 let handlersRegistered = false;
 
+/**
+ * When set, the spool-selection modal is in "pick" mode: choosing a spool invokes
+ * this callback with the chosen summary instead of setting the active spool. Used
+ * by the IFS slot editor to reuse the existing picker. Reset on modal close.
+ */
+let spoolPickCallback: ((spool: SpoolSummary) => void) | null = null;
+
 export async function loadSpoolmanConfig(): Promise<void> {
   if (state.authRequired && !state.authToken) {
     return;
@@ -78,7 +85,10 @@ export async function fetchActiveSpoolForContext(contextId?: string): Promise<vo
 }
 
 export async function fetchSpools(searchQuery: string = ''): Promise<void> {
-  if (!state.spoolmanConfig?.enabled) {
+  // Allow fetching whenever Spoolman is globally configured (serverUrl present),
+  // even if per-context tracking is disabled (e.g. AD5X with a material station,
+  // where the slot editor still needs to browse spools).
+  if (!state.spoolmanConfig?.enabled && !state.spoolmanConfig?.serverUrl) {
     return;
   }
 
@@ -174,6 +184,7 @@ export function openSpoolSelectionModal(): void {
     return;
   }
 
+  spoolPickCallback = null;
   const modal = $('spoolman-modal');
   if (!modal) {
     return;
@@ -182,6 +193,46 @@ export function openSpoolSelectionModal(): void {
   const searchInput = $('spoolman-search') as HTMLInputElement | null;
   if (searchInput) {
     searchInput.value = '';
+  }
+
+  const clearBtn = $('spoolman-clear-spool');
+  if (clearBtn) {
+    clearBtn.classList.remove('hidden');
+  }
+
+  void fetchSpools('');
+  showElement('spoolman-modal');
+}
+
+/**
+ * Open the spool-selection modal in "pick" mode. Instead of setting the active
+ * spool, the chosen spool is passed to {@link onPick}. Gated on Spoolman being
+ * globally configured (works even when per-context tracking is disabled, as on
+ * AD5X with a material station). Reuses the existing picker UI without altering
+ * its default active-spool behavior.
+ */
+export function openSpoolPicker(onPick: (spool: SpoolSummary) => void): void {
+  if (!state.spoolmanConfig?.serverUrl) {
+    showToast('Spoolman is not configured', 'error');
+    return;
+  }
+
+  const modal = $('spoolman-modal');
+  if (!modal) {
+    return;
+  }
+
+  spoolPickCallback = onPick;
+
+  const searchInput = $('spoolman-search') as HTMLInputElement | null;
+  if (searchInput) {
+    searchInput.value = '';
+  }
+
+  // The "Clear Active Spool" action is meaningless when picking for a slot.
+  const clearBtn = $('spoolman-clear-spool');
+  if (clearBtn) {
+    clearBtn.classList.add('hidden');
   }
 
   void fetchSpools('');
@@ -199,6 +250,12 @@ export function closeSpoolSelectionModal(): void {
   const searchInput = $('spoolman-search') as HTMLInputElement | null;
   if (searchInput) {
     searchInput.value = '';
+  }
+
+  spoolPickCallback = null;
+  const clearBtn = $('spoolman-clear-spool');
+  if (clearBtn) {
+    clearBtn.classList.remove('hidden');
   }
 
   state.availableSpools = [];
@@ -254,6 +311,12 @@ export function renderSpoolList(spools: SpoolSummary[]): void {
     `;
 
     item.addEventListener('click', () => {
+      if (spoolPickCallback) {
+        const callback = spoolPickCallback;
+        closeSpoolSelectionModal();
+        callback(spool);
+        return;
+      }
       void selectSpool(spool.id);
     });
 

@@ -262,6 +262,7 @@ const COMPONENT_TEMPLATES: Record<string, WebUIComponentTemplate> = {
         <div class="panel-content">
           <div id="spoolman-disabled" class="spoolman-state hidden">
             <div class="spoolman-message" id="spoolman-disabled-message">Spoolman integration is disabled</div>
+            <button id="ifs-station-open" class="control-btn hidden" type="button">Edit IFS Slots</button>
           </div>
           <div id="spoolman-no-spool" class="spoolman-state hidden">
             <div class="spoolman-message">No spool selected</div>

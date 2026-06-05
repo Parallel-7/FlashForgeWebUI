@@ -294,6 +294,30 @@ export const SpoolClearRequestSchema = z.object({
   contextId: z.string().optional(),
 });
 
+/**
+ * Slot-config request validation (configure an AD5X material-station slot).
+ *
+ * The client snaps a Spoolman spool's material/color to the printer's fixed
+ * 14-material / 24-color palette and sends the already-snapped values here. Slot
+ * is 1-based (1-4); `materialName` is null when the spool's material did not
+ * resolve, in which case the slot keeps its current material. `colorHex` is a
+ * 3/6/8-digit hex (with or without leading '#').
+ */
+export const SlotConfigRequestSchema = z.object({
+  contextId: z.string().optional(),
+  slot: z
+    .number()
+    .int('slot must be an integer')
+    .min(1, 'slot must be at least 1')
+    .max(4, 'slot must be at most 4'),
+  materialName: z.string().min(1).nullable(),
+  colorHex: z
+    .string()
+    .regex(/^#?[0-9a-fA-F]{3}(?:[0-9a-fA-F]{3}(?:[0-9a-fA-F]{2})?)?$/, 'Invalid hex color'),
+  /** Optional fallback material to keep when `materialName` is null. */
+  currentMaterial: z.string().min(1).nullable().optional(),
+});
+
 // ============================================================================
 // TYPE EXPORTS
 // ============================================================================
@@ -306,3 +330,4 @@ export type ValidatedPrinterCommand = z.infer<typeof PrinterCommandSchema>;
 export type ValidatedPrinterFeatures = z.infer<typeof PrinterFeaturesSchema>;
 export type ValidatedSpoolSelectRequest = z.infer<typeof SpoolSelectRequestSchema>;
 export type ValidatedSpoolClearRequest = z.infer<typeof SpoolClearRequestSchema>;
+export type ValidatedSlotConfigRequest = z.infer<typeof SlotConfigRequestSchema>;

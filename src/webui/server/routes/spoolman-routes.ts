@@ -2,15 +2,18 @@
  * @fileoverview Spoolman integration routes (config, search, active spool management).
  */
 
+import { FiveMClient } from '@ghosttypes/ff-api';
 import type { Response, Router } from 'express';
 import { toAppError } from '../../../utils/error.utils';
 import {
   createValidationError,
+  SlotConfigRequestSchema,
   SpoolClearRequestSchema,
   SpoolSelectRequestSchema,
 } from '../../schemas/web-api.schemas';
 import type {
   ActiveSpoolResponse,
+  SlotConfigResponse,
   SpoolmanConfigResponse,
   SpoolSearchResponse,
   SpoolSelectResponse,
@@ -88,6 +91,8 @@ export function registerSpoolmanRoutes(router: Router, deps: RouteDependencies):
         vendor: spool.filament.vendor?.name || null,
         material: spool.filament.material || null,
         colorHex: spool.filament.color_hex || '#808080',
+        rawColorHex: spool.filament.color_hex || null,
+        multiColorHexes: spool.filament.multi_color_hexes || null,
         remainingWeight: spool.remaining_weight || 0,
         remainingLength: spool.remaining_length || 0,
         archived: spool.archived,
@@ -213,6 +218,79 @@ export function registerSpoolmanRoutes(router: Router, deps: RouteDependencies):
     } catch (error) {
       const appError = toAppError(error);
       return sendErrorResponse<StandardAPIResponse>(res, 500, appError.message);
+    }
+  });
+
+  router.post('/spoolman/slot-config', async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const validation = SlotConfigRequestSchema.safeParse(req.body);
+      if (!validation.success) {
+        const validationError = createValidationError(validation.error);
+        return sendErrorResponse<SlotConfigResponse>(res, 400, validationError.error);
+      }
+
+      const { contextId, slot, materialName, colorHex, currentMaterial } = validation.data;
+      const overrideContextId = contextId || null;
+
+      const contextResult = resolveContext(req, deps, {
+        overrideContextId,
+        requireBackendReady: true,
+        requireBackendInstance: true,
+      });
+      if (!contextResult.success) {
+        return sendErrorResponse<SlotConfigResponse>(
+          res,
+          contextResult.statusCode,
+          contextResult.error
+        );
+      }
+
+      const { contextId: resolvedContextId, backend } = contextResult;
+      if (!backend) {
+        return sendErrorResponse<SlotConfigResponse>(res, 503, 'Backend not available');
+      }
+
+      if (!deps.backendManager.isFeatureAvailable(resolvedContextId, 'material-station')) {
+        return sendErrorResponse<SlotConfigResponse>(
+          res,
+          400,
+          'Material station not available on this printer'
+        );
+      }
+
+      // Resolve the material to write: the client snaps the spool material to the
+      // fixed palette; when it does not resolve, keep the slot's current material.
+      const materialToWrite = materialName ?? currentMaterial ?? null;
+      if (!materialToWrite) {
+        return sendErrorResponse<SlotConfigResponse>(
+          res,
+          400,
+          'Spool material did not match a known material and the slot has no current material to keep'
+        );
+      }
+
+      const primaryClient = backend.getPrimaryClient();
+      if (!(primaryClient instanceof FiveMClient)) {
+        return sendErrorResponse<SlotConfigResponse>(
+          res,
+          400,
+          'Material station control requires new API client'
+        );
+      }
+
+      const result = await primaryClient.control.configureSlot(slot, materialToWrite, colorHex);
+      const response: SlotConfigResponse = {
+        success: result,
+        slot,
+        material: materialToWrite,
+        colorHex,
+        message: result ? `Slot ${slot} updated` : undefined,
+        error: result ? undefined : 'Failed to configure slot',
+      };
+      return res.status(result ? 200 : 500).json(response);
+    } catch (error) {
+      const appError = toAppError(error);
+      return sendErrorResponse<SlotConfigResponse>(res, 500, appError.message);
     }
   });
 }

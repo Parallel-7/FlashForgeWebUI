@@ -338,6 +338,10 @@ export interface SpoolSummary {
   readonly vendor: string | null;
   readonly material: string | null;
   readonly colorHex: string;
+  /** Raw Spoolman `color_hex` (null when the spool has no single color set). */
+  readonly rawColorHex: string | null;
+  /** Raw Spoolman `multi_color_hexes` (comma-separated hexes, or null). */
+  readonly multiColorHexes: string | null;
   readonly remainingWeight: number;
   readonly remainingLength: number;
   readonly archived: boolean;
@@ -395,6 +399,28 @@ export interface SpoolSelectResponse extends StandardAPIResponse {
  */
 export interface SpoolClearRequest {
   readonly contextId?: string;
+}
+
+/**
+ * Request to configure an AD5X material-station slot. Material/color are already
+ * snapped (client-side) to the printer's fixed palette before being sent.
+ */
+export interface SlotConfigRequest {
+  readonly contextId?: string;
+  readonly slot: number;
+  readonly materialName: string | null;
+  readonly colorHex: string;
+  readonly currentMaterial?: string | null;
+}
+
+/**
+ * Response for configuring an AD5X material-station slot. Echoes the material
+ * actually written so the UI can confirm the applied match.
+ */
+export interface SlotConfigResponse extends StandardAPIResponse {
+  readonly slot: number;
+  readonly material: string;
+  readonly colorHex: string;
 }
 
 // ============================================================================
