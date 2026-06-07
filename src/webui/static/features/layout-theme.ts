@@ -493,6 +493,10 @@ export function isComponentSupported(
     return isSpoolmanAvailableForCurrentContext();
   }
 
+  if (componentId === 'ifs-station') {
+    return Boolean(features.hasMaterialStation);
+  }
+
   return true;
 }
 
@@ -507,25 +511,10 @@ export function shouldComponentBeVisible(
   return isComponentSupported(componentId, features);
 }
 
-export function ensureSpoolmanVisibilityIfEnabled(): void {
-  if (!isSpoolmanAvailableForCurrentContext()) {
-    return;
-  }
-  if (!isGridInitialized()) {
-    return;
-  }
-
-  const settings = getCurrentSettings();
-  if (!settings.visibleComponents.includes('spoolman-tracker')) {
-    const updatedSettings: WebUISettings = {
-      ...settings,
-      visibleComponents: [...settings.visibleComponents, 'spoolman-tracker'],
-    };
-    updateCurrentSettings(updatedSettings);
-    gridManager.showComponent('spoolman-tracker');
-    persistSettings();
-  }
-}
+// Cards are not auto-revealed when their feature becomes available. They are
+// feature-gated in the panel-visibility picker (see isComponentSupported): when
+// the feature is present the card's toggle becomes enabled and the user adds and
+// positions it themselves, matching the desktop FlashForgeUI behaviour.
 
 export async function loadWebUITheme(): Promise<void> {
   try {

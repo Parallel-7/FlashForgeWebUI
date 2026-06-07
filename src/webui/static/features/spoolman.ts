@@ -235,6 +235,10 @@ export function openSpoolPicker(onPick: (spool: SpoolSummary) => void): void {
     clearBtn.classList.add('hidden');
   }
 
+  // The picker can be launched from the IFS slot editor (z-index 110); render
+  // above it so it is not hidden behind the editor. Reset on close.
+  modal.style.zIndex = '120';
+
   void fetchSpools('');
   showElement('spoolman-modal');
 }
@@ -246,6 +250,7 @@ export function closeSpoolSelectionModal(): void {
   }
 
   hideElement('spoolman-modal');
+  modal.style.zIndex = '';
 
   const searchInput = $('spoolman-search') as HTMLInputElement | null;
   if (searchInput) {

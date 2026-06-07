@@ -14,6 +14,7 @@ export class WebUIMobileLayoutManager {
     'printer-state',
     'temp-control',
     'spoolman-tracker',
+    'ifs-station',
     'model-preview',
     'job-details',
     'filtration-tvoc',

@@ -1882,58 +1882,178 @@ body {
   color: #f44336;
 }
 
-/* AD5X IFS material-station slot editor */
-.ifs-station-hint {
-  margin-bottom: 12px;
+/* AD5X IFS material-station dashboard card */
+.ifs-card .panel-content {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.ifs-card-state {
+  flex: 1;
+  min-height: 0;
+}
+
+.ifs-card-message {
+  display: flex;
+  height: 100%;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 12px;
   font-size: 14px;
   color: var(--text-color-secondary);
 }
 
-.ifs-slot-list {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+.ifs-card-slots {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  height: 100%;
 }
 
-.ifs-slot-item {
+.ifs-card-slot {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 12px;
+  gap: 10px;
+  padding: 10px;
+  text-align: left;
+  background-color: var(--darker-bg);
   border: 1px solid var(--border-color);
   border-radius: 10px;
-  background-color: var(--darker-bg);
+  cursor: pointer;
+  transition:
+    border-color var(--transition-fast),
+    background-color var(--transition-fast);
 }
 
-.ifs-slot-item.empty {
-  opacity: 0.85;
+.ifs-card-slot:hover {
+  border-color: var(--accent-color);
+  background-color: var(--card-bg-hover);
 }
 
-.ifs-slot-swatch {
-  width: 20px;
-  height: 20px;
+.ifs-card-slot.active {
+  border-color: var(--accent-color);
+  box-shadow: inset 0 0 0 1px var(--accent-color);
+}
+
+.ifs-card-swatch {
+  width: 22px;
+  height: 22px;
   border-radius: 6px;
   background-color: #555555;
   border: 1px solid rgba(0, 0, 0, 0.5);
   flex-shrink: 0;
 }
 
-.ifs-slot-info {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  font-size: 14px;
-  color: var(--text-color-secondary);
-  flex: 1;
+.ifs-card-slot.empty .ifs-card-swatch {
+  background-color: transparent;
+  border-style: dashed;
 }
 
-.ifs-slot-label {
+.ifs-card-slot-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.ifs-card-slot-label {
+  font-size: 12px;
   font-weight: 600;
   color: var(--text-color);
 }
 
-.ifs-slot-set-btn {
-  flex-shrink: 0;
+.ifs-card-slot-material {
+  font-size: 12px;
+  color: var(--text-color-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ---- IFS manual slot editor (material dropdown + swatch grid) ---- */
+
+.ifs-editor-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+
+.ifs-editor-label {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-color-secondary);
+}
+
+.ifs-editor-material {
+  width: 100%;
+  padding: 9px 11px;
+  font-size: 14px;
+  color: var(--text-color);
+  background: var(--dark-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.ifs-editor-material:focus {
+  outline: none;
+  border-color: var(--accent-color);
+}
+
+.ifs-swatch-grid {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 6px;
+}
+
+.ifs-swatch {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  padding: 0;
+  background: var(--swatch);
+  border: 1px solid var(--border-color-light);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: transform var(--transition-fast);
+}
+
+.ifs-swatch:hover {
+  transform: scale(1.08);
+}
+
+.ifs-swatch.selected {
+  box-shadow:
+    0 0 0 2px var(--card-bg),
+    0 0 0 4px var(--accent-color);
+}
+
+.ifs-swatch-check {
+  position: absolute;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 700;
+  color: #fff;
+  text-shadow:
+    0 0 2px rgba(0, 0, 0, 0.9),
+    0 0 3px rgba(0, 0, 0, 0.7);
+}
+
+.ifs-swatch.selected .ifs-swatch-check {
+  display: flex;
+}
+
+.ifs-editor-preview {
+  font-size: 13px;
+  color: var(--text-color-secondary);
+  min-height: 18px;
 }
 
 /* Keep visibility toggles after component display rules without relying on !important. */

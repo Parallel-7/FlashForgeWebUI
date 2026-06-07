@@ -10,7 +10,6 @@
 
 import type { PrinterStatus } from '../app.js';
 import { state } from '../core/AppState.js';
-import { isIfsSlotEditorAvailable } from '../features/ifs-station.js';
 import { isSpoolmanAvailableForCurrentContext } from '../features/layout-theme.js';
 import { $, hideElement, setTextContent, showElement } from '../shared/dom.js';
 import {
@@ -217,8 +216,6 @@ export function updateSpoolmanPanelState(): void {
     return;
   }
 
-  const ifsButton = $('ifs-station-open');
-
   if (!isSpoolmanAvailableForCurrentContext()) {
     showElement('spoolman-disabled');
     hideElement('spoolman-no-spool');
@@ -233,17 +230,7 @@ export function updateSpoolmanPanelState(): void {
           : 'Spoolman integration is disabled');
       disabledMessage.textContent = reason;
     }
-
-    // On AD5X with a material station, per-context tracking is disabled but the
-    // user can still assign slots from Spoolman when it is globally configured.
-    if (ifsButton) {
-      ifsButton.classList.toggle('hidden', !isIfsSlotEditorAvailable());
-    }
     return;
-  }
-
-  if (ifsButton) {
-    ifsButton.classList.add('hidden');
   }
 
   if (!state.activeSpool) {

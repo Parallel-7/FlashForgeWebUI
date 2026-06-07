@@ -49,7 +49,6 @@ import {
 import {
   applyDefaultTheme,
   applySettings,
-  ensureSpoolmanVisibilityIfEnabled,
   initializeLayout,
   loadWebUITheme,
   persistSettings,
@@ -62,7 +61,7 @@ import {
   confirmMaterialMatching,
   setupMaterialMatchingHandlers,
 } from './features/material-matching.js';
-import { setupIfsStationHandlers } from './features/ifs-station.js';
+import { refreshIfsStationCard, setupIfsStationCard } from './features/ifs-station.js';
 import { initializeDiscovery } from './features/printer-discovery.js';
 import { loadSpoolmanConfig, setupSpoolmanHandlers } from './features/spoolman.js';
 import { $, hideElement, showElement } from './shared/dom.js';
@@ -320,6 +319,7 @@ onConnectionChange((connected) => {
 
 onStatusUpdate((status) => {
   updatePrinterStatus(status);
+  void refreshIfsStationCard();
 });
 
 onSpoolmanUpdate((contextId, spool) => {
@@ -374,14 +374,13 @@ async function initialize(): Promise<void> {
   setupJobControlEventHandlers();
   setupMaterialMatchingHandlers();
   setupSpoolmanHandlers();
-  setupIfsStationHandlers();
+  setupIfsStationCard();
   initializeDiscovery();
 
   const contextHandlers = {
     onContextSwitched: async () => {
       await loadPrinterFeatures();
       await loadSpoolmanConfig();
-      ensureSpoolmanVisibilityIfEnabled();
       initializeCamera();
     },
   };
@@ -433,7 +432,6 @@ async function handlePostLoginTasks(): Promise<void> {
     await loadPrinterFeatures();
     await fetchPrinterContexts();
     await loadSpoolmanConfig();
-    ensureSpoolmanVisibilityIfEnabled();
 
     initializeCamera();
   } catch (error) {

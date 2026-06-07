@@ -82,6 +82,13 @@ const COMPONENT_DEFINITIONS: Record<string, WebUIComponentDefinition> = {
     minSize: { w: 2, h: 2 },
     defaultPosition: { x: 3, y: 8 },
   },
+  'ifs-station': {
+    id: 'ifs-station',
+    displayName: 'Material Station',
+    defaultSize: { w: 4, h: 3 },
+    minSize: { w: 2, h: 2 },
+    defaultPosition: { x: 0, y: 11 },
+  },
 };
 
 const COMPONENT_TEMPLATES: Record<string, WebUIComponentTemplate> = {
@@ -262,7 +269,6 @@ const COMPONENT_TEMPLATES: Record<string, WebUIComponentTemplate> = {
         <div class="panel-content">
           <div id="spoolman-disabled" class="spoolman-state hidden">
             <div class="spoolman-message" id="spoolman-disabled-message">Spoolman integration is disabled</div>
-            <button id="ifs-station-open" class="control-btn hidden" type="button">Edit IFS Slots</button>
           </div>
           <div id="spoolman-no-spool" class="spoolman-state hidden">
             <div class="spoolman-message">No spool selected</div>
@@ -288,6 +294,54 @@ const COMPONENT_TEMPLATES: Record<string, WebUIComponentTemplate> = {
       </div>
     `,
   },
+  'ifs-station': {
+    id: 'ifs-station',
+    html: `
+      <div class="panel ifs-card" id="ifs-station-panel">
+        <div class="panel-header">Material Station</div>
+        <div class="panel-content">
+          <div class="ifs-card-state ifs-card-unavailable hidden">
+            <div class="ifs-card-message">Material station not available on this printer</div>
+          </div>
+          <div class="ifs-card-state ifs-card-disconnected hidden">
+            <div class="ifs-card-message">Material station disconnected</div>
+          </div>
+          <div class="ifs-card-state ifs-card-active hidden">
+            <div class="ifs-card-slots">
+              <button type="button" class="ifs-card-slot" data-slot="1">
+                <span class="ifs-card-swatch"></span>
+                <span class="ifs-card-slot-info">
+                  <span class="ifs-card-slot-label">Slot 1</span>
+                  <span class="ifs-card-slot-material">Empty</span>
+                </span>
+              </button>
+              <button type="button" class="ifs-card-slot" data-slot="2">
+                <span class="ifs-card-swatch"></span>
+                <span class="ifs-card-slot-info">
+                  <span class="ifs-card-slot-label">Slot 2</span>
+                  <span class="ifs-card-slot-material">Empty</span>
+                </span>
+              </button>
+              <button type="button" class="ifs-card-slot" data-slot="3">
+                <span class="ifs-card-swatch"></span>
+                <span class="ifs-card-slot-info">
+                  <span class="ifs-card-slot-label">Slot 3</span>
+                  <span class="ifs-card-slot-material">Empty</span>
+                </span>
+              </button>
+              <button type="button" class="ifs-card-slot" data-slot="4">
+                <span class="ifs-card-swatch"></span>
+                <span class="ifs-card-slot-info">
+                  <span class="ifs-card-slot-label">Slot 4</span>
+                  <span class="ifs-card-slot-material">Empty</span>
+                </span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    `,
+  },
 };
 
 const DEFAULT_LAYOUT_COMPONENTS: WebUIComponentLayoutMap = {
@@ -300,6 +354,7 @@ const DEFAULT_LAYOUT_COMPONENTS: WebUIComponentLayoutMap = {
   'filtration-tvoc': { x: 0, y: 8, w: 3, h: 2 },
   'spoolman-tracker': { x: 3, y: 8, w: 3, h: 2 },
   'job-details': { x: 6, y: 8, w: 6, h: 3 },
+  'ifs-station': { x: 0, y: 11, w: 4, h: 3 },
 };
 
 const COMPONENT_IDS = Object.keys(COMPONENT_DEFINITIONS);

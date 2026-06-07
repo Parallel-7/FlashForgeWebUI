@@ -100,6 +100,7 @@
               <label><input type="checkbox" id="toggle-temp-control" data-component-id="temp-control" checked> Temperature Control</label>
               <label><input type="checkbox" id="toggle-filtration-tvoc" data-component-id="filtration-tvoc" checked> Filtration &amp; TVOC</label>
               <label><input type="checkbox" id="toggle-spoolman-tracker" data-component-id="spoolman-tracker" checked> Spoolman Tracker</label>
+              <label><input type="checkbox" id="toggle-ifs-station" data-component-id="ifs-station" checked> Material Station</label>
               <label><input type="checkbox" id="toggle-job-progress" data-component-id="job-progress" checked> Job Progress</label>
               <label><input type="checkbox" id="toggle-job-details" data-component-id="job-details" checked> Job Details</label>
             </section>
@@ -235,25 +236,6 @@
           <div class="modal-footer">
             <button id="spoolman-clear-spool" class="secondary-btn" type="button">Clear Active Spool</button>
             <button id="spoolman-modal-cancel" class="secondary-btn" type="button">Cancel</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- AD5X IFS Material Station Slot Editor Modal -->
-      <div id="ifs-station-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="ifs-station-modal-title">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h2 id="ifs-station-modal-title">Material Station Slots</h2>
-            <button id="ifs-station-modal-close" class="close-btn" aria-label="Close slot editor" type="button">&times;</button>
-          </div>
-          <div class="modal-body">
-            <p class="ifs-station-hint">Pick a slot and choose "Set from Spoolman" to snap a spool's material and color to the printer's fixed palette.</p>
-            <div id="ifs-slot-list" class="ifs-slot-list">
-              <!-- Populated dynamically -->
-            </div>
-          </div>
-          <div class="modal-footer">
-            <button id="ifs-station-modal-cancel" class="secondary-btn" type="button">Close</button>
           </div>
         </div>
       </div>
