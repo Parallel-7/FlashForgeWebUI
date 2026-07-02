@@ -15,7 +15,6 @@ import { getSpoolmanIntegrationService } from '../../services/SpoolmanIntegratio
 import { registerCameraRoutes } from './routes/camera-routes';
 import { registerContextRoutes } from './routes/context-routes';
 import { registerDiscoveryRoutes } from './routes/discovery-routes';
-import { registerE2ERoutes } from './routes/e2e-routes';
 import { registerFiltrationRoutes } from './routes/filtration-routes';
 import { registerJobRoutes } from './routes/job-routes';
 import { registerPrinterControlRoutes } from './routes/printer-control-routes';
@@ -52,7 +51,6 @@ export function createAPIRoutes(deps: RouteDependencies = buildRouteDependencies
   registerDiscoveryRoutes(router, deps);
   registerPrinterDetectionRoutes(router, deps);
   registerPrinterManagementRoutes(router, deps);
-  registerE2ERoutes(router, deps);
 
   return router;
 }

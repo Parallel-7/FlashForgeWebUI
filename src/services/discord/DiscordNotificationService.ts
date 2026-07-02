@@ -190,41 +190,6 @@ export class DiscordNotificationService extends EventEmitter {
     this.checkStateTransition(contextId, status);
   }
 
-  /**
-   * Send the latest cached status for a context immediately.
-   * Used by hardware E2E coverage to exercise the real webhook path without waiting for the timer.
-   */
-  public async sendCurrentStatusNow(contextId: string): Promise<void> {
-    this.assertWebhookEnabled();
-
-    const context = this.contextManager.getContext(contextId);
-    if (!context) {
-      throw new Error(`Context not found: ${contextId}`);
-    }
-
-    const status = this.cachedStatuses.get(contextId);
-    if (!status) {
-      throw new Error(`No cached printer status available for context: ${contextId}`);
-    }
-
-    await this.sendStatusNotification(contextId, status, context);
-    this.emit('notification-sent', { contextId, type: 'manual-status' });
-  }
-
-  /**
-   * Send a print-complete notification immediately and surface failures to the caller.
-   * Used by hardware E2E coverage to verify event-driven payloads without manipulating the printer.
-   */
-  public async sendPrintCompleteNow(
-    contextId: string,
-    fileName: string,
-    durationSeconds?: number
-  ): Promise<void> {
-    this.assertWebhookEnabled();
-    await this.sendPrintCompleteNotification(contextId, fileName, durationSeconds);
-    this.emit('notification-sent', { contextId, type: 'print-complete' });
-  }
-
   public async notifyPrintComplete(
     contextId: string,
     fileName: string,
@@ -746,12 +711,6 @@ export class DiscordNotificationService extends EventEmitter {
     }
 
     return this.go2rtcService;
-  }
-
-  private assertWebhookEnabled(): void {
-    if (!this.currentConfig.enabled || !this.currentConfig.webhookUrl) {
-      throw new Error('Discord webhook notifications are disabled');
-    }
   }
 
   private async sendStatusNotification(

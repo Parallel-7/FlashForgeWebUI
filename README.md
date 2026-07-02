@@ -200,47 +200,19 @@ npm start
 </div>
 
 ```bash
-# Jest app tests
+# Jest unit/integration tests
 npm test
+npm run test:watch      # watch mode
+npm run test:coverage   # coverage report
 
 # TypeScript checks
 npm run type-check
 
-# Playwright browser E2E (fixture/stub server)
-npm run test:e2e:install
-npm run test:e2e
-npm run test:e2e:smoke
-npm run test:e2e:auth
-
-# Playwright emulator-backed E2E (headless, single worker)
-npm run test:e2e:emulator
-npm run test:e2e:emulator:direct
-npm run test:e2e:emulator:discovery
-npm run test:e2e:emulator:multi
-
-# Combined entry points
-npm run test:e2e:all
-npm run test:all
+# Lint/format
+npm run check
 ```
 
-The fixture Playwright suite in `e2e/` runs against a built standalone WebUI with a local stub server.
-
-The emulator-backed suite in `e2e-emulator/` runs headless Chromium against the real standalone server plus `flashforge-emulator-v2`. Clone the emulator repo next to this one at `../flashforge-emulator-v2`, or point `FF_EMULATOR_ROOT` at it explicitly.
-
-```bash
-# Linux/macOS
-FF_EMULATOR_ROOT=../flashforge-emulator-v2 npm run test:e2e:emulator
-
-# PowerShell
-$env:FF_EMULATOR_ROOT = 'C:\Users\coper\Documents\GitHub\flashforge-emulator-v2'
-npm run test:e2e:emulator
-```
-
-All Playwright scripts support npm passthrough arguments:
-
-```bash
-npm run test:e2e:emulator:direct -- --grep "Adventurer 3"
-```
+Tests live alongside the source under `src/` (`*.test.ts`) and run through Jest.
 
 <div align="center">
   <h2>Building from Source</h2>
