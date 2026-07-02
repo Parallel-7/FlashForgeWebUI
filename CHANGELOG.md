@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Creator 5 / Creator 5 Pro printer support via the new `Creator5Backend`, including model detection, an HTTP-only connection flow, and material station support
+- Multi-tool temperature card for the Creator 5 series showing per-tool, bed, and chamber targets
+- Read-only TVOC air-quality display for printers that report it
+- `ifs-station` dashboard card — a real IFS Material Station grid (4 slots, material + color swatch) that refreshes from the printer's cached station status
+- Manual IFS slot editor with a 14-material dropdown and 24-color swatch grid, pre-seeded from the slot's current state
+- "Set from Spoolman" action that snaps a Spoolman spool's material/color to the AD5X fixed palette (CIEDE2000 color matching) before applying it to a slot
+- `POST /spoolman/slot-config` route (zod-validated, material-station gated) that calls the library's `configureSlot` (`msConfig_cmd`)
+- `ifs-palette` utility (`src/webui/static/shared/ifs-palette.ts`) with nearest-color and nearest-material resolution, plus Jest coverage
+
+### Changed
+
+- IFS Material Station and Spoolman cards are now feature-gated and added/positioned by the user through the Panel Visibility picker, replacing runtime auto-reveal to match desktop behaviour
+- Replaced the previous "Edit IFS Slots" button and slot-list modal with the dedicated Material Station dashboard card
+- `@ghosttypes/ff-api` bumped to `^1.3.2` for `configureSlot` / `SlotAction` support
+- `jest.config.js` now maps `.js` ESM specifiers to `.ts` so `static/` module specs run under ts-jest
+
+### Removed
+
+- Unused Playwright E2E test suites (`e2e/` and `e2e-emulator/`), `tsconfig.e2e.json`, the associated npm test scripts, the Discord webhook relay helper, and the `e2e-routes` test endpoints
+- Runtime auto-reveal of the Spoolman and IFS cards (now user-added via the picker)
+
+### Fixed
+
+- Release workflow now generates tag-based changelog comparison links in published GitHub releases
 ## [1.1.0] - 2026-03-21
 
 ### Added
