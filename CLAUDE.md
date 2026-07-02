@@ -286,6 +286,11 @@ Some printers support **both** (dual API). The backend system abstracts these di
 
 **Feature Detection**: Each backend declares supported features via `getBaseFeatures()`. The UI shows or hides controls based on those features, including LEDs, power toggle, material station support, and camera support.
 
+**Model Detection (TCP-First Bootstrap, PID-Aware)**:
+- The HTTP `/detail` endpoint on modern printers requires authentication (`serialNumber` + `checkCode`), so during the very first connection — before the user has supplied a check code — we cannot read the firmware-set `pid` from `/detail`. `ConnectionEstablishmentService.ts` therefore opens an unauthenticated TCP `M115` first via `tcpClient.getPrinterInfo()` and feeds the resulting `TypeName` (firmware-controlled, e.g. `"FlashForge Adventurer 5M Pro"`) into `detectPrinterModelType` / `detectPrinterFamily` in `src/utils/PrinterUtils.ts` for backend selection. This is correct and intentional — `TypeName` is firmware-set and is NOT the same as the user-mutable `Name` field on `/detail`.
+- **Once paired, trust the library.** After the check code is supplied and `FiveMClient.initialize()` succeeds, `client.isPro` / `client.isAD5X` / `info.Pid` (from `@ghosttypes/ff-api>=1.3.1`) are derived from the firmware `pid` (35 = 5M, 36 = 5M Pro, 38 = AD5X). Read those flags for capability gating; do not re-substring-match `info.Name` — that field is user-set via the LCD or cloud and changing it broke detection in pre-fix builds (`ff-5mp-hass#13`).
+- **Don't manually overwrite `client.isAD5X`.** If you find yourself re-deriving capability flags that the library already sets, prefer fixing the library or the backend-selection input over mutating the FiveMClient instance from app code.
+
 ## Event Flow
 
 1. **Startup** (`src/index.ts`)

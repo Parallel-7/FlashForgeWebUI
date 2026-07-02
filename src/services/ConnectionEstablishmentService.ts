@@ -18,17 +18,21 @@
  * conjunction with ConnectionFlowManager for complete connection workflows.
  */
 
-import { FiveMClient, FlashForgeClient } from '@ghosttypes/ff-api';
+import { FiveMClient, type FiveMClientConnectionOptions, FlashForgeClient } from '@ghosttypes/ff-api';
 import { EventEmitter } from 'events';
 import type {
   DiscoveredPrinter,
   ExtendedPrinterInfo,
+  PrinterModelType,
   TemporaryConnectionResult,
 } from '../types/printer';
 import {
   detectPrinterFamily,
   detectPrinterModelType,
+  detectPrinterModelTypeFromId,
   getConnectionErrorMessage,
+  getModelDisplayName,
+  isHttpOnlyModel,
 } from '../utils/PrinterUtils';
 
 interface PortMutableFlashForgeClient {
@@ -78,7 +82,19 @@ export class ConnectionEstablishmentService extends EventEmitter {
     return client;
   }
 
-  private createFiveMClient(printer: DiscoveredPrinter, checkCode: string): FiveMClient {
+  private createFiveMClient(printer: DiscoveredPrinter, checkCode: string, httpOnly = false): FiveMClient {
+    // HTTP-only models (Creator 5 / 5 Pro) have no TCP channel. Pass the option so the
+    // client never opens the TCP socket, and skip the port-mutation path (which would
+    // otherwise try to connect a TCP socket that doesn't exist).
+    if (httpOnly) {
+      const options: FiveMClientConnectionOptions = {
+        httpPort: printer.eventPort,
+        tcpPort: printer.commandPort,
+        httpOnly: true,
+      };
+      return new FiveMClient(printer.ipAddress, printer.serialNumber, checkCode, options);
+    }
+
     const client = new FiveMClient(printer.ipAddress, printer.serialNumber, checkCode);
     const mutableClient = client as unknown as PortMutableFiveMClient;
 
@@ -116,6 +132,25 @@ export class ConnectionEstablishmentService extends EventEmitter {
     retries = 3
   ): Promise<TemporaryConnectionResult> {
     this.emit('temporary-connection-started', printer);
+
+    // HTTP-only models (Creator 5 / 5 Pro) run no legacy TCP server, so the usual
+    // TCP probe can't work. When discovery's USB product ID identifies such a model,
+    // synthesize the type info from the discovery packet and skip the TCP probe.
+    const idModelType = detectPrinterModelTypeFromId(printer.productId, '');
+    if (isHttpOnlyModel(idModelType)) {
+      const typeName = getModelDisplayName(idModelType);
+      console.log(`[Connection] HTTP-only model detected via product ID: ${typeName}`);
+      this.emit('printer-type-detected', { typeName, familyInfo: detectPrinterFamily(typeName) });
+      return {
+        success: true,
+        typeName,
+        printerInfo: {
+          Name: printer.name,
+          SerialNumber: printer.serialNumber,
+          TypeName: typeName,
+        } as unknown as ExtendedPrinterInfo,
+      };
+    }
 
     for (let attempt = 1; attempt <= retries; attempt++) {
       let tempClient: FlashForgeClient | null = null;
@@ -288,13 +323,33 @@ export class ConnectionEstablishmentService extends EventEmitter {
     typeName: string,
     is5MFamily: boolean,
     checkCode: string,
-    forceLegacyMode: boolean
+    forceLegacyMode: boolean,
+    modelType?: PrinterModelType
   ): Promise<ConnectionClients | null> {
     this.emit('final-connection-started', { printer, typeName });
 
     try {
+      // Resolve the model first, falling back to the typeName for manual connections
+      // that never resolved a product ID.
+      const resolvedModelType =
+        modelType ?? detectPrinterModelTypeFromId(printer.productId, typeName);
+      const httpOnly = isHttpOnlyModel(resolvedModelType);
+
+      // HTTP-only models (Creator 5 / 5 Pro) have NO legacy TCP server, so they can
+      // never use the legacy path. A stale forceLegacyMode flag or a missed 5M-family
+      // detection would otherwise route them to establishLegacyConnection and hang on
+      // port 8899. For these models HTTP always wins, regardless of forceLegacyMode.
+      if (httpOnly) {
+        if (forceLegacyMode) {
+          console.warn(
+            `Ignoring forceLegacyMode for HTTP-only model ${resolvedModelType}: it has no legacy TCP server`
+          );
+        }
+        return await this.establishDualAPIConnection(printer, typeName, checkCode, true);
+      }
+
       if (is5MFamily && !forceLegacyMode) {
-        return await this.establishDualAPIConnection(printer, typeName, checkCode);
+        return await this.establishDualAPIConnection(printer, typeName, checkCode, false);
       } else {
         return await this.establishLegacyConnection(printer);
       }
@@ -306,19 +361,22 @@ export class ConnectionEstablishmentService extends EventEmitter {
   }
 
   /**
-   * Establish dual API connection for 5M family printers
+   * Establish dual API connection for 5M family printers. HTTP-only models (Creator 5
+   * series) skip the secondary legacy client — the HTTP client is the whole connection.
    */
   private async establishDualAPIConnection(
     printer: DiscoveredPrinter,
     typeName: string,
-    checkCode: string
+    checkCode: string,
+    httpOnly = false
   ): Promise<ConnectionClients> {
-    console.log('Creating dual API connection for 5M family printer');
+    console.log(`Creating ${httpOnly ? 'HTTP-only' : 'dual'} API connection for 5M family printer`);
     console.log('Connection details:', {
       ipAddress: printer.ipAddress,
       serialNumber: printer.serialNumber,
       name: printer.name,
       hasValidSerial: !!(printer.serialNumber && printer.serialNumber.trim() !== ''),
+      httpOnly,
     });
 
     // Validate that we have a valid serial number for FiveMClient
@@ -328,7 +386,7 @@ export class ConnectionEstablishmentService extends EventEmitter {
     }
 
     // Primary client: FiveMClient for new API operations
-    const primaryClient = this.createFiveMClient(printer, checkCode);
+    const primaryClient = this.createFiveMClient(printer, checkCode, httpOnly);
     const mutablePrimaryClient = primaryClient as unknown as ModelMutableFiveMClient;
 
     try {
@@ -351,6 +409,17 @@ export class ConnectionEstablishmentService extends EventEmitter {
         throw new Error('Failed to initialize 5M control - initControl returned false');
       }
       console.log('FiveMClient control initialized successfully');
+
+      // HTTP-only models (Creator 5 / 5 Pro) have no legacy TCP server — there is no
+      // secondary client to create. The HTTP client is the whole connection.
+      if (httpOnly) {
+        console.log('HTTP-only connection established (no secondary TCP client)');
+        this.emit('dual-api-connection-established', {
+          ipAddress: printer.ipAddress,
+          serialNumber: printer.serialNumber,
+        });
+        return { primaryClient };
+      }
 
       // Add a small delay to ensure primary client is fully ready
       await new Promise((resolve) => setTimeout(resolve, 500));

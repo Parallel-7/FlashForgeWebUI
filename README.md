@@ -48,6 +48,7 @@ FlashForge WebUI supports a wide range of FlashForge printers through its adapta
 | --- | --- | --- |
 | **Adventurer 5M** | Adventurer 5M, 5M Pro | New (HTTP API) |
 | **AD5X** | AD5X | New (HTTP API) |
+| **Creator 5** | Creator 5, Creator 5 Pro | New (HTTP API) |
 | **Legacy** | Older FlashForge Models | Legacy (FlashForgeClient) |
 
 </div>

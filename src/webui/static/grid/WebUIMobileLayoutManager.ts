@@ -13,6 +13,7 @@ export class WebUIMobileLayoutManager {
     'controls',
     'printer-state',
     'temp-control',
+    'creator5-temperature',
     'spoolman-tracker',
     'ifs-station',
     'model-preview',

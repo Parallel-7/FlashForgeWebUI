@@ -1,16 +1,19 @@
 /**
- * @fileoverview AD5X IFS material-station dashboard card + slot editor.
+ * @fileoverview Material-station dashboard card + slot editor (AD5X + Creator 5).
  *
  * Renders the four material-station slots as a grid card (swatch + material,
  * mirroring the desktop FlashForgeUI card) that refreshes from the printer's
- * cached material-station status on each status tick. Clicking a slot opens a
- * manual editor modal: a material dropdown (14 recognized materials) and a grid
- * of the 24 recognized color swatches (see {@link ../shared/ifs-palette.js}),
- * pre-seeded from the slot's current state. When Spoolman is configured, the
- * editor also offers a "Set from Spoolman" shortcut that pre-fills the
- * selections (snapped to the fixed palette) for review before applying. The
- * chosen material/color are written via the slot-config route, which calls the
- * library's `configureSlot`.
+ * cached material-station status on each status tick. The AD5X calls this the
+ * "IFS"; the Creator 5 series calls it the "Material Station" — same card, the
+ * only difference is the fixed filament palette, resolved per model via
+ * {@link ../shared/ifs-palette.js} `getPaletteForModel`. Clicking a slot opens a
+ * manual editor modal: a material dropdown and a grid of the recognized color
+ * swatches, pre-seeded from the slot's current state. When Spoolman is
+ * configured, the editor also offers a "Set from Spoolman" shortcut that
+ * pre-fills the selections (snapped to the model's palette) for review before
+ * applying. The chosen material/color are written via the slot-config route,
+ * which calls the library's `configureSlot` (which normalizes the color `#` per
+ * model on the wire).
  */
 
 import type {
@@ -23,7 +26,7 @@ import type {
 import { state } from '../core/AppState.js';
 import { apiRequest } from '../core/Transport.js';
 import { $, showToast } from '../shared/dom.js';
-import { IFS_COLORS, IFS_MATERIALS, nearestColor, nearestMaterial } from '../shared/ifs-palette.js';
+import { getPaletteForModel } from '../shared/ifs-palette.js';
 import { getCurrentContextId } from './context-switching.js';
 import { openSpoolPicker } from './spoolman.js';
 
@@ -191,15 +194,24 @@ export function setupIfsStationCard(): void {
 function openSlotEditor(slot: MaterialSlotInfo): void {
   const displaySlotId = slot.slotId + 1;
 
+  // Resolve the fixed palette for this printer model (AD5X vs Creator 5).
+  const palette = getPaletteForModel(latestStation?.printerModelType);
+  const paletteMaterials = palette.materials;
+  const paletteColors = palette.colors;
+
   // Seed from the slot's current material/color, snapped to the fixed palette.
   let selectedMaterial =
-    (slot.materialType ? nearestMaterial(slot.materialType) : null) ?? IFS_MATERIALS[0] ?? 'PLA';
-  let selectedHex: string | null = slot.materialColor ? (nearestColor(slot.materialColor)?.hex ?? null) : null;
+    (slot.materialType ? palette.nearestMaterial(slot.materialType) : null) ??
+    paletteMaterials[0] ??
+    'PLA';
+  let selectedHex: string | null = slot.materialColor
+    ? (palette.nearestColor(slot.materialColor)?.hex ?? null)
+    : null;
 
-  const materialOptions = IFS_MATERIALS.map(
-    (m) => `<option value="${m}"${m === selectedMaterial ? ' selected' : ''}>${m}</option>`
-  ).join('');
-  const swatches = IFS_COLORS.map(
+  const materialOptions = paletteMaterials
+    .map((m) => `<option value="${m}"${m === selectedMaterial ? ' selected' : ''}>${m}</option>`)
+    .join('');
+  const swatches = paletteColors.map(
     (c) =>
       `<button type="button" class="ifs-swatch${c.hex === selectedHex ? ' selected' : ''}" data-hex="${c.hex}" title="${c.name}" aria-label="${c.name}" style="--swatch:${c.hex}"><span class="ifs-swatch-check">✓</span></button>`
   ).join('');
@@ -245,7 +257,7 @@ function openSlotEditor(slot: MaterialSlotInfo): void {
 
   const updatePreview = (): void => {
     const colorName = selectedHex
-      ? (IFS_COLORS.find((c) => c.hex === selectedHex)?.name ?? selectedHex)
+      ? (paletteColors.find((c) => c.hex === selectedHex)?.name ?? selectedHex)
       : null;
     previewEl.textContent = colorName
       ? `Slot ${displaySlotId} → ${selectedMaterial} · ${colorName}`
@@ -289,7 +301,7 @@ function openSlotEditor(slot: MaterialSlotInfo): void {
   overlay.querySelector('.ifs-editor-spoolman')?.addEventListener('click', () => {
     openSpoolPicker((spool) => {
       if (spool.material) {
-        const matched = nearestMaterial(spool.material);
+        const matched = palette.nearestMaterial(spool.material);
         if (matched) {
           selectedMaterial = matched;
           select.value = matched;
@@ -297,7 +309,7 @@ function openSlotEditor(slot: MaterialSlotInfo): void {
       }
       const rawColor = getRawSpoolColor(spool);
       if (rawColor) {
-        const snapped = nearestColor(rawColor);
+        const snapped = palette.nearestColor(rawColor);
         if (snapped) selectSwatch(snapped.hex);
       }
       updatePreview();
@@ -338,7 +350,8 @@ async function applyManualSlot(
     });
 
     if (result.success) {
-      const colorName = IFS_COLORS.find((c) => c.hex === colorHex)?.name ?? colorHex;
+      const palette = getPaletteForModel(latestStation?.printerModelType);
+      const colorName = palette.colors.find((c) => c.hex === colorHex)?.name ?? colorHex;
       showToast(`Slot ${displaySlotId} → ${material} · ${colorName}`, 'success');
       onApplied();
       await refreshIfsStationCard();

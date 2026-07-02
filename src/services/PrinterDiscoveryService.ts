@@ -264,6 +264,9 @@ export class PrinterDiscoveryService extends EventEmitter {
         serialNumber,
         commandPort: response.readUInt16BE(0x84),
         eventPort: response.readUInt16BE(0x8e),
+        // USB product ID identifies the model authoritatively (e.g. Creator 5 = 0x0028),
+        // which is essential for HTTP-only models that can't be TCP-probed.
+        productId: response.readUInt16BE(0x88),
         model: 'Unknown',
         status: 'Discovered',
       };

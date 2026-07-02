@@ -45,6 +45,14 @@ interface ExtendedPrinterStatus {
   readonly cumulativeFilament?: number;
   readonly cumulativePrintTime?: number;
   readonly printEta?: string;
+  // Creator 5 series (multi-tool) fields surfaced by Creator5Backend.getAdditionalStatusFields.
+  // Raw ff-api Temperature entries use `set` (not `target`) for the target reading.
+  readonly toolTemps?: ReadonlyArray<{ readonly current: number; readonly set: number }>;
+  readonly chamberTemp?: number;
+  readonly chamberTargetTemp?: number;
+  readonly hasChamberControl?: boolean;
+  readonly isCreator5Pro?: boolean;
+  readonly tvoc?: number;
 }
 
 export function registerPrinterStatusRoutes(router: Router, deps: RouteDependencies): void {
@@ -80,6 +88,12 @@ export function registerPrinterStatusRoutes(router: Router, deps: RouteDependenc
       let formattedEta: string | undefined;
       let cumulativeFilament: number | undefined;
       let cumulativePrintTime: number | undefined;
+      let toolTemps: Array<{ current: number; target: number }> | undefined;
+      let chamberTemperature: number | undefined;
+      let chamberTargetTemperature: number | undefined;
+      let hasChamberControl: boolean | undefined;
+      let isCreator5Pro: boolean | undefined;
+      let tvocLevel: number | undefined;
 
       if (isExtendedPrinterStatus(statusResult.status)) {
         bedTargetTemp =
@@ -109,6 +123,21 @@ export function registerPrinterStatusRoutes(router: Router, deps: RouteDependenc
         if ('cumulativePrintTime' in statusResult.status) {
           cumulativePrintTime = statusResult.status.cumulativePrintTime as number;
         }
+
+        // Creator 5 series (multi-tool) fields — present only on Creator5Backend.
+        if (statusResult.status.toolTemps && statusResult.status.toolTemps.length > 0) {
+          toolTemps = statusResult.status.toolTemps.map((tool) => ({
+            current: Math.round(tool.current),
+            target: Math.round(tool.set),
+          }));
+        }
+        if (statusResult.status.hasChamberControl) {
+          hasChamberControl = true;
+          chamberTemperature = Math.round(statusResult.status.chamberTemp ?? 0);
+          chamberTargetTemperature = Math.round(statusResult.status.chamberTargetTemp ?? 0);
+        }
+        isCreator5Pro = statusResult.status.isCreator5Pro;
+        tvocLevel = statusResult.status.tvoc;
       }
 
       const response: PrinterStatusResponse = {
@@ -132,6 +161,12 @@ export function registerPrinterStatusRoutes(router: Router, deps: RouteDependenc
           cumulativePrintTime,
           formattedEta,
           elapsedTimeSeconds,
+          toolTemps,
+          chamberTemperature,
+          chamberTargetTemperature,
+          hasChamberControl,
+          isCreator5Pro,
+          tvocLevel,
         },
       };
 
@@ -160,6 +195,11 @@ export function registerPrinterStatusRoutes(router: Router, deps: RouteDependenc
         return sendErrorResponse<StandardAPIResponse>(res, 500, 'Failed to get printer features');
       }
 
+      // Creator 5 series capability flags derive from the backend model type.
+      const modelType = deps.backendManager.getBackendStatus(contextId)?.capabilities.modelType;
+      const isCreator5Pro = modelType === 'creator-5-pro';
+      const hasMultiTool = modelType === 'creator-5' || modelType === 'creator-5-pro';
+
       const featureResponse: PrinterFeatures = {
         hasCamera: deps.backendManager.isFeatureAvailable(contextId, 'camera'),
         hasLED: deps.backendManager.isFeatureAvailable(contextId, 'led-control'),
@@ -170,6 +210,8 @@ export function registerPrinterStatusRoutes(router: Router, deps: RouteDependenc
         canCancel: features.jobManagement.cancelJobs,
         ledUsesLegacyAPI:
           features.ledControl.customControlEnabled || features.ledControl.usesLegacyAPI,
+        hasMultiTool,
+        isCreator5Pro,
       };
 
       return res.json({

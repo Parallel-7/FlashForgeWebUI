@@ -28,6 +28,7 @@
 import type { AD5XMaterialMapping, FiveMClient, FlashForgeClient } from '@ghosttypes/ff-api';
 import { EventEmitter } from 'events';
 import { AD5XBackend } from '../printer-backends/AD5XBackend';
+import { Creator5Backend } from '../printer-backends/Creator5Backend';
 import { Adventurer5MBackend } from '../printer-backends/Adventurer5MBackend';
 import { Adventurer5MProBackend } from '../printer-backends/Adventurer5MProBackend';
 import type { BasePrinterBackend } from '../printer-backends/BasePrinterBackend';
@@ -288,6 +289,10 @@ export class PrinterBackendManager extends EventEmitter {
 
       case 'ad5x':
         return new AD5XBackend(backendOptions);
+
+      case 'creator-5':
+      case 'creator-5-pro':
+        return new Creator5Backend(backendOptions);
 
       default:
         // Fallback to generic legacy for unknown models

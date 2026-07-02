@@ -54,6 +54,13 @@ const COMPONENT_DEFINITIONS: Record<string, WebUIComponentDefinition> = {
     minSize: { w: 2, h: 2 },
     defaultPosition: { x: 3, y: 6 },
   },
+  'creator5-temperature': {
+    id: 'creator5-temperature',
+    displayName: 'Temperature (Multi-tool)',
+    defaultSize: { w: 3, h: 4 },
+    minSize: { w: 2, h: 3 },
+    defaultPosition: { x: 3, y: 6 },
+  },
   'filtration-tvoc': {
     id: 'filtration-tvoc',
     displayName: 'Filtration & TVOC',
@@ -185,6 +192,36 @@ const COMPONENT_TEMPLATES: Record<string, WebUIComponentTemplate> = {
             <div class="temp-buttons">
               <button id="btn-extruder-set" class="temp-btn">Set</button>
               <button id="btn-extruder-off" class="temp-btn">Off</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    `,
+  },
+  'creator5-temperature': {
+    id: 'creator5-temperature',
+    html: `
+      <div class="panel" id="creator5-temp-panel">
+        <div class="panel-header">Temperature</div>
+        <div class="panel-content">
+          <div class="c5-temps-unavailable hidden" id="c5-temps-unavailable">
+            Per-tool temperature control is not available for this printer.
+          </div>
+          <div class="c5-temps-body" id="c5-temps-body">
+            <div class="c5-tool-grid" id="c5-tool-grid"></div>
+            <div class="temp-row">
+              <span>Bed: <span id="c5-bed-temp">--°C / --°C</span></span>
+              <div class="temp-buttons">
+                <button class="temp-btn" data-c5-action="set" data-heater="bed">Set</button>
+                <button class="temp-btn" data-c5-action="off" data-heater="bed">Off</button>
+              </div>
+            </div>
+            <div class="temp-row hidden" id="c5-chamber-row">
+              <span>Chamber: <span id="c5-chamber-temp">--°C / --°C</span></span>
+              <div class="temp-buttons">
+                <button class="temp-btn" data-c5-action="set" data-heater="chamber">Set</button>
+                <button class="temp-btn" data-c5-action="off" data-heater="chamber">Off</button>
+              </div>
             </div>
           </div>
         </div>
@@ -350,6 +387,7 @@ const DEFAULT_LAYOUT_COMPONENTS: WebUIComponentLayoutMap = {
   'model-preview': { x: 6, y: 4, w: 6, h: 2 },
   'printer-state': { x: 0, y: 6, w: 3, h: 2 },
   'temp-control': { x: 3, y: 6, w: 3, h: 2 },
+  'creator5-temperature': { x: 3, y: 6, w: 3, h: 4 },
   'job-progress': { x: 6, y: 6, w: 6, h: 2 },
   'filtration-tvoc': { x: 0, y: 8, w: 3, h: 2 },
   'spoolman-tracker': { x: 3, y: 8, w: 3, h: 2 },

@@ -14,6 +14,8 @@
  * - FeatureDisableReason: User-facing explanations for unavailable features
  */
 
+import type { PrinterModelType } from './backend-operations';
+
 /**
  * Printer feature types that can be available on different printer models
  */
@@ -148,6 +150,11 @@ export interface MaterialStationStatus {
   readonly activeSlot: number | null;
   readonly overallStatus: 'ready' | 'warming' | 'error' | 'disconnected';
   readonly errorMessage: string | null;
+  /**
+   * Printer model that owns this station, so the slot editor picks the correct
+   * fixed palette (AD5X vs Creator 5). Optional/absent for AD5X payloads.
+   */
+  readonly printerModelType?: PrinterModelType;
 }
 
 /**

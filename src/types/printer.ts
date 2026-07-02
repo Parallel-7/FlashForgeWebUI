@@ -15,7 +15,13 @@
 /**
  * Printer model types supported by the backend system
  */
-export type PrinterModelType = 'generic-legacy' | 'adventurer-5m' | 'adventurer-5m-pro' | 'ad5x';
+export type PrinterModelType =
+  | 'generic-legacy'
+  | 'adventurer-5m'
+  | 'adventurer-5m-pro'
+  | 'ad5x'
+  | 'creator-5'
+  | 'creator-5-pro';
 
 /**
  * Client type for printer connection
@@ -66,6 +72,8 @@ export interface DiscoveredPrinter {
   readonly firmwareVersion?: string;
   readonly commandPort?: number;
   readonly eventPort?: number;
+  /** USB product ID from the discovery packet (offset 0x88); authoritative for model selection. */
+  readonly productId?: number;
 }
 
 /**

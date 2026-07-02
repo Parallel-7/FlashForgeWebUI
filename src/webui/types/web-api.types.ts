@@ -69,6 +69,15 @@ export type WebSocketMessageType =
   | 'SPOOLMAN_UPDATE';
 
 /**
+ * Per-tool temperature reading for multi-tool printers (Creator 5 series).
+ * One entry per nozzle; index 0 maps to the printer's T1 in the UI.
+ */
+export interface ToolTemperatureData {
+  readonly current: number;
+  readonly target: number;
+}
+
+/**
  * Represents the detailed status data of a printer.
  * This unified interface is used across WebSocket messages, API responses,
  * and frontend state to ensure consistency.
@@ -93,6 +102,13 @@ export interface PrinterStatusData {
   readonly cumulativePrintTime?: number; // Total lifetime print time in minutes
   readonly formattedEta?: string; // Firmware ETA string (e.g. "04:48" = 4h48m remaining)
   readonly elapsedTimeSeconds?: number; // Precise elapsed seconds for HH:MM:SS display
+  // Creator 5 series (multi-tool) fields. Undefined/empty on single-nozzle printers.
+  readonly toolTemps?: readonly ToolTemperatureData[];
+  readonly chamberTemperature?: number;
+  readonly chamberTargetTemperature?: number;
+  readonly hasChamberControl?: boolean;
+  readonly isCreator5Pro?: boolean;
+  readonly tvocLevel?: number;
 }
 
 /**
@@ -258,6 +274,10 @@ export interface PrinterFeatures {
   readonly canResume: boolean;
   readonly canCancel: boolean;
   readonly ledUsesLegacyAPI?: boolean; // Whether LED control should use legacy G-code commands
+  /** Multi-tool printer (Creator 5 series) — gates the per-tool temperature card. */
+  readonly hasMultiTool?: boolean;
+  /** Creator 5 Pro — gates the read-only TVOC air-quality display. */
+  readonly isCreator5Pro?: boolean;
 }
 
 /**

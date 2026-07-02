@@ -81,10 +81,71 @@ export const detectPrinterModelType = (typeName: string): PrinterModelType => {
     return 'adventurer-5m';
   } else if (typeNameLower.includes('ad5x')) {
     return 'ad5x';
+  } else if (typeNameLower.includes('creator 5 pro')) {
+    return 'creator-5-pro';
+  } else if (typeNameLower.includes('creator 5')) {
+    return 'creator-5';
   }
 
   // Default to generic legacy for all other printers
   return 'generic-legacy';
+};
+
+/**
+ * Models that speak HTTP only (no legacy TCP server on port 8899). The Creator 5
+ * series has no TCP channel, so type detection and control must go over HTTP.
+ */
+const HTTP_ONLY_MODEL_TYPES: ReadonlySet<PrinterModelType> = new Set(['creator-5', 'creator-5-pro']);
+
+/** Whether a model runs HTTP-only (no legacy TCP server). */
+export const isHttpOnlyModel = (modelType: PrinterModelType): boolean =>
+  HTTP_ONLY_MODEL_TYPES.has(modelType);
+
+/**
+ * USB product IDs for new-API (HTTP + check-code) printers. The firmware-set
+ * product ID is authoritative for model selection; typeName is the fallback.
+ * Keys are decimal (the discovery packet is read via `readUInt16BE`); the hex
+ * value each corresponds to is noted alongside.
+ */
+export const NEW_API_PRODUCT_IDS: Readonly<Record<number, PrinterModelType>> = {
+  35: 'adventurer-5m', // 0x0023
+  36: 'adventurer-5m-pro', // 0x0024
+  38: 'ad5x', // 0x0026
+  40: 'creator-5', // 0x0028
+  41: 'creator-5-pro', // 0x0029
+};
+
+/**
+ * Detect the model preferring the authoritative USB product ID, falling back to
+ * the typeName when no product ID is available.
+ */
+export const detectPrinterModelTypeFromId = (
+  productId: number | undefined,
+  typeName: string
+): PrinterModelType => {
+  if (productId !== undefined && productId in NEW_API_PRODUCT_IDS) {
+    return NEW_API_PRODUCT_IDS[productId];
+  }
+  return detectPrinterModelType(typeName);
+};
+
+/**
+ * Detect printer family preferring the authoritative USB product ID, falling back
+ * to the typeName. Any printer in {@link NEW_API_PRODUCT_IDS} is a new-API printer
+ * that requires a check code.
+ */
+export const detectPrinterFamilyFromId = (
+  productId: number | undefined,
+  typeName: string
+): PrinterFamilyInfo => {
+  if (productId !== undefined && productId in NEW_API_PRODUCT_IDS) {
+    return {
+      is5MFamily: true,
+      requiresCheckCode: true,
+      familyName: getModelDisplayName(NEW_API_PRODUCT_IDS[productId]),
+    };
+  }
+  return detectPrinterFamily(typeName);
 };
 
 /**
@@ -130,6 +191,30 @@ export const getPrinterModelInfo = (typeName: string): EnhancedPrinterFamilyInfo
         hasBuiltinFiltration: false,
         supportsMaterialStation: true,
       };
+
+    case 'creator-5':
+      return {
+        is5MFamily: true,
+        requiresCheckCode: true,
+        familyName: 'Creator 5',
+        modelType,
+        hasBuiltinCamera: true,
+        hasBuiltinLED: true,
+        hasBuiltinFiltration: false,
+        supportsMaterialStation: true,
+      };
+
+    case 'creator-5-pro':
+      return {
+        is5MFamily: true,
+        requiresCheckCode: true,
+        familyName: 'Creator 5 Pro',
+        modelType,
+        hasBuiltinCamera: true,
+        hasBuiltinLED: true,
+        hasBuiltinFiltration: true,
+        supportsMaterialStation: true,
+      };
     default:
       return {
         is5MFamily: false,
@@ -163,6 +248,10 @@ export const getModelDisplayName = (modelType: PrinterModelType): string => {
       return 'Adventurer 5M';
     case 'ad5x':
       return 'AD5X';
+    case 'creator-5':
+      return 'Creator 5';
+    case 'creator-5-pro':
+      return 'Creator 5 Pro';
     default:
       return 'Legacy Printer';
   }
@@ -173,7 +262,7 @@ export const getModelDisplayName = (modelType: PrinterModelType): string => {
  * Currently only AD5X has material station support
  */
 export const requiresMaterialStation = (modelType: PrinterModelType): boolean => {
-  return modelType === 'ad5x';
+  return modelType === 'ad5x' || modelType === 'creator-5' || modelType === 'creator-5-pro';
 };
 
 /**
@@ -230,8 +319,12 @@ export const detectPrinterFamily = (typeName: string): PrinterFamilyInfo => {
 
   const typeNameLower = typeName.toLowerCase();
 
-  // Check for 5M family indicators
-  const is5MFamily = typeNameLower.includes('5m') || typeNameLower.includes('ad5x');
+  // Check for new-API ("5M family") indicators. Creator 5 / 5 Pro speak the same
+  // HTTP + check-code protocol, so they belong here too.
+  const is5MFamily =
+    typeNameLower.includes('5m') ||
+    typeNameLower.includes('ad5x') ||
+    typeNameLower.includes('creator 5');
 
   if (is5MFamily) {
     let familyName = 'Adventurer 5M Family';
@@ -242,6 +335,10 @@ export const detectPrinterFamily = (typeName: string): PrinterFamilyInfo => {
       familyName = 'Adventurer 5M';
     } else if (typeNameLower.includes('ad5x')) {
       familyName = 'AD5X';
+    } else if (typeNameLower.includes('creator 5 pro')) {
+      familyName = 'Creator 5 Pro';
+    } else if (typeNameLower.includes('creator 5')) {
+      familyName = 'Creator 5';
     }
 
     return {
