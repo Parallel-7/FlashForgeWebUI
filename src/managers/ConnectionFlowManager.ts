@@ -663,7 +663,8 @@ export class ConnectionFlowManager extends EventEmitter {
         tempResult.typeName,
         familyInfo.is5MFamily,
         checkCode,
-        forceLegacyMode
+        forceLegacyMode,
+        modelType
       );
 
       if (!connectionResult) {
@@ -945,7 +946,8 @@ export class ConnectionFlowManager extends EventEmitter {
         detailsWithDefaults.printerModel,
         familyInfo.is5MFamily,
         detailsWithDefaults.CheckCode,
-        detailsWithDefaults.forceLegacyMode ?? false
+        detailsWithDefaults.forceLegacyMode ?? false,
+        detectPrinterModelType(detailsWithDefaults.printerModel)
       );
 
       if (!connectionResult) {

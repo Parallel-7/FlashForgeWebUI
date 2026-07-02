@@ -95,6 +95,18 @@ export class PrinterDataTransformer {
     const tvoc = safeExtractNumber(backendData, 'tvoc', 0);
     const filtrationInfo = this.extractFiltrationStatus(backendData);
 
+    // Creator 5 multi-tool + chamber temperatures (present only on Creator 5 backends).
+    // Raw ff-api Temperature entries use `set` (not `target`) for the target reading.
+    const rawToolTemps = safeExtractArray<unknown>(backendData, 'toolTemps', []);
+    const toolTemps = rawToolTemps.filter(isValidObject).map((tool) => {
+      const current = safeExtractNumber(tool, 'current', 0);
+      const target = safeExtractNumber(tool, 'set', 0);
+      return { current, target, isHeating: target > 0 && Math.abs(current - target) > 2 };
+    });
+    const hasChamberControl = safeExtractBoolean(backendData, 'hasChamberControl', false);
+    const chamberTemp = safeExtractNumber(backendData, 'chamberTemp', 0);
+    const chamberTargetTemp = safeExtractNumber(backendData, 'chamberTargetTemp', 0);
+
     // Extract cumulative stats
     const cumulativePrintTime = safeExtractNumber(backendData, 'cumulativePrintTime', 0);
     const cumulativeFilament = safeExtractNumber(backendData, 'cumulativeFilament', 0);
@@ -112,7 +124,17 @@ export class PrinterDataTransformer {
           target: nozzleTarget,
           isHeating: nozzleTarget > 0 && Math.abs(nozzleTemp - nozzleTarget) > 2,
         },
+        ...(hasChamberControl
+          ? {
+              chamber: {
+                current: chamberTemp,
+                target: chamberTargetTemp,
+                isHeating: chamberTargetTemp > 0 && Math.abs(chamberTemp - chamberTargetTemp) > 2,
+              },
+            }
+          : {}),
       },
+      ...(toolTemps.length > 0 ? { toolTemps } : {}),
       fans: {
         coolingFan: coolingFanSpeed,
         chamberFan: chamberFanSpeed,

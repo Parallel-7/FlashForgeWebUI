@@ -1,16 +1,26 @@
 /**
- * @fileoverview Tests for the AD5X IFS palette nearest-match snapping.
+ * @fileoverview Tests for the material-station palette nearest-match snapping.
  *
  * Validates that every fixed swatch resolves to itself, that small RGB
  * perturbations snap back, that a curated set of known off-palette colors map
  * to the expected swatch (including cases that a naive RGB/ΔE76 distance gets
  * wrong but CIEDE2000 gets right), that hex-format variants parse correctly,
  * and that material snapping handles exact, leading-token, and unrecognized
- * cases. All fixtures are static; nothing here contacts a Spoolman instance.
+ * cases. Also covers per-model palette selection (AD5X vs Creator 5) via
+ * {@link getPaletteForModel}. All fixtures are static; nothing here contacts a
+ * Spoolman instance.
  */
 
 import { describe, expect, it } from '@jest/globals';
-import { IFS_COLORS, IFS_MATERIALS, nearestColor, nearestMaterial } from '../ifs-palette.js';
+import {
+  AD5X_PALETTE,
+  CREATOR5_PALETTE,
+  getPaletteForModel,
+  IFS_COLORS,
+  IFS_MATERIALS,
+  nearestColor,
+  nearestMaterial,
+} from '../ifs-palette.js';
 
 function toHex(r: number, g: number, b: number): string {
   const clamp = (v: number): number => Math.max(0, Math.min(255, v));
@@ -132,5 +142,30 @@ describe('nearestMaterial', () => {
     expect(IFS_MATERIALS).toHaveLength(14);
     expect(IFS_MATERIALS).toContain('PLA');
     expect(IFS_MATERIALS).toContain('PPS-CF');
+  });
+});
+
+describe('getPaletteForModel', () => {
+  it('selects the Creator 5 palette for creator-5 models and AD5X otherwise', () => {
+    expect(getPaletteForModel('creator-5')).toBe(CREATOR5_PALETTE);
+    expect(getPaletteForModel('creator-5-pro')).toBe(CREATOR5_PALETTE);
+    expect(getPaletteForModel('ad5x')).toBe(AD5X_PALETTE);
+    expect(getPaletteForModel(undefined)).toBe(AD5X_PALETTE);
+    expect(getPaletteForModel(null)).toBe(AD5X_PALETTE);
+  });
+
+  it('exposes 24 colors for both models with distinct blues', () => {
+    expect(AD5X_PALETTE.colors).toHaveLength(24);
+    expect(CREATOR5_PALETTE.colors).toHaveLength(24);
+    // Every color but White differs between the two palettes.
+    const ad5xBlue = AD5X_PALETTE.colors.find((c) => c.name === 'Blue')?.hex;
+    const c5Blue = CREATOR5_PALETTE.colors.find((c) => c.name === 'Blue')?.hex;
+    expect(ad5xBlue).not.toEqual(c5Blue);
+  });
+
+  it('exposes the Creator 5 material list (21 materials incl. ASA)', () => {
+    expect(CREATOR5_PALETTE.materials).toHaveLength(21);
+    expect(CREATOR5_PALETTE.nearestMaterial('ASA')).toBe('ASA');
+    expect(CREATOR5_PALETTE.nearestColor('#4CAAF8')?.name).toBe('Blue');
   });
 });

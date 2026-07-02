@@ -1,12 +1,15 @@
 /**
- * @fileoverview Fixed AD5X IFS material/color palette plus nearest-match snapping.
+ * @fileoverview Fixed FlashForge material-station palettes plus nearest-match snapping.
  *
- * The AD5X material station only renders 14 known materials and 24 known colors;
- * arbitrary Spoolman values won't draw an icon on the printer screen. This pure,
- * DOM-free module holds those fixed lists and snaps an arbitrary material/color to
- * the closest recognized swatch. Color matching uses CIEDE2000 (not ΔE76) because
- * ΔE76 mismatches saturated blue/red regions on real Spoolman data. The algorithm
- * is kept identical to the Electron app's copy so both behave the same.
+ * FlashForge printers only render a fixed set of materials and colors on their
+ * material station; arbitrary Spoolman values won't draw an icon on the printer
+ * screen. This pure, DOM-free module holds those fixed lists and snaps an
+ * arbitrary material/color to the closest recognized swatch. Color matching uses
+ * CIEDE2000 (not ΔE76) because ΔE76 mismatches saturated blue/red regions on real
+ * Spoolman data. The AD5X and Creator 5 series use different palettes — resolve
+ * per model via {@link getPaletteForModel}. The legacy `IFS_*` / `nearestColor` /
+ * `nearestMaterial` exports remain as AD5X aliases for backward compatibility. The
+ * algorithm is kept identical to the Electron app's copy so both behave the same.
  */
 
 export interface PaletteColor {
@@ -15,52 +18,6 @@ export interface PaletteColor {
   /** Hex code with leading '#', e.g. "#2750E0". */
   hex: string;
 }
-
-/** The 14 materials the AD5X UI renders (order matches the API docs). */
-export const IFS_MATERIALS: readonly string[] = [
-  'PLA',
-  'PLA-CF',
-  'PETG',
-  'PETG-CF',
-  'ABS',
-  'TPU',
-  'SILK',
-  'PA',
-  'PA-CF',
-  'PAHT-CF',
-  'PC',
-  'PC-ABS',
-  'PET-CF',
-  'PPS-CF',
-];
-
-/** The 24 colors the AD5X UI renders. */
-export const IFS_COLORS: readonly PaletteColor[] = [
-  { name: 'White', hex: '#FFFFFF' },
-  { name: 'Yellow', hex: '#FEF043' },
-  { name: 'Light Green', hex: '#DCF478' },
-  { name: 'Green', hex: '#0ACC38' },
-  { name: 'Dark Green', hex: '#067749' },
-  { name: 'Teal', hex: '#0C6283' },
-  { name: 'Cyan', hex: '#0DE2A0' },
-  { name: 'Light Blue', hex: '#75D9F3' },
-  { name: 'Blue', hex: '#45A8F9' },
-  { name: 'Dark Blue', hex: '#2750E0' },
-  { name: 'Purple', hex: '#46328E' },
-  { name: 'Violet', hex: '#A03CF7' },
-  { name: 'Magenta', hex: '#F330F9' },
-  { name: 'Pink', hex: '#D4B0DC' },
-  { name: 'Coral', hex: '#F95D73' },
-  { name: 'Red', hex: '#F72224' },
-  { name: 'Brown', hex: '#7C4B00' },
-  { name: 'Orange', hex: '#F98D33' },
-  { name: 'Cream', hex: '#FDEBD5' },
-  { name: 'Tan', hex: '#D3C4A3' },
-  { name: 'Dark Brown', hex: '#AF7836' },
-  { name: 'Gray', hex: '#898989' },
-  { name: 'Light Gray', hex: '#BCBCBC' },
-  { name: 'Black', hex: '#161616' },
-];
 
 type Lab = readonly [number, number, number];
 
@@ -158,46 +115,194 @@ function ciede2000(lab1: Lab, lab2: Lab): number {
   );
 }
 
-const PALETTE_LAB: ReadonlyArray<{ color: PaletteColor; lab: Lab }> = IFS_COLORS.map((color) => {
-  const lab = hexToLab(color.hex);
-  if (!lab) throw new Error(`Invalid palette hex: ${color.hex}`);
-  return { color, lab };
-});
-
-/**
- * Snap an arbitrary hex (#RRGGBB, RRGGBB, RRGGBBAA, or #RGB) to the nearest palette
- * swatch via CIEDE2000. Returns null if unparseable.
- */
-export function nearestColor(hex: string): PaletteColor | null {
-  const lab = hexToLab(hex);
-  if (!lab) return null;
-  let best: PaletteColor | null = null;
-  let bestD = Number.POSITIVE_INFINITY;
-  for (const entry of PALETTE_LAB) {
-    const d = ciede2000(lab, entry.lab);
-    if (d < bestD) {
-      bestD = d;
-      best = entry.color;
-    }
-  }
-  return best;
-}
-
 function normalizeMaterial(raw: string): string {
   return raw.toUpperCase().replace(/[^A-Z0-9]/g, '');
 }
-const MATERIAL_NORM = new Map<string, string>(
-  IFS_MATERIALS.map((m) => [normalizeMaterial(m), m])
-);
 
 /**
- * Snap a raw Spoolman material to a recognized material: exact (normalized) match,
- * else leading-token match, else null (caller keeps current slot material).
+ * A model's fixed filament palette: recognized colors + materials, plus the
+ * nearest-match helpers that snap arbitrary input onto them. The matching behavior
+ * is identical across models (data-only difference).
  */
+export class Palette {
+  public readonly colors: readonly PaletteColor[];
+  public readonly materials: readonly string[];
+
+  private readonly paletteLab: ReadonlyArray<{ color: PaletteColor; lab: Lab }>;
+  private readonly materialNorm: ReadonlyMap<string, string>;
+
+  constructor(colors: readonly PaletteColor[], materials: readonly string[]) {
+    this.colors = colors;
+    this.materials = materials;
+    this.paletteLab = colors.map((color) => {
+      const lab = hexToLab(color.hex);
+      if (!lab) throw new Error(`Invalid palette hex: ${color.hex}`);
+      return { color, lab };
+    });
+    this.materialNorm = new Map(materials.map((m) => [normalizeMaterial(m), m]));
+  }
+
+  /** Snap an arbitrary hex to the nearest palette swatch via CIEDE2000. */
+  public nearestColor(hex: string): PaletteColor | null {
+    const lab = hexToLab(hex);
+    if (!lab) return null;
+    let best: PaletteColor | null = null;
+    let bestD = Number.POSITIVE_INFINITY;
+    for (const entry of this.paletteLab) {
+      const d = ciede2000(lab, entry.lab);
+      if (d < bestD) {
+        bestD = d;
+        best = entry.color;
+      }
+    }
+    return best;
+  }
+
+  /** Snap a raw material to a recognized material: exact, else leading token, else null. */
+  public nearestMaterial(raw: string): string | null {
+    if (typeof raw !== 'string' || raw.trim() === '') return null;
+    const exact = this.materialNorm.get(normalizeMaterial(raw));
+    if (exact) return exact;
+    const leading = raw.trim().split(/\s+/)[0];
+    return this.materialNorm.get(normalizeMaterial(leading)) ?? null;
+  }
+}
+
+/** The 14 materials the AD5X UI renders (order matches the API docs). */
+export const AD5X_MATERIALS: readonly string[] = [
+  'PLA',
+  'PLA-CF',
+  'PETG',
+  'PETG-CF',
+  'ABS',
+  'TPU',
+  'SILK',
+  'PA',
+  'PA-CF',
+  'PAHT-CF',
+  'PC',
+  'PC-ABS',
+  'PET-CF',
+  'PPS-CF',
+];
+
+/** The 24 colors the AD5X UI renders. */
+export const AD5X_COLORS: readonly PaletteColor[] = [
+  { name: 'White', hex: '#FFFFFF' },
+  { name: 'Yellow', hex: '#FEF043' },
+  { name: 'Light Green', hex: '#DCF478' },
+  { name: 'Green', hex: '#0ACC38' },
+  { name: 'Dark Green', hex: '#067749' },
+  { name: 'Teal', hex: '#0C6283' },
+  { name: 'Cyan', hex: '#0DE2A0' },
+  { name: 'Light Blue', hex: '#75D9F3' },
+  { name: 'Blue', hex: '#45A8F9' },
+  { name: 'Dark Blue', hex: '#2750E0' },
+  { name: 'Purple', hex: '#46328E' },
+  { name: 'Violet', hex: '#A03CF7' },
+  { name: 'Magenta', hex: '#F330F9' },
+  { name: 'Pink', hex: '#D4B0DC' },
+  { name: 'Coral', hex: '#F95D73' },
+  { name: 'Red', hex: '#F72224' },
+  { name: 'Brown', hex: '#7C4B00' },
+  { name: 'Orange', hex: '#F98D33' },
+  { name: 'Cream', hex: '#FDEBD5' },
+  { name: 'Tan', hex: '#D3C4A3' },
+  { name: 'Dark Brown', hex: '#AF7836' },
+  { name: 'Gray', hex: '#898989' },
+  { name: 'Light Gray', hex: '#BCBCBC' },
+  { name: 'Black', hex: '#161616' },
+];
+
+/** The AD5X fixed palette. */
+export const AD5X_PALETTE = new Palette(AD5X_COLORS, AD5X_MATERIALS);
+
+/**
+ * The 21 materials the Creator 5 UI renders (firmware order). New vs AD5X: ASA,
+ * S-PAHT, S-Multi, HIPS, PVA, and three TPU durometers.
+ */
+export const CREATOR5_MATERIALS: readonly string[] = [
+  'PLA',
+  'PETG',
+  'PLA-CF',
+  'PETG-CF',
+  'ABS',
+  'ASA',
+  'SILK',
+  'PET-CF',
+  'PAHT-CF',
+  'S-PAHT',
+  'S-Multi',
+  'PA-CF',
+  'HIPS',
+  'PVA',
+  'TPU-90A',
+  'TPU-95A',
+  'TPU-64D',
+  'PC',
+  'PA',
+  'PC-ABS',
+  'PPS-CF',
+];
+
+/** The 24 colors the Creator 5 UI renders (differ from every AD5X swatch except White). */
+export const CREATOR5_COLORS: readonly PaletteColor[] = [
+  { name: 'White', hex: '#FFFFFF' },
+  { name: 'Yellow', hex: '#FFF245' },
+  { name: 'Light Green', hex: '#DEF578' },
+  { name: 'Green', hex: '#21CC3D' },
+  { name: 'Dark Green', hex: '#167A4B' },
+  { name: 'Teal', hex: '#156682' },
+  { name: 'Cyan', hex: '#24E4A0' },
+  { name: 'Light Blue', hex: '#7BD9F0' },
+  { name: 'Blue', hex: '#4CAAF8' },
+  { name: 'Dark Blue', hex: '#2E54DD' },
+  { name: 'Purple', hex: '#48358C' },
+  { name: 'Violet', hex: '#A341F7' },
+  { name: 'Magenta', hex: '#F435F6' },
+  { name: 'Pink', hex: '#D5B4DE' },
+  { name: 'Coral', hex: '#FA6173' },
+  { name: 'Red', hex: '#F82D29' },
+  { name: 'Brown', hex: '#805003' },
+  { name: 'Orange', hex: '#F9903B' },
+  { name: 'Cream', hex: '#FCEBD7' },
+  { name: 'Tan', hex: '#D5C5A1' },
+  { name: 'Dark Brown', hex: '#B17C38' },
+  { name: 'Gray', hex: '#8C8C89' },
+  { name: 'Light Gray', hex: '#BEBEBE' },
+  { name: 'Black', hex: '#1B1B1B' },
+];
+
+/** The Creator 5 / 5 Pro fixed palette. */
+export const CREATOR5_PALETTE = new Palette(CREATOR5_COLORS, CREATOR5_MATERIALS);
+
+/**
+ * Resolve the fixed filament palette for a printer model. The Creator 5 / 5 Pro
+ * use their own newer palette; every other material-station printer (the AD5X)
+ * uses the AD5X palette, which is also the safe default for an unknown model.
+ */
+export function getPaletteForModel(modelType: string | undefined | null): Palette {
+  if (modelType === 'creator-5' || modelType === 'creator-5-pro') {
+    return CREATOR5_PALETTE;
+  }
+  return AD5X_PALETTE;
+}
+
+// ---------------------------------------------------------------------------
+// Legacy AD5X aliases (kept so existing importers compile unchanged).
+// ---------------------------------------------------------------------------
+
+/** @deprecated Use {@link getPaletteForModel}. AD5X material list. */
+export const IFS_MATERIALS = AD5X_MATERIALS;
+/** @deprecated Use {@link getPaletteForModel}. AD5X color list. */
+export const IFS_COLORS = AD5X_COLORS;
+
+/** @deprecated Use `getPaletteForModel(model).nearestColor`. Snaps against the AD5X palette. */
+export function nearestColor(hex: string): PaletteColor | null {
+  return AD5X_PALETTE.nearestColor(hex);
+}
+
+/** @deprecated Use `getPaletteForModel(model).nearestMaterial`. Snaps against the AD5X palette. */
 export function nearestMaterial(raw: string): string | null {
-  if (typeof raw !== 'string' || raw.trim() === '') return null;
-  const exact = MATERIAL_NORM.get(normalizeMaterial(raw));
-  if (exact) return exact;
-  const leading = raw.trim().split(/\s+/)[0];
-  return MATERIAL_NORM.get(normalizeMaterial(leading)) ?? null;
+  return AD5X_PALETTE.nearestMaterial(raw);
 }

@@ -537,6 +537,30 @@ body {
   height: 10px;
 }
 
+/* Creator 5 multi-tool temperature card */
+.c5-temps-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.c5-tool-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.c5-temps-unavailable {
+  color: var(--text-muted, var(--text-color));
+  font-size: 13px;
+  opacity: 0.75;
+}
+
+.temp-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .filtration-section,
 #tvoc-info {
   display: flex;

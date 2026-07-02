@@ -108,6 +108,15 @@ export interface WebSocketCommand {
   data?: unknown;
 }
 
+/**
+ * Per-tool temperature reading for multi-tool printers (Creator 5 series).
+ * One entry per nozzle; index 0 maps to the printer's T1 in the UI.
+ */
+export interface ToolTemperature {
+  current: number;
+  target: number;
+}
+
 export interface PrinterStatus {
   printerState: string;
   bedTemperature: number;
@@ -128,6 +137,13 @@ export interface PrinterStatus {
   cumulativePrintTime?: number; // Total lifetime print time in minutes
   formattedEta?: string; // Firmware ETA string (e.g. "04:48" = 4h48m remaining)
   elapsedTimeSeconds?: number; // Precise elapsed seconds for HH:MM:SS display
+  // Creator 5 series (multi-tool) fields. Undefined/empty on single-nozzle printers.
+  toolTemps?: ToolTemperature[];
+  chamberTemperature?: number;
+  chamberTargetTemperature?: number;
+  hasChamberControl?: boolean;
+  isCreator5Pro?: boolean;
+  tvocLevel?: number;
 }
 
 export interface PrinterFeatures {
@@ -139,6 +155,10 @@ export interface PrinterFeatures {
   canResume: boolean;
   canCancel: boolean;
   ledUsesLegacyAPI?: boolean; // Whether custom LED control is enabled
+  /** Multi-tool printer (Creator 5 series) — gates the per-tool temperature card. */
+  hasMultiTool?: boolean;
+  /** Creator 5 Pro — gates the read-only TVOC air-quality display. */
+  isCreator5Pro?: boolean;
 }
 
 export interface AD5XToolData {
@@ -231,6 +251,12 @@ export interface MaterialStationStatus {
   activeSlot: number | null;
   overallStatus: 'ready' | 'warming' | 'error' | 'disconnected';
   errorMessage: string | null;
+  /**
+   * Printer model backing this station, used to resolve the correct fixed
+   * filament palette (AD5X vs Creator 5) in the slot editor. Optional for
+   * backward compatibility with older status payloads.
+   */
+  printerModelType?: string;
 }
 
 export interface MaterialStationStatusResponse extends ApiResponse {
@@ -367,8 +393,13 @@ async function initialize(): Promise<void> {
       closeMaterialMatchingModal();
     },
     onMaterialMatchingConfirm: () => confirmMaterialMatching(),
-    onTemperatureSubmit: (type, temperature) =>
-      sendPrinterCommand(`temperature/${type}`, { temperature }),
+    onTemperatureSubmit: (target, temperature) => {
+      const endpoint =
+        target.kind === 'tool'
+          ? `temperature/tool/${target.index}`
+          : `temperature/${target.kind}`;
+      return sendPrinterCommand(endpoint, { temperature });
+    },
   };
   setupDialogEventHandlers(dialogHandlers);
   setupJobControlEventHandlers();
