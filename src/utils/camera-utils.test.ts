@@ -1,3 +1,10 @@
+/**
+ * @fileoverview Jest coverage for camera URL resolution helpers.
+ *
+ * Verifies `resolveCameraConfig` priority ordering across OEM, custom, and
+ * intelligent-fallback camera sources.
+ */
+
 import { describe, expect, it } from '@jest/globals';
 import type { PrinterFeatureSet } from '../types/printer-backend';
 import { resolveCameraConfig } from './camera-utils';

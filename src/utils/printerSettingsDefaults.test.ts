@@ -1,3 +1,10 @@
+/**
+ * @fileoverview Jest coverage for per-printer settings defaults helpers.
+ *
+ * Verifies custom camera setting normalization and per-printer default
+ * application.
+ */
+
 import { describe, expect, it } from '@jest/globals';
 import { applyPerPrinterDefaults, normalizeCustomCameraSettings } from './printerSettingsDefaults';
 

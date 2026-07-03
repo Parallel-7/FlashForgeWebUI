@@ -101,8 +101,10 @@ export function registerCameraRoutes(router: Router, deps: RouteDependencies): v
 
       const { cameraConfig, streamConfig } = ensuredStream;
 
-      const host = req.hostname || 'localhost';
-      const wsUrl = `ws://${host}:${streamConfig.apiPort}/api/ws?src=${encodeURIComponent(streamConfig.streamName)}`;
+      // Relative WebSocket path served by the WebUI's authenticated camera proxy
+      // (CameraStreamProxy). video-rtc resolves it against the page origin, so
+      // the browser never connects to the go2rtc port directly.
+      const wsUrl = `/api/camera/ws?src=${encodeURIComponent(streamConfig.streamName)}`;
 
       return res.json({
         success: true,
@@ -110,7 +112,6 @@ export function registerCameraRoutes(router: Router, deps: RouteDependencies): v
         streamType: cameraConfig.streamType,
         sourceType: cameraConfig.sourceType,
         streamName: streamConfig.streamName,
-        apiPort: streamConfig.apiPort,
         mode: streamConfig.mode,
         showCameraFps: false,
       });

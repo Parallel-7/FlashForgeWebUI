@@ -32,6 +32,7 @@ import { WebUILoginRequestSchema } from '../schemas/web-api.schemas';
 import type { StandardAPIResponse, WebUILoginResponse } from '../types/web-api.types';
 import { getAuthManager } from './AuthManager';
 import { buildRouteDependencies, createAPIRoutes } from './api-routes';
+import { CameraStreamProxy } from './CameraStreamProxy';
 import {
   type AuthenticatedRequest,
   createAuthMiddleware,
@@ -103,6 +104,9 @@ export class WebUIManager extends EventEmitter {
 
   // WebSocket manager
   private readonly webSocketManager = getWebSocketManager();
+
+  // Camera stream proxy (created per server start, torn down on stop)
+  private cameraStreamProxy: CameraStreamProxy | null = null;
 
   // Camera streaming is handled by the shared go2rtc service via the API routes.
 
@@ -416,11 +420,33 @@ export class WebUIManager extends EventEmitter {
       this.httpServer = http.createServer(expressApp);
       const httpServer = this.httpServer;
 
+      // Initialize WebSocket server (noServer mode; upgrades dispatched below)
+      this.webSocketManager.initialize();
+
+      // Camera stream proxy tunnels authenticated clients to the local go2rtc API
+      this.cameraStreamProxy = new CameraStreamProxy();
+
+      // Single upgrade dispatcher shared by all WebSocket endpoints
+      httpServer.on('upgrade', (req, socket, head) => {
+        let pathname: string;
+        try {
+          pathname = new URL(req.url ?? '', 'http://localhost').pathname;
+        } catch {
+          socket.destroy();
+          return;
+        }
+
+        if (pathname === '/ws') {
+          this.webSocketManager.handleUpgrade(req, socket, head);
+        } else if (pathname === '/api/camera/ws') {
+          this.cameraStreamProxy?.handleUpgrade(req, socket, head);
+        } else {
+          socket.destroy();
+        }
+      });
+
       // Start listening
       await this.startListening();
-
-      // Initialize WebSocket server only after the HTTP socket is bound.
-      this.webSocketManager.initialize(httpServer);
 
       this.isRunning = true;
 
@@ -443,6 +469,8 @@ export class WebUIManager extends EventEmitter {
   private async cleanupFailedStart(): Promise<void> {
     try {
       this.webSocketManager.shutdown();
+      this.cameraStreamProxy?.shutdown();
+      this.cameraStreamProxy = null;
 
       if (this.httpServer) {
         const httpServer = this.httpServer;
@@ -502,8 +530,10 @@ export class WebUIManager extends EventEmitter {
         this.httpServer = null;
       }
 
-      // Shutdown WebSocket server
+      // Shutdown WebSocket server and camera proxy bridges
       this.webSocketManager.shutdown();
+      this.cameraStreamProxy?.shutdown();
+      this.cameraStreamProxy = null;
 
       this.expressApp = null;
       this.isRunning = false;

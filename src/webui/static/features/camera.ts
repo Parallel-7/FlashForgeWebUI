@@ -106,8 +106,14 @@ export async function loadCameraStream(): Promise<void> {
 
     showFpsOverlay = config.showCameraFps ?? false;
 
+    // Append auth token for the WebUI camera proxy; video-rtc resolves the
+    // relative path against the page origin (ws:// or wss:// as appropriate)
+    const wsUrl = state.authToken
+      ? `${config.wsUrl}&token=${encodeURIComponent(state.authToken)}`
+      : config.wsUrl;
+
     const mode = config.mode || 'webrtc,mse,mjpeg';
-    videoRtcElement = createVideoRtcElement(config.wsUrl, mode);
+    videoRtcElement = createVideoRtcElement(wsUrl, mode);
     cameraContainer.appendChild(videoRtcElement);
 
     console.log(`[Camera] go2rtc stream started: ${config.wsUrl} (mode: ${mode})`);

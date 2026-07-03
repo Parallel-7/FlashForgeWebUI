@@ -148,6 +148,8 @@ http://<server-ip>:3000
 
 **Default Login:** The default password is `changeme`. You should change this in the active config file (by default `data/config.json`, or the directory pointed to by `DATA_DIR`) or via the `--webui-password` flag.
 
+**Remote Access / Port Forwarding:** Everything the WebUI needs - including live camera streams - is served over the single WebUI port (default `3000`). If you expose the WebUI outside your LAN, forward **only** that port. Camera video is tunneled through the authenticated WebUI server, so do **not** forward the internal go2rtc streaming port (`1984`); it has no authentication of its own and should never be reachable from outside your machine's network.
+
 <div align="center">
   <h2>Command Line Options</h2>
 </div>

@@ -1,5 +1,8 @@
 /**
- * VideoRTC v1.6.0 - Video player for go2rtc streaming application.
+ * @fileoverview VideoRTC v1.6.0 - Video player for go2rtc streaming application.
+ *
+ * Vendored custom element (`video-rtc`) providing go2rtc-backed WebRTC, MSE,
+ * HLS, MP4, and MJPEG playback in the WebUI browser client.
  *
  * All modern web technologies are supported in almost any browser except Apple Safari.
  *
