@@ -34,6 +34,7 @@ import {
 } from './features/authentication.js';
 import { initializeCamera } from './features/camera.js';
 import {
+  applyUrlPrinterSelection,
   fetchPrinterContexts,
   getCurrentContextId,
   initializeContextSwitching,
@@ -460,6 +461,7 @@ async function handlePostLoginTasks(): Promise<void> {
   try {
     await loadPrinterFeatures();
     await fetchPrinterContexts();
+    await applyUrlPrinterSelection();
     await loadSpoolmanConfig();
 
     initializeCamera();

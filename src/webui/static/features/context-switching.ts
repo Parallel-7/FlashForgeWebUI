@@ -126,6 +126,56 @@ export function updatePrinterSelector(contexts: PrinterContext[], activeContextI
   });
 }
 
+/**
+ * One-shot guard so URL-based selection only runs on the initial page load and
+ * never re-fires on the context re-fetch that follows every manual switch.
+ */
+let hasAppliedUrlSelection = false;
+
+/**
+ * Selects a printer context from URL query parameters (e.g. `?ip=192.168.1.100`
+ * or `?serial=ABCD1234`). Intended for embedding the WebUI in another tool
+ * (such as OrcaSlicer's Device tab) so the displayed printer stays in sync with
+ * the host application.
+ *
+ * Matches against connected context data (not the DOM selector), so it works
+ * even when the printer selector is hidden in single-printer mode. Uses exact
+ * matching to avoid `192.168.1.1` colliding with `192.168.1.10`. Runs at most
+ * once per page load and no-ops when the target is already active.
+ */
+export async function applyUrlPrinterSelection(): Promise<void> {
+  if (hasAppliedUrlSelection) {
+    return;
+  }
+  hasAppliedUrlSelection = true;
+
+  const params = new URLSearchParams(window.location.search);
+  const ip = params.get('ip')?.trim();
+  const serial = params.get('serial')?.trim();
+  if (!ip && !serial) {
+    return;
+  }
+
+  const match = Array.from(contextById.values()).find(
+    (context) =>
+      (ip !== undefined && ip !== '' && context.ipAddress === ip) ||
+      (serial !== undefined &&
+        serial !== '' &&
+        context.serialNumber?.toLowerCase() === serial.toLowerCase())
+  );
+
+  if (!match) {
+    showToast(`No connected printer matches ${ip ?? serial}`, 'error');
+    return;
+  }
+
+  if (match.id === getCurrentContextId()) {
+    return;
+  }
+
+  await switchPrinterContext(match.id);
+}
+
 export async function switchPrinterContext(contextId: string): Promise<void> {
   if (state.authRequired && !state.authToken) {
     showToast('Not authenticated', 'error');
