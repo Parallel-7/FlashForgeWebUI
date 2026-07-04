@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.0-alpha.1] - 2026-07-04
+
 ### Added
 
 - Creator 5 / Creator 5 Pro printer support via the new `Creator5Backend`, including model detection, an HTTP-only connection flow, and material station support
@@ -200,7 +202,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Optional password authentication
 - Configuration persistence in `data/config.json`
 
-[Unreleased]: https://github.com/Parallel-7/FlashForgeWebUI/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/Parallel-7/FlashForgeWebUI/compare/v1.2.0-alpha.1...HEAD
+[1.2.0-alpha.1]: https://github.com/Parallel-7/FlashForgeWebUI/compare/v1.1.0...v1.2.0-alpha.1
 [1.1.0]: https://github.com/Parallel-7/FlashForgeWebUI/compare/v1.0.2...v1.1.0
 [1.0.2]: https://github.com/Parallel-7/FlashForgeWebUI/compare/v1.0.1...v1.0.2
 [1.0.1]: https://github.com/Parallel-7/FlashForgeWebUI/compare/v1.0.0...v1.0.1
