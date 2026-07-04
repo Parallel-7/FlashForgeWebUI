@@ -17,6 +17,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - "Set from Spoolman" action that snaps a Spoolman spool's material/color to the AD5X fixed palette (CIEDE2000 color matching) before applying it to a slot
 - `POST /spoolman/slot-config` route (zod-validated, material-station gated) that calls the library's `configureSlot` (`msConfig_cmd`)
 - `ifs-palette` utility (`src/webui/static/shared/ifs-palette.ts`) with nearest-color and nearest-material resolution, plus Jest coverage
+- Authenticated camera proxy (`CameraStreamProxy`) that tunnels authenticated WebUI clients to the local go2rtc API at `/api/camera/ws`, so browsers never reach the unauthenticated go2rtc port (1984). Auth mirrors `WebSocketManager.verifyClient` via a `?token=` query param; WebRTC signaling rides the same socket
+- Test coverage for `CameraStreamProxy`, camera routes, and a shared `test-server.ts` Express fixture helper, plus additions to the `camera-utils` and `printerSettingsDefaults` suites
+- URL-based printer context selection: the WebUI reads `?ip=` / `?serial=` query params to pick the active printer on load, so it stays in sync when embedded in tools like OrcaSlicer's Device tab (#16)
 
 ### Changed
 
@@ -24,6 +27,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Replaced the previous "Edit IFS Slots" button and slot-list modal with the dedicated Material Station dashboard card
 - `@ghosttypes/ff-api` bumped to `^1.3.2` for `configureSlot` / `SlotAction` support
 - `jest.config.js` now maps `.js` ESM specifiers to `.ts` so `static/` module specs run under ts-jest
+- `WebSocketManager` moved to `noServer` mode with a new `handleUpgrade(req, socket, head)` method (previously bound to the HTTP server with `path: '/ws'`)
+- `WebUIManager` now owns a single shared HTTP upgrade router dispatching `/ws` → WebSocketManager, `/api/camera/ws` → `CameraStreamProxy`, else `socket.destroy()`
+- Camera API contract: `camera-routes` now returns a relative `wsUrl` (`/api/camera/ws?src=<stream>`) and no longer returns `apiPort`; the frontend `CameraProxyConfigResponse` type dropped `apiPort`
+- Frontend camera client appends the auth token to the relative WebSocket path, and the bundled `video-rtc` player resolves it against the page origin
+- README: new "Remote Access / Port Forwarding" note — forward only the WebUI port (default 3000), never the unauthenticated go2rtc port (1984)
+- Removed a dead chamber-temperature clamp (`Math.min(temperature, CHAMBER_MAX_TEMP)`) in `setTemperature` since the range check already rejects out-of-range values (behavior-neutral cleanup)
 
 ### Removed
 
@@ -33,6 +42,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Release workflow now generates tag-based changelog comparison links in published GitHub releases
+- Mobile dashboard rendered as a non-functional gray area — removed the redundant `hidden` class on `#webui-grid-mobile` in `index.html` (the global `.hidden{display:none}` rule outranked the 768px media query's `display:flex`)
+
 ## [1.1.0] - 2026-03-21
 
 ### Added
