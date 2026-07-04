@@ -206,6 +206,11 @@ jobs:
             RELEASE_TYPE_BADGE=" (Pre-release)"
           fi
 
+          PRERELEASE_NOTICE=""
+          if [[ "$IS_PRERELEASE" == "true" ]]; then
+            PRERELEASE_NOTICE="This is an alpha pre-release build intended for testing before the next stable WebUI release."
+          fi
+
           VERSION_TAG="v${VERSION}"
           PREVIOUS_TAG=$(git tag -l 'v*' --sort=-version:refname | grep -vx "${VERSION_TAG}" | head -n 1)
           CHANGELOG_URL="https://github.com/${{ github.repository }}/blob/${VERSION_TAG}/CHANGELOG.md"
@@ -215,10 +220,34 @@ jobs:
             COMPARE_URL="https://github.com/${{ github.repository }}/compare/${PREVIOUS_TAG}...${VERSION_TAG}"
           fi
 
+          CHANGELOG_SECTION=$(VERSION="$VERSION" python3 <<'PY'
+          from pathlib import Path
+          import os
+          import re
+
+          version = os.environ["VERSION"]
+          text = Path("CHANGELOG.md").read_text(encoding="utf-8")
+          pattern = rf"^## \[{re.escape(version)}\] - [^\n]*\n(.*?)(?=^## \[|\Z)"
+          match = re.search(pattern, text, re.MULTILINE | re.DOTALL)
+          if match:
+              print(match.group(1).strip())
+          PY
+          )
+
+          if [[ -z "$(printf '%s' "$CHANGELOG_SECTION" | tr -d '[:space:]')" ]]; then
+            CHANGELOG_SECTION="- See the [CHANGELOG](${CHANGELOG_URL}) for the detailed release notes."
+          fi
+
           cat > RELEASE_NOTES.md << EOF
           # FlashForgeWebUI v${VERSION}${RELEASE_TYPE_BADGE}
 
           Standalone web-based interface for FlashForge 3D printers.
+
+          ${PRERELEASE_NOTICE}
+
+          ## Changes
+
+          ${CHANGELOG_SECTION}
 
           ## Downloads
 
