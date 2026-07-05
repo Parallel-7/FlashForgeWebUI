@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.0-alpha.2] - 2026-07-05
+
+### Added
+
+- Thumbnail previews in the Recent/Local file dialog: each file now shows a lazily loaded preview image (with a "No Preview" fallback), backed by a persistent per-printer on-disk cache (`data/Thumbnails/{serial}/`) so re-opening the dialog is instant
+
+### Fixed
+
+- TVOC air-quality reading now displays on the filtration card for every printer that reports it (e.g. the Adventurer 5M Pro), instead of only the Creator 5 Pro. The Creator 5 Pro now shows the filtration card with its controls disabled rather than hiding it entirely
+
 ## [1.2.0-alpha.1] - 2026-07-04
 
 ### Added
@@ -202,7 +212,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Optional password authentication
 - Configuration persistence in `data/config.json`
 
-[Unreleased]: https://github.com/Parallel-7/FlashForgeWebUI/compare/v1.2.0-alpha.1...HEAD
+[Unreleased]: https://github.com/Parallel-7/FlashForgeWebUI/compare/v1.2.0-alpha.2...HEAD
+[1.2.0-alpha.2]: https://github.com/Parallel-7/FlashForgeWebUI/compare/v1.2.0-alpha.1...v1.2.0-alpha.2
 [1.2.0-alpha.1]: https://github.com/Parallel-7/FlashForgeWebUI/compare/v1.1.0...v1.2.0-alpha.1
 [1.1.0]: https://github.com/Parallel-7/FlashForgeWebUI/compare/v1.0.2...v1.1.0
 [1.0.2]: https://github.com/Parallel-7/FlashForgeWebUI/compare/v1.0.1...v1.0.2
