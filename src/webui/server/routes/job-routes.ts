@@ -4,6 +4,7 @@
 
 import type { Response, Router } from 'express';
 import { isAD5XJobInfo } from '../../../printer-backends/ad5x/ad5x-utils';
+import { getThumbnailCacheService } from '../../../services/ThumbnailCacheService';
 import type { AD5XJobInfo, BasicJobInfo } from '../../../types/printer-backend/backend-operations';
 import { toAppError } from '../../../utils/error.utils';
 import { createValidationError, JobStartRequestSchema } from '../../schemas/web-api.schemas';
@@ -13,6 +14,10 @@ import { type RouteDependencies, resolveContext, sendErrorResponse } from './rou
 
 type JobSource = 'local' | 'recent';
 
+interface ThumbnailAPIResponse extends StandardAPIResponse {
+  readonly thumbnail?: string | null;
+}
+
 export function registerJobRoutes(router: Router, deps: RouteDependencies): void {
   router.get('/jobs/local', async (req: AuthenticatedRequest, res: Response) => {
     await handleJobListRequest(req, res, deps, 'local');
@@ -20,6 +25,10 @@ export function registerJobRoutes(router: Router, deps: RouteDependencies): void
 
   router.get('/jobs/recent', async (req: AuthenticatedRequest, res: Response) => {
     await handleJobListRequest(req, res, deps, 'recent');
+  });
+
+  router.get('/jobs/thumbnail', async (req: AuthenticatedRequest, res: Response) => {
+    await handleThumbnailRequest(req, res, deps);
   });
 
   router.post('/jobs/start', async (req: AuthenticatedRequest, res: Response) => {
@@ -124,6 +133,67 @@ async function handleJobListRequest(
   } catch (error) {
     const appError = toAppError(error);
     return sendErrorResponse<StandardAPIResponse>(res, 500, appError.message);
+  }
+}
+
+/**
+ * Serve a single job thumbnail for the lazy-loading file dialog. Mirrors the desktop
+ * job picker: check the shared per-printer {@link getThumbnailCacheService} first, and on
+ * a miss fetch from the resolved context's backend and cache the result. Fetching by the
+ * request's resolved context (not the active one) keeps multi-printer clients correct.
+ * Returns raw base64 (no data URL prefix); `thumbnail` is null when none is available.
+ */
+async function handleThumbnailRequest(
+  req: AuthenticatedRequest,
+  res: Response,
+  deps: RouteDependencies
+): Promise<Response | undefined> {
+  try {
+    const contextResult = resolveContext(req, deps, { requireBackendReady: true });
+    if (!contextResult.success) {
+      return sendErrorResponse<ThumbnailAPIResponse>(
+        res,
+        contextResult.statusCode,
+        contextResult.error
+      );
+    }
+
+    const filenameParam = req.query.filename;
+    const filename = typeof filenameParam === 'string' ? filenameParam : '';
+    if (!filename) {
+      return sendErrorResponse<ThumbnailAPIResponse>(
+        res,
+        400,
+        'filename query parameter is required'
+      );
+    }
+
+    const serialNumber = deps.backendManager.getPrinterDetailsForContext(
+      contextResult.contextId
+    )?.SerialNumber;
+    const cache = getThumbnailCacheService();
+
+    if (serialNumber) {
+      const cached = await cache.get(serialNumber, filename);
+      if (cached.success && cached.data) {
+        return res.json({ success: true, thumbnail: cached.data } satisfies ThumbnailAPIResponse);
+      }
+    }
+
+    const thumbnail = await deps.backendManager.getJobThumbnail(contextResult.contextId, filename);
+    if (!thumbnail) {
+      return res.json({ success: true, thumbnail: null } satisfies ThumbnailAPIResponse);
+    }
+
+    const base64 = thumbnail.replace(/^data:image\/\w+;base64,/, '');
+    if (serialNumber) {
+      await cache.set(serialNumber, filename, base64);
+    }
+
+    return res.json({ success: true, thumbnail: base64 } satisfies ThumbnailAPIResponse);
+  } catch (error) {
+    const appError = toAppError(error);
+    return sendErrorResponse<ThumbnailAPIResponse>(res, 500, appError.message);
   }
 }
 

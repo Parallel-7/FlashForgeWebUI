@@ -28,6 +28,7 @@ import { getMultiContextSpoolmanTracker } from './services/MultiContextSpoolmanT
 import { getMultiContextTemperatureMonitor } from './services/MultiContextTemperatureMonitor';
 import { getSavedPrinterService } from './services/SavedPrinterService';
 import { initializeSpoolmanIntegrationService } from './services/SpoolmanIntegrationService';
+import { getThumbnailCacheService } from './services/ThumbnailCacheService';
 import type { PollingData } from './types/polling';
 import type { PrinterClientType, PrinterDetails } from './types/printer';
 import { getCameraUserConfig } from './utils/camera-utils';
@@ -432,6 +433,10 @@ async function main(): Promise<void> {
     // 1. Initialize data directory
     console.log('[Init] Initializing data directory...');
     initializeDataDirectory();
+
+    // 1a. Initialize the persistent per-printer thumbnail cache used by the file dialog
+    await getThumbnailCacheService().initialize();
+    console.log('[Init] Thumbnail cache initialized');
 
     // 2. Parse CLI arguments
     const config = parseHeadlessArguments();
