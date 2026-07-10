@@ -146,6 +146,7 @@ src/index.ts                    # Entry point - initializes all singletons, conn
 - `AD5XBackend` - Adventurer 5M X series (uses AD5X API)
 - `Adventurer5MBackend` - Adventurer 5M (FiveMClient)
 - `Adventurer5MProBackend` - Adventurer 5M Pro (FiveMClient)
+- `Creator5Backend` - Creator 5 / Creator 5 Pro (HTTP-only connection flow; IFS Material Station support)
 - `DualAPIBackend` - Base for printers supporting both FiveMClient and FlashForgeClient
 - `GenericLegacyBackend` - Fallback for older printers (FlashForgeClient only)
 
@@ -173,6 +174,7 @@ src/index.ts                    # Entry point - initializes all singletons, conn
 - `WebUIManager` - Express HTTP server and static file serving
 - `WebSocketManager` - Real-time bidirectional communication with the frontend
 - `AuthManager` - Optional password authentication
+- `CameraStreamProxy` - Authenticated bridge between WebUI clients and the local go2rtc API at `/api/camera/ws`; browsers never reach the go2rtc port directly. `WebUIManager` owns a single HTTP `upgrade` router that dispatches by pathname: `/ws` → `WebSocketManager.handleUpgrade`, `/api/camera/ws` → `CameraStreamProxy.handleUpgrade`, else `socket.destroy()`.
 - API routes organized by feature (context, printer-control, printer-status, printer-detection, printer-management, job, camera, temperature, filtration, spoolman, theme, discovery)
 - Frontend uses GridStack for dashboard layout and the bundled `video-rtc` player for go2rtc-backed camera streaming
 
@@ -264,6 +266,7 @@ Some printers support **both** (dual API). The backend system abstracts these di
 - Adventurer 5M X -> `AD5XBackend`
 - Adventurer 5M -> `Adventurer5MBackend`
 - Adventurer 5M Pro -> `Adventurer5MProBackend`
+- Creator 5 / Creator 5 Pro -> `Creator5Backend`
 - Other new-API printers -> backend selected from discovery metadata and `clientType`
 - Legacy printers -> `GenericLegacyBackend`
 
@@ -350,7 +353,7 @@ class Service extends EventEmitter<EventMap> {
 
 1. **Dual Build System**: Backend uses esbuild bundling, frontend uses a separate `tsconfig` for browser modules.
 2. **Data Directory Tracking**: Runtime state lives in `<project>/data/`, but only `data/runtime/` is ignored by the current `.gitignore`.
-3. **Camera Streams**: go2rtc manages camera streams per context; there is no user-facing global `CameraProxyPort` setting.
+3. **Camera Streams**: go2rtc manages camera streams per context, but browsers never reach the go2rtc port directly — video flows through an authenticated WebUI proxy at `/api/camera/ws` (see `CameraStreamProxy`). Only the WebUI port should be exposed/forwarded; the unauthenticated go2rtc port (default `1984`) must NOT be forwarded. There is no user-facing global `CameraProxyPort` setting.
 4. **go2rtc Binary**: The binary is downloaded at `npm install` time and stored under `resources/bin/`. If download or packaging fails, camera streaming will not work.
 5. **Polling Frequency**: All contexts poll every 3 seconds to avoid inactive-context TCP keep-alive failures.
 6. **Context IDs**: IDs are UUID-based and generated at connection time; they are not tied to IP or serial number.
@@ -358,11 +361,12 @@ class Service extends EventEmitter<EventMap> {
 8. **Graceful Shutdown**: Shutdown stops polling, Discord, printer connections, go2rtc, and the WebUI with layered timeouts.
 9. **Windows Compatibility**: Ctrl+C handling includes a readline bridge on Windows.
 10. **ARMv7 Builds**: Raspberry Pi 32-bit builds target `node20-linuxstatic-armv7`, which depends on `@yao-pkg/pkg`.
+11. **CRLF vs Biome LF**: The repo is checked out CRLF repo-wide, but `biome.json` sets `lineEnding: "lf"`. As a result `npm run check` (and `lint`/`format`) reports ~30+ format errors across nearly every source file regardless of what changed — this is pre-existing, not a regression from your edit. Only fix lint/format issues you actually introduced.
 
 ## Testing Notes
 
 **Jest unit/integration tests** (`src/`):
-- ConfigManager, EnvironmentService, DiscordNotificationService, error utilities, WebUIManager integration
+- ConfigManager, EnvironmentService, DiscordNotificationService, error utilities, WebUIManager integration, `CameraStreamProxy`, and camera routes (via the `test-server.ts` Express fixture helper)
 
 **Verified and tested**:
 - Multi-printer context switching

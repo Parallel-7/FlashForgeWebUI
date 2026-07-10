@@ -27,6 +27,7 @@ import { getPrinterContextManager } from '../../managers/PrinterContextManager';
 import type { SpoolmanChangedEvent } from '../../services/SpoolmanIntegrationService';
 import { getSpoolmanIntegrationService } from '../../services/SpoolmanIntegrationService';
 import type { PollingData } from '../../types/polling';
+import type { RebootStatusPayload } from '../../types/printer-power';
 import { AppError, ErrorCode, toAppError } from '../../utils/error.utils';
 import { createValidationError, WebSocketCommandSchema } from '../schemas/web-api.schemas';
 import type { PrinterStatusData, WebSocketCommand, WebSocketMessage } from '../types/web-api.types';
@@ -621,6 +622,24 @@ export class WebSocketManager extends EventEmitter {
     };
 
     this.broadcast(spoolmanMessage);
+  }
+
+  /**
+   * Broadcast a printer reboot lifecycle update to all connected clients.
+   * Called by the PrinterRebootService as the reboot progresses so the WebUI
+   * reboot overlay can follow along.
+   */
+  public broadcastRebootStatus(contextId: string, payload: RebootStatusPayload): void {
+    if (!this.isRunning || this.clients.size === 0) {
+      return;
+    }
+
+    this.broadcast({
+      type: 'REBOOT_STATUS',
+      timestamp: new Date().toISOString(),
+      contextId,
+      reboot: payload,
+    });
   }
 
   /**

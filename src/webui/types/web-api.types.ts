@@ -18,6 +18,8 @@
  * - Errors: WebUIError, WEB_UI_ERROR_CODES constant object, WebUIErrorCode type
  */
 
+import type { RebootStatusPayload } from '../../types/printer-power';
+
 // ============================================================================
 // AUTHENTICATION TYPES
 // ============================================================================
@@ -66,7 +68,8 @@ export type WebSocketMessageType =
   | 'ERROR'
   | 'COMMAND_RESULT'
   | 'PONG'
-  | 'SPOOLMAN_UPDATE';
+  | 'SPOOLMAN_UPDATE'
+  | 'REBOOT_STATUS';
 
 /**
  * Per-tool temperature reading for multi-tool printers (Creator 5 series).
@@ -165,6 +168,8 @@ export interface WebSocketMessage {
     readonly remainingLength: number;
     readonly lastUpdated: string;
   } | null;
+  // Reboot lifecycle fields (when type === 'REBOOT_STATUS')
+  readonly reboot?: RebootStatusPayload;
 }
 
 // ============================================================================

@@ -12,17 +12,21 @@ import { getPrinterConnectionManager } from '../../managers/ConnectionFlowManage
 import { getPrinterBackendManager } from '../../managers/PrinterBackendManager';
 import { getPrinterContextManager } from '../../managers/PrinterContextManager';
 import { getSpoolmanIntegrationService } from '../../services/SpoolmanIntegrationService';
+import { registerCalibrationRoutes } from './routes/calibration-routes';
 import { registerCameraRoutes } from './routes/camera-routes';
 import { registerContextRoutes } from './routes/context-routes';
 import { registerDiscoveryRoutes } from './routes/discovery-routes';
+import { registerFileManagerRoutes } from './routes/file-manager-routes';
 import { registerFiltrationRoutes } from './routes/filtration-routes';
 import { registerJobRoutes } from './routes/job-routes';
+import { registerPrinterPowerRoutes } from './routes/printer-power-routes';
 import { registerPrinterControlRoutes } from './routes/printer-control-routes';
 import { registerPrinterDetectionRoutes } from './routes/printer-detection-routes';
 import { registerPrinterManagementRoutes } from './routes/printer-management-routes';
 import { registerPrinterStatusRoutes } from './routes/printer-status-routes';
 import type { RouteDependencies } from './routes/route-helpers';
 import { registerSpoolmanRoutes } from './routes/spoolman-routes';
+import { registerSSHSettingsRoutes } from './routes/ssh-settings-routes';
 import { registerTemperatureRoutes } from './routes/temperature-routes';
 import { registerThemeRoutes } from './routes/theme-routes';
 
@@ -51,6 +55,10 @@ export function createAPIRoutes(deps: RouteDependencies = buildRouteDependencies
   registerDiscoveryRoutes(router, deps);
   registerPrinterDetectionRoutes(router, deps);
   registerPrinterManagementRoutes(router, deps);
+  registerCalibrationRoutes(router, deps);
+  registerFileManagerRoutes(router, deps);
+  registerSSHSettingsRoutes(router, deps);
+  registerPrinterPowerRoutes(router, deps);
 
   return router;
 }

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @fileoverview Lucide icon utilities for the WebUI static client.
  *
  * Handles converting icon names to PascalCase, hydrating Lucide icons inside
@@ -75,5 +75,5 @@ export function hydrateLucideIcons(
 }
 
 export function initializeLucideIcons(): void {
-  hydrateLucideIcons(['settings', 'lock', 'package', 'search', 'circle'], document);
+  hydrateLucideIcons(['settings', 'lock', 'package', 'search', 'circle', 'folder', 'gauge', 'power'], document);
 }

@@ -62,7 +62,11 @@ import {
   confirmMaterialMatching,
   setupMaterialMatchingHandlers,
 } from './features/material-matching.js';
+import { refreshCalibrationButton, setupCalibration } from './features/calibration.js';
+import { refreshFileManagerButton, setupFileManager } from './features/file-manager.js';
 import { refreshIfsStationCard, setupIfsStationCard } from './features/ifs-station.js';
+import { refreshRebootButton, setupReboot } from './features/reboot.js';
+import { refreshSSHSettings, setupSSHSettings } from './features/ssh.js';
 import { initializeDiscovery } from './features/printer-discovery.js';
 import { loadSpoolmanConfig, setupSpoolmanHandlers } from './features/spoolman.js';
 import { $, hideElement, showElement } from './shared/dom.js';
@@ -92,7 +96,7 @@ export interface AuthStatusResponse {
 }
 
 export interface WebSocketMessage {
-  type: 'AUTH_SUCCESS' | 'STATUS_UPDATE' | 'ERROR' | 'COMMAND_RESULT' | 'PONG' | 'SPOOLMAN_UPDATE';
+  type: 'AUTH_SUCCESS' | 'STATUS_UPDATE' | 'ERROR' | 'COMMAND_RESULT' | 'PONG' | 'SPOOLMAN_UPDATE' | 'REBOOT_STATUS';
   timestamp: string;
   status?: PrinterStatus;
   error?: string;
@@ -101,6 +105,23 @@ export interface WebSocketMessage {
   success?: boolean;
   contextId?: string;
   spool?: ActiveSpoolData | null;
+  reboot?: RebootStatusPayload;
+}
+
+/** Lifecycle phase of an in-flight printer reboot (see printer-power routes). */
+export type RebootPhase =
+  | 'rebooting'
+  | 'reconnecting'
+  | 'reconnecting-services'
+  | 'success'
+  | 'timeout'
+  | 'failed';
+
+/** Payload carried by REBOOT_STATUS WebSocket broadcasts. */
+export interface RebootStatusPayload {
+  readonly phase: RebootPhase;
+  readonly message?: string;
+  readonly printerName?: string;
 }
 
 export interface WebSocketCommand {
@@ -405,13 +426,27 @@ async function initialize(): Promise<void> {
   setupMaterialMatchingHandlers();
   setupSpoolmanHandlers();
   setupIfsStationCard();
+  setupFileManager();
+  setupCalibration();
+  setupReboot();
+  setupSSHSettings();
   initializeDiscovery();
+
+  // The SSH settings section reflects the ACTIVE printer; reload it whenever
+  // the settings modal is opened.
+  $('settings-button')?.addEventListener('click', () => {
+    void refreshSSHSettings();
+  });
 
   const contextHandlers = {
     onContextSwitched: async () => {
       await loadPrinterFeatures();
       await loadSpoolmanConfig();
       initializeCamera();
+      void refreshFileManagerButton();
+      void refreshCalibrationButton();
+      void refreshRebootButton();
+      void refreshSSHSettings();
     },
   };
 
@@ -465,6 +500,9 @@ async function handlePostLoginTasks(): Promise<void> {
     await loadSpoolmanConfig();
 
     initializeCamera();
+    void refreshFileManagerButton();
+    void refreshCalibrationButton();
+    void refreshRebootButton();
   } catch (error) {
     console.error('Failed to load features:', error);
   }
