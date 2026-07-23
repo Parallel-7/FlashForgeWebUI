@@ -99,7 +99,7 @@ node dist/index.js --no-printers
 node dist/index.js --last-used --webui-port=3001 --webui-password=mypassword
 ```
 
-Printer spec format: `IP:TYPE:CHECKCODE` where TYPE is `new` or `legacy`.
+Printer spec format: `IP:TYPE[:CHECKCODE[:SERIAL]]` where TYPE is `new`, `legacy`, `creator-5`, or `creator-5-pro`. The Creator tokens are required for the Creator 5 series because those printers are HTTP-only — the generic `new` token triggers a legacy TCP probe they cannot answer. SERIAL is required for the Creator series (their serial cannot be recovered by probing) and optional for dual-API models, which fall back to the serial reported by the TCP probe.
 
 ## Architecture
 

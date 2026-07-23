@@ -1205,6 +1205,8 @@ export class ConnectionFlowManager extends EventEmitter {
       checkCode?: string;
       commandPort?: number;
       httpPort?: number;
+      productId?: number;
+      serialNumber?: string;
     }>
   ): Promise<{ contextId: string; ip: string }[]> {
     const connectedContexts: { contextId: string; ip: string }[] = [];
@@ -1215,14 +1217,20 @@ export class ConnectionFlowManager extends EventEmitter {
 
         const flowId = this.startFlow();
 
-        // Create mock discovered printer
+        // Create mock discovered printer. The productId hint (from UDP discovery
+        // or the manual "Creator 5" selection) lets the temporary connection skip
+        // the legacy TCP probe for HTTP-only models.
         const mockDiscoveredPrinter: DiscoveredPrinter = {
           name: `Printer at ${spec.ip}`,
           ipAddress: spec.ip,
-          serialNumber: '', // Will be determined during connection
+          // HTTP-only models can't be probed for their serial, so the caller
+          // must supply it — modern printers authenticate with serial + check
+          // code. The TCP probe refines it for dual-API printers.
+          serialNumber: spec.serialNumber ?? '',
           model: undefined,
           commandPort: spec.commandPort,
           eventPort: spec.httpPort,
+          productId: spec.productId,
         };
 
         // Determine if this is a 5M family printer
@@ -1243,11 +1251,13 @@ export class ConnectionFlowManager extends EventEmitter {
             ? tempResult.printerInfo.Name
             : `Printer at ${spec.ip}`;
 
-        const serialNumber =
+        const probedSerial =
           tempResult.printerInfo?.SerialNumber &&
-          typeof tempResult.printerInfo.SerialNumber === 'string'
+          typeof tempResult.printerInfo.SerialNumber === 'string' &&
+          tempResult.printerInfo.SerialNumber.trim() !== ''
             ? tempResult.printerInfo.SerialNumber
-            : `Unknown-${Date.now()}`;
+            : undefined;
+        const serialNumber = probedSerial ?? spec.serialNumber ?? `Unknown-${Date.now()}`;
 
         const modelType = detectPrinterModelType(tempResult.typeName);
 
@@ -1265,6 +1275,7 @@ export class ConnectionFlowManager extends EventEmitter {
           model: tempResult.typeName,
           commandPort: spec.commandPort,
           eventPort: spec.httpPort,
+          productId: spec.productId,
         };
 
         const forceLegacyMode = existingPrinter?.forceLegacyMode ?? false;
@@ -1284,6 +1295,25 @@ export class ConnectionFlowManager extends EventEmitter {
           continue;
         }
 
+        // When the productId hint short-circuited the TCP probe, the temp result
+        // only carries a synthesized generic model name (a manual "Creator 5"
+        // selection cannot distinguish the 5 Pro). Prefer the immutable factory
+        // model name reported by the authenticated HTTP client — it also corrects
+        // a wrong manual selection.
+        let resolvedTypeName = tempResult.typeName;
+        if (is5MFamily) {
+          const factoryModel = (connectionResult.primaryClient as Partial<FiveMClient>).model;
+          if (typeof factoryModel === 'string' && factoryModel.trim() !== '') {
+            resolvedTypeName = factoryModel;
+          }
+        }
+        const resolvedModelType = detectPrinterModelType(resolvedTypeName);
+        if (resolvedModelType !== modelType) {
+          console.log(
+            `[Headless] Refined model from "${tempResult.typeName}" to "${resolvedTypeName}" via HTTP client`
+          );
+        }
+
         // Save printer details
         const printerDetails: PrinterDetails = applyPerPrinterDefaults({
           Name: formatPrinterName(printerName, serialNumber),
@@ -1291,8 +1321,8 @@ export class ConnectionFlowManager extends EventEmitter {
           SerialNumber: serialNumber,
           CheckCode: checkCode,
           ClientType: forceLegacyMode ? 'legacy' : spec.type,
-          printerModel: tempResult.typeName,
-          modelType,
+          printerModel: resolvedTypeName,
+          modelType: resolvedModelType,
           commandPort: spec.commandPort,
           httpPort: spec.httpPort,
           // Preserve previously configured per-printer overrides when present

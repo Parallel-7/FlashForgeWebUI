@@ -253,10 +253,12 @@ export const getPrinterModelInfo = (typeName: string): EnhancedPrinterFamilyInfo
 
 /**
  * Check if printer supports dual API usage
- * Modern printers (5M family) can use both new and legacy APIs
+ * 5M / 5M Pro / AD5X can use both the new HTTP API and the legacy TCP API.
+ * HTTP-only models (Creator 5 series) have no legacy TCP server, so they are
+ * modern but NOT dual-API.
  */
 export const supportsDualAPI = (modelType: PrinterModelType): boolean => {
-  return modelType !== 'generic-legacy';
+  return modelType !== 'generic-legacy' && !isHttpOnlyModel(modelType);
 };
 
 /**

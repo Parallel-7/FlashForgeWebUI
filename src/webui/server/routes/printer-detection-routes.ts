@@ -30,6 +30,8 @@ export function registerPrinterDetectionRoutes(router: Router, _deps: RouteDepen
         ipAddress?: string;
         commandPort?: number;
         httpPort?: number;
+        productId?: number;
+        serialNumber?: string;
       };
       const ipAddress = body.ipAddress;
 
@@ -47,14 +49,19 @@ export function registerPrinterDetectionRoutes(router: Router, _deps: RouteDepen
 
       console.log(`[Detection] Probing printer at ${ipAddress}...`);
 
-      // Create mock discovered printer for temporary connection
+      // Create mock discovered printer for temporary connection. The optional
+      // productId (from UDP discovery or the manual "Creator 5" selection) lets
+      // createTemporaryConnection short-circuit the legacy TCP probe for
+      // HTTP-only models — the Creator 5 series has no TCP server on 8899, so
+      // probing it would only time out.
       const mockPrinter: DiscoveredPrinter = {
         name: `Printer at ${ipAddress}`,
         ipAddress,
-        serialNumber: '', // Will be determined during connection
+        serialNumber: typeof body.serialNumber === 'string' ? body.serialNumber.trim() : '',
         model: undefined,
         commandPort: typeof body.commandPort === 'number' ? body.commandPort : undefined,
         eventPort: typeof body.httpPort === 'number' ? body.httpPort : undefined,
+        productId: typeof body.productId === 'number' ? body.productId : undefined,
       };
 
       // Create temporary connection to probe the printer

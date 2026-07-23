@@ -160,7 +160,7 @@ http://<server-ip>:3000
 | --- | --- |
 | **--last-used** | Connect to the last used printer on startup |
 | **--all-saved-printers** | Connect to all saved printers on startup |
-| **--printers="IP:TYPE:CODE,..."** | Connect to specific printers (TYPE: "new" or "legacy") |
+| **--printers="IP:TYPE[:CODE[:SERIAL]],..."** | Connect to specific printers (TYPE: "new", "legacy", "creator-5", or "creator-5-pro"). SERIAL is required for the Creator 5 series |
 | **--no-printers** | Start WebUI only, without connecting to any printer |
 | **--webui-port=PORT** | Override the WebUI port (default: 3000) |
 | **--webui-password=PASS** | Override the WebUI password |

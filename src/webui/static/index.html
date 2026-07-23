@@ -374,7 +374,11 @@
                 <div class="form-group">
                   <label for="discovery-printer-type">Printer Type</label>
                   <select id="discovery-printer-type" class="form-control">
-                    <option value="new">5M / 5M Pro (New API)</option>
+                    <option value="adventurer-5m">Adventurer 5M</option>
+                    <option value="adventurer-5m-pro">Adventurer 5M Pro</option>
+                    <option value="ad5x">AD5X</option>
+                    <option value="creator-5">Creator 5</option>
+                    <option value="creator-5-pro">Creator 5 Pro</option>
                     <option value="legacy">Legacy Printers (Old API)</option>
                   </select>
                 </div>
@@ -382,7 +386,13 @@
                 <div class="form-group" id="discovery-check-code-group">
                   <label for="discovery-check-code">Check Code</label>
                   <input type="text" id="discovery-check-code" class="form-control" placeholder="12345678" maxlength="8" />
-                  <small class="form-text">Required for 5M/Pro printers. Found in printer settings.</small>
+                  <small class="form-text">Required for modern printers. Found in printer settings.</small>
+                </div>
+
+                <div class="form-group" id="discovery-serial-group">
+                  <label for="discovery-serial-number">Serial Number</label>
+                  <input type="text" id="discovery-serial-number" class="form-control" placeholder="SNMOMC1234567" />
+                  <small class="form-text">Required for modern printers. Found in printer settings or on the machine label.</small>
                 </div>
 
                 <button class="btn btn-primary btn-block" id="discovery-manual-connect" type="button">

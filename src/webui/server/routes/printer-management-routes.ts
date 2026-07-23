@@ -7,6 +7,7 @@ import type { Response, Router } from 'express';
 import { getSavedPrinterService } from '../../../services/SavedPrinterService';
 import type { PrinterClientType } from '../../../types/printer';
 import { toAppError } from '../../../utils/error.utils';
+import { detectPrinterModelTypeFromId, isHttpOnlyModel } from '../../../utils/PrinterUtils';
 import type { StandardAPIResponse } from '../../types/web-api.types';
 import type { AuthenticatedRequest } from '../auth-middleware';
 import type { RouteDependencies } from './route-helpers';
@@ -30,6 +31,7 @@ export function registerPrinterManagementRoutes(router: Router, deps: RouteDepen
         checkCode?: string;
         commandPort?: number;
         httpPort?: number;
+        productId?: number;
       };
 
       const ipAddress = body.ipAddress;
@@ -37,6 +39,7 @@ export function registerPrinterManagementRoutes(router: Router, deps: RouteDepen
       const checkCode = body.checkCode;
       const commandPort = body.commandPort;
       const httpPort = body.httpPort;
+      const productId = body.productId;
 
       // Validate required fields
       if (!ipAddress || typeof ipAddress !== 'string') {
@@ -49,7 +52,27 @@ export function registerPrinterManagementRoutes(router: Router, deps: RouteDepen
 
       // Validate check code for new printers
       if (type === 'new' && (!checkCode || typeof checkCode !== 'string')) {
-        return sendErrorResponse(res, 400, 'Check code is required for 5M/Pro printers');
+        return sendErrorResponse(res, 400, 'Check code is required for modern printers');
+      }
+
+      const serialNumber =
+        typeof body.serialNumber === 'string' && body.serialNumber.trim() !== ''
+          ? body.serialNumber.trim()
+          : undefined;
+
+      // HTTP-only models (Creator 5 series) run no legacy TCP server, so their
+      // serial can never be recovered by probing — it must be supplied. Modern
+      // printers authenticate with serial + check code.
+      if (
+        typeof productId === 'number' &&
+        isHttpOnlyModel(detectPrinterModelTypeFromId(productId, '')) &&
+        !serialNumber
+      ) {
+        return sendErrorResponse(
+          res,
+          400,
+          'Serial number is required for Creator 5 series printers'
+        );
       }
 
       // Build printer spec
@@ -59,6 +82,8 @@ export function registerPrinterManagementRoutes(router: Router, deps: RouteDepen
         checkCode: type === 'new' ? checkCode : undefined,
         commandPort: typeof commandPort === 'number' ? commandPort : undefined,
         httpPort: typeof httpPort === 'number' ? httpPort : undefined,
+        productId: typeof productId === 'number' ? productId : undefined,
+        serialNumber,
       };
 
       // Connect via ConnectionFlowManager
