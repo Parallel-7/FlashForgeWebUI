@@ -22,7 +22,9 @@ export function registerDiscoveryRoutes(router: Router, _deps: RouteDependencies
    */
   router.post('/discovery/scan', async (req: AuthenticatedRequest, res: Response) => {
     try {
-      const body = req.body as {
+      // Express 5 leaves req.body undefined when the request carries no body,
+      // so fall back to an empty object and use the per-field defaults below.
+      const body = (req.body ?? {}) as {
         timeout?: number;
         interval?: number;
         retries?: number;
@@ -82,7 +84,7 @@ export function registerDiscoveryRoutes(router: Router, _deps: RouteDependencies
    */
   router.post('/discovery/scan-ip', async (req: AuthenticatedRequest, res: Response) => {
     try {
-      const body = req.body as { ipAddress?: string };
+      const body = (req.body ?? {}) as { ipAddress?: string };
       const ipAddress = body.ipAddress;
 
       if (!ipAddress || typeof ipAddress !== 'string') {

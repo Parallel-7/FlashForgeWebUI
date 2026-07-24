@@ -7,7 +7,7 @@
  * - Discovery timeout and interval configuration
  * - Discovered printer data normalization
  * - Discovery state management (in-progress tracking)
- * - Support for legacy and modern FlashForge UDP discovery packet layouts
+ * - Integration with ff-api's PrinterDiscovery
  *
  * Key exports:
  * - PrinterDiscoveryService class: Network discovery coordinator
@@ -16,31 +16,36 @@
  * This service encapsulates all network scanning logic, providing a simple interface
  * for discovering FlashForge printers on the local network. Used by ConnectionFlowManager
  * during the printer connection workflow to present available printers to the user.
+ *
+ * The UDP protocol itself (multicast/broadcast/loopback probing, and parsing of the
+ * 276-byte modern and 140-byte legacy response formats) lives in @ghosttypes/ff-api.
+ * This service only maps the library's result into the local DiscoveredPrinter shape.
  */
 
-import * as dgram from 'node:dgram';
-import { networkInterfaces } from 'node:os';
+import { type DiscoveredPrinter as FFDiscoveredPrinter, PrinterDiscovery } from '@ghosttypes/ff-api';
 import { EventEmitter } from 'events';
 
 import type { DiscoveredPrinter } from '../types/printer';
 
-const DISCOVERY_BIND_PORT = 18007;
-const DISCOVERY_MESSAGE = Buffer.from([
-  0x77, 0x77, 0x77, 0x2e, 0x75, 0x73, 0x72, 0x22, 0x65, 0x36, 0xc0, 0x00, 0x00, 0x00, 0x00, 0x00,
-  0x00, 0x00, 0x00, 0x00,
-]);
-const BROADCAST_DISCOVERY_PORT = 48899;
-const MODERN_MULTICAST_PORT = 19000;
-const LEGACY_MULTICAST_PORT = 8899;
-const MODERN_DISCOVERY_PACKET_SIZE = 276;
-const LEGACY_DISCOVERY_PACKET_SIZE = 140;
-const LOOPBACK_ADDRESS = '127.0.0.1';
-const MULTICAST_ADDRESS = '225.0.0.9';
-
-interface DiscoveryTarget {
-  readonly address: string;
-  readonly port: number;
-}
+/**
+ * Map a library discovery result into the local DiscoveredPrinter shape.
+ *
+ * `model` is intentionally left as 'Unknown': model resolution happens later in
+ * ConnectionEstablishmentService, which maps `productId` through NEW_API_PRODUCT_IDS
+ * to the local PrinterModelType.
+ */
+const toDiscoveredPrinter = (printer: FFDiscoveredPrinter): DiscoveredPrinter => ({
+  name: printer.name || 'Unknown Printer',
+  ipAddress: printer.ipAddress,
+  serialNumber: printer.serialNumber || '',
+  commandPort: printer.commandPort,
+  eventPort: printer.eventPort,
+  // USB product ID identifies the model authoritatively (e.g. Creator 5 = 0x0028),
+  // which is essential for HTTP-only models that can't be TCP-probed.
+  productId: printer.productId,
+  model: 'Unknown',
+  status: 'Discovered',
+});
 
 /**
  * Service responsible for discovering printers on the network
@@ -84,7 +89,15 @@ export class PrinterDiscoveryService extends EventEmitter {
     this.emit('discovery-started');
 
     try {
-      const discoveredPrinters = await this.discoverPrintersAsync(timeout, interval, retries);
+      const discovery = new PrinterDiscovery();
+      const rawPrinters = await discovery.discover({
+        timeout,
+        idleTimeout: interval,
+        maxRetries: retries,
+      });
+
+      const discoveredPrinters = rawPrinters.map(toDiscoveredPrinter);
+
       this.emit('discovery-completed', discoveredPrinters);
       return discoveredPrinters;
     } catch (error) {
@@ -104,12 +117,18 @@ export class PrinterDiscoveryService extends EventEmitter {
     this.emit('single-scan-started', ipAddress);
 
     try {
-      const rawPrinters = await this.discoverPrintersAsync(5000, 1000, 1);
-      const matchingPrinter =
-        rawPrinters.find((printer) => printer.ipAddress === ipAddress) ?? null;
+      const discovery = new PrinterDiscovery();
+      const rawPrinters = await discovery.discover({
+        timeout: 5000,
+        idleTimeout: 1000,
+        maxRetries: 1,
+      });
 
-      this.emit('single-scan-completed', matchingPrinter);
-      return matchingPrinter;
+      const matchingPrinter = rawPrinters.find((printer) => printer.ipAddress === ipAddress);
+      const discoveredPrinter = matchingPrinter ? toDiscoveredPrinter(matchingPrinter) : null;
+
+      this.emit('single-scan-completed', discoveredPrinter);
+      return discoveredPrinter;
     } catch (error) {
       this.emit('single-scan-failed', { ipAddress, error });
       return null;
@@ -132,235 +151,6 @@ export class PrinterDiscoveryService extends EventEmitter {
       this.discoveryInProgress = false;
       this.emit('discovery-cancelled');
     }
-  }
-
-  private async discoverPrintersAsync(
-    timeoutMs: number,
-    idleTimeoutMs: number,
-    maxRetries: number
-  ): Promise<DiscoveredPrinter[]> {
-    const printers = new Map<string, DiscoveredPrinter>();
-
-    for (let attempt = 0; attempt < maxRetries; attempt++) {
-      const socket = dgram.createSocket({ type: 'udp4', reuseAddr: true });
-
-      try {
-        await this.bindSocket(socket);
-        socket.setBroadcast(true);
-        socket.setMulticastTTL(1);
-
-        const targets = this.getDiscoveryTargets();
-        for (const target of targets) {
-          try {
-            socket.send(DISCOVERY_MESSAGE, target.port, target.address);
-          } catch (error) {
-            console.warn(
-              `[Discovery] Failed to send UDP probe to ${target.address}:${target.port}:`,
-              error
-            );
-          }
-        }
-
-        await this.receivePrinterResponses(socket, printers, timeoutMs, idleTimeoutMs);
-      } finally {
-        socket.close();
-      }
-
-      if (printers.size > 0) {
-        break;
-      }
-
-      if (attempt < maxRetries - 1) {
-        await this.delay(1000);
-      }
-    }
-
-    return Array.from(printers.values());
-  }
-
-  private async bindSocket(socket: dgram.Socket): Promise<void> {
-    await new Promise<void>((resolve, reject) => {
-      socket.once('error', reject);
-      socket.bind(DISCOVERY_BIND_PORT, () => {
-        socket.off('error', reject);
-        resolve();
-      });
-    });
-  }
-
-  private async receivePrinterResponses(
-    socket: dgram.Socket,
-    printers: Map<string, DiscoveredPrinter>,
-    totalTimeoutMs: number,
-    idleTimeoutMs: number
-  ): Promise<void> {
-    await new Promise<void>((resolve, reject) => {
-      let totalTimeoutHandle: ReturnType<typeof setTimeout> | null = null;
-      let idleTimeoutHandle: ReturnType<typeof setTimeout> | null = null;
-
-      const cleanup = (): void => {
-        if (totalTimeoutHandle) {
-          clearTimeout(totalTimeoutHandle);
-        }
-        if (idleTimeoutHandle) {
-          clearTimeout(idleTimeoutHandle);
-        }
-        socket.off('message', handleMessage);
-        socket.off('error', handleError);
-      };
-
-      const finish = (callback: () => void): void => {
-        cleanup();
-        callback();
-      };
-
-      const resetIdleTimeout = (): void => {
-        if (idleTimeoutHandle) {
-          clearTimeout(idleTimeoutHandle);
-        }
-        idleTimeoutHandle = setTimeout(() => {
-          finish(resolve);
-        }, idleTimeoutMs);
-      };
-
-      const handleMessage = (buffer: Buffer, rinfo: dgram.RemoteInfo): void => {
-        resetIdleTimeout();
-
-        const printer = this.parsePrinterResponse(buffer, rinfo.address);
-        if (!printer) {
-          return;
-        }
-
-        const key = `${printer.ipAddress}:${printer.commandPort ?? 8899}:${printer.serialNumber}`;
-        printers.set(key, printer);
-      };
-
-      const handleError = (error: Error): void => {
-        finish(() => reject(error));
-      };
-
-      totalTimeoutHandle = setTimeout(() => {
-        finish(resolve);
-      }, totalTimeoutMs);
-
-      socket.on('message', handleMessage);
-      socket.on('error', handleError);
-      resetIdleTimeout();
-    });
-  }
-
-  private parsePrinterResponse(response: Buffer, ipAddress: string): DiscoveredPrinter | null {
-    if (!response || response.length < LEGACY_DISCOVERY_PACKET_SIZE) {
-      return null;
-    }
-
-    if (response.length >= MODERN_DISCOVERY_PACKET_SIZE) {
-      const name = this.readNullTerminatedAscii(response, 0x00, 132);
-      const serialNumber = this.readNullTerminatedAscii(response, 0x92, 130);
-
-      return {
-        name: name || 'Unknown Printer',
-        ipAddress,
-        serialNumber,
-        commandPort: response.readUInt16BE(0x84),
-        eventPort: response.readUInt16BE(0x8e),
-        // USB product ID identifies the model authoritatively (e.g. Creator 5 = 0x0028),
-        // which is essential for HTTP-only models that can't be TCP-probed.
-        productId: response.readUInt16BE(0x88),
-        model: 'Unknown',
-        status: 'Discovered',
-      };
-    }
-
-    const name = this.readNullTerminatedAscii(response, 0x00, 128);
-
-    return {
-      name: name || 'Unknown Printer',
-      ipAddress,
-      serialNumber: '',
-      commandPort: response.readUInt16BE(0x84),
-      model: 'Unknown',
-      status: 'Discovered',
-    };
-  }
-
-  private readNullTerminatedAscii(buffer: Buffer, offset: number, length: number): string {
-    return buffer
-      .toString('ascii', offset, offset + length)
-      .replace(/\0.*$/, '')
-      .trim();
-  }
-
-  private getDiscoveryTargets(): DiscoveryTarget[] {
-    const targets = new Map<string, DiscoveryTarget>();
-
-    for (const broadcastAddress of this.getBroadcastAddresses()) {
-      targets.set(`${broadcastAddress}:${BROADCAST_DISCOVERY_PORT}`, {
-        address: broadcastAddress,
-        port: BROADCAST_DISCOVERY_PORT,
-      });
-    }
-
-    const fallbackTargets: readonly DiscoveryTarget[] = [
-      { address: LOOPBACK_ADDRESS, port: BROADCAST_DISCOVERY_PORT },
-      { address: LOOPBACK_ADDRESS, port: MODERN_MULTICAST_PORT },
-      { address: LOOPBACK_ADDRESS, port: LEGACY_MULTICAST_PORT },
-      { address: MULTICAST_ADDRESS, port: MODERN_MULTICAST_PORT },
-      { address: MULTICAST_ADDRESS, port: LEGACY_MULTICAST_PORT },
-    ];
-
-    for (const target of fallbackTargets) {
-      targets.set(`${target.address}:${target.port}`, target);
-    }
-
-    return Array.from(targets.values());
-  }
-
-  private getBroadcastAddresses(): string[] {
-    const addresses = new Set<string>();
-    const interfaces = networkInterfaces();
-
-    for (const networkInterface of Object.values(interfaces)) {
-      if (!networkInterface) {
-        continue;
-      }
-
-      for (const iface of networkInterface) {
-        if (iface.family !== 'IPv4' || iface.internal || !iface.netmask) {
-          continue;
-        }
-
-        const broadcastAddress = this.calculateBroadcastAddress(iface.address, iface.netmask);
-        if (broadcastAddress) {
-          addresses.add(broadcastAddress);
-        }
-      }
-    }
-
-    return Array.from(addresses.values());
-  }
-
-  private calculateBroadcastAddress(ipAddress: string, subnetMask: string): string | null {
-    try {
-      const ip = ipAddress.split('.').map(Number);
-      const mask = subnetMask.split('.').map(Number);
-
-      if (ip.length !== 4 || mask.length !== 4) {
-        return null;
-      }
-
-      const broadcast = ip.map((octet, index) => octet | (~mask[index] & 255));
-      return broadcast.join('.');
-    } catch (error) {
-      console.warn('[Discovery] Failed to calculate broadcast address:', error);
-      return null;
-    }
-  }
-
-  private async delay(ms: number): Promise<void> {
-    await new Promise<void>((resolve) => {
-      setTimeout(resolve, ms);
-    });
   }
 }
 
