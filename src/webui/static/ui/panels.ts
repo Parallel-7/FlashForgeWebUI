@@ -436,7 +436,11 @@ function updateButtonStates(printerState: string): void {
 
   if (recentBtn) recentBtn.disabled = !isReadyForNewJob;
   if (localBtn) localBtn.disabled = !isReadyForNewJob;
-  if (homeAxesBtn) homeAxesBtn.disabled = isPrintingActive;
+  // Home Axes (~G28) is a raw G-code command. HTTP-only printers (Creator 5
+  // series) expose no TCP/G-code passthrough, so disable the button while printing
+  // OR when the active printer explicitly reports G-code commands unavailable.
+  const gcodeUnavailable = state.printerFeatures?.gcodeCommands?.available === false;
+  if (homeAxesBtn) homeAxesBtn.disabled = isPrintingActive || gcodeUnavailable;
   const clearStatusBtn = $('btn-clear-status') as HTMLButtonElement | null;
   if (clearStatusBtn) clearStatusBtn.disabled = isPrintingActive;
 

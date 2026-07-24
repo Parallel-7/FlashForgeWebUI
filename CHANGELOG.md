@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Modern printers are now identified from the USB product ID carried in the UDP discovery broadcast instead of an unauthenticated TCP `M115` probe. The probe was previously skipped only for the HTTP-only Creator 5 series; it is now skipped for every new-API model (5M, 5M Pro, AD5X, Creator 5, Creator 5 Pro), removing a redundant round trip from every modern connect. The same broadcast supplies the serial and name, and `FiveMClient.initialize()` supplies the authoritative capability flags and reachability, so the probe contributed nothing
+- The TCP probe remains the fallback for anything without a product ID — genuine legacy printers, and manual connects that selected "Legacy"
+- Manual connections now send a product ID hint for every modern model (previously Creator 5 / Creator 5 Pro only), so those connects skip the probe as well
+- The manual-connect endpoint now requires a serial number for **all** modern printers, not just the Creator 5 series, since a named model is no longer probed for it. The Creator 5 series keeps its model-specific error message
+
+### Fixed
+
+- Raw G-code availability is now reported per printer (`features.gcodeCommands`) and the Home Axes button is disabled on printers that don't support it. HTTP-only printers (Creator 5 series) have no TCP channel for raw G-code, so `~G28` could never have worked there
+- `DualAPIBackend` no longer assumes a legacy TCP client exists: `executeGCodeCommand` returns a clear error instead of throwing, and the pause/resume/cancel legacy fallbacks are skipped on HTTP-only backends. Those fallbacks also now report the fallback's own error rather than masking it with the original
+
 ## [1.2.0-alpha.2] - 2026-07-05
 
 ### Added

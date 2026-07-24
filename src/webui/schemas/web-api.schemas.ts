@@ -199,6 +199,13 @@ export const PrinterFeaturesSchema = z.object({
   canPause: z.boolean(),
   canResume: z.boolean(),
   canCancel: z.boolean(),
+  gcodeCommands: z
+    .object({
+      available: z.boolean(),
+      usesLegacyAPI: z.boolean(),
+      supportedCommands: z.array(z.string()),
+    })
+    .optional(),
 });
 
 // ============================================================================

@@ -283,6 +283,12 @@ export interface PrinterFeatures {
   readonly hasMultiTool?: boolean;
   /** Creator 5 Pro — gates the read-only TVOC air-quality display. */
   readonly isCreator5Pro?: boolean;
+  /** Raw G-code passthrough availability (HTTP-only printers like the Creator 5 report available: false). */
+  readonly gcodeCommands?: {
+    readonly available: boolean;
+    readonly usesLegacyAPI: boolean;
+    readonly supportedCommands: readonly string[];
+  };
 }
 
 /**

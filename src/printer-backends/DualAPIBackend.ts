@@ -226,6 +226,17 @@ export abstract class DualAPIBackend extends BasePrinterBackend {
   public async executeGCodeCommand(command: string): Promise<GCodeCommandResult> {
     const startTime = Date.now();
 
+    // HTTP-only backends (Creator 5 / 5 Pro) have no TCP channel for raw G-code.
+    if (!this.legacyClient) {
+      return {
+        success: false,
+        command,
+        error: 'Raw G-code is unavailable on this printer (HTTP-only, no TCP channel)',
+        executionTime: 0,
+        timestamp: new Date(),
+      };
+    }
+
     try {
       // G-code commands always use legacy API
       const response = await this.legacyClient.sendRawCmd(command);
@@ -573,7 +584,14 @@ export abstract class DualAPIBackend extends BasePrinterBackend {
         timestamp: new Date(),
       };
     } catch (error) {
-      // Fallback to legacy API
+      // Fallback to legacy API (unavailable on HTTP-only backends)
+      if (!this.legacyClient) {
+        return {
+          success: false,
+          error: error instanceof Error ? error.message : String(error),
+          timestamp: new Date(),
+        };
+      }
       try {
         await this.legacyClient.sendRawCmd('M25');
         return {
@@ -581,10 +599,10 @@ export abstract class DualAPIBackend extends BasePrinterBackend {
           data: 'Job paused (via legacy API)',
           timestamp: new Date(),
         };
-      } catch {
+      } catch (fallbackError) {
         return {
           success: false,
-          error: error instanceof Error ? error.message : String(error),
+          error: fallbackError instanceof Error ? fallbackError.message : String(fallbackError),
           timestamp: new Date(),
         };
       }
@@ -608,7 +626,14 @@ export abstract class DualAPIBackend extends BasePrinterBackend {
         timestamp: new Date(),
       };
     } catch (error) {
-      // Fallback to legacy API
+      // Fallback to legacy API (unavailable on HTTP-only backends)
+      if (!this.legacyClient) {
+        return {
+          success: false,
+          error: error instanceof Error ? error.message : String(error),
+          timestamp: new Date(),
+        };
+      }
       try {
         await this.legacyClient.sendRawCmd('M24');
         return {
@@ -616,10 +641,10 @@ export abstract class DualAPIBackend extends BasePrinterBackend {
           data: 'Job resumed (via legacy API)',
           timestamp: new Date(),
         };
-      } catch {
+      } catch (fallbackError) {
         return {
           success: false,
-          error: error instanceof Error ? error.message : String(error),
+          error: fallbackError instanceof Error ? fallbackError.message : String(fallbackError),
           timestamp: new Date(),
         };
       }
@@ -643,7 +668,14 @@ export abstract class DualAPIBackend extends BasePrinterBackend {
         timestamp: new Date(),
       };
     } catch (error) {
-      // Fallback to legacy API
+      // Fallback to legacy API (unavailable on HTTP-only backends)
+      if (!this.legacyClient) {
+        return {
+          success: false,
+          error: error instanceof Error ? error.message : String(error),
+          timestamp: new Date(),
+        };
+      }
       try {
         await this.legacyClient.sendRawCmd('M26');
         return {
@@ -651,10 +683,10 @@ export abstract class DualAPIBackend extends BasePrinterBackend {
           data: 'Job cancelled (via legacy API)',
           timestamp: new Date(),
         };
-      } catch {
+      } catch (fallbackError) {
         return {
           success: false,
-          error: error instanceof Error ? error.message : String(error),
+          error: fallbackError instanceof Error ? fallbackError.message : String(fallbackError),
           timestamp: new Date(),
         };
       }

@@ -212,6 +212,7 @@ export function registerPrinterStatusRoutes(router: Router, deps: RouteDependenc
           features.ledControl.customControlEnabled || features.ledControl.usesLegacyAPI,
         hasMultiTool,
         isCreator5Pro,
+        gcodeCommands: features.gcodeCommands,
       };
 
       return res.json({

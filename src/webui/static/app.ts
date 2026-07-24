@@ -181,6 +181,12 @@ export interface PrinterFeatures {
   hasMultiTool?: boolean;
   /** Creator 5 Pro — gates the read-only TVOC air-quality display. */
   isCreator5Pro?: boolean;
+  /** Raw G-code passthrough availability; gates the Home Axes (~G28) button. */
+  gcodeCommands?: {
+    available: boolean;
+    usesLegacyAPI: boolean;
+    supportedCommands: readonly string[];
+  };
 }
 
 export interface AD5XToolData {
