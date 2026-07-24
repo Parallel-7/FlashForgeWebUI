@@ -302,13 +302,13 @@ export const SpoolClearRequestSchema = z.object({
 });
 
 /**
- * Slot-config request validation (configure an AD5X material-station slot).
+ * Slot-config request validation (configure a material-station slot).
  *
  * The client snaps a Spoolman spool's material/color to the printer's fixed
- * 14-material / 24-color palette and sends the already-snapped values here. Slot
- * is 1-based (1-4); `materialName` is null when the spool's material did not
- * resolve, in which case the slot keeps its current material. `colorHex` is a
- * 3/6/8-digit hex (with or without leading '#').
+ * palette (AD5X vs Creator 5) and sends the already-snapped values here. Slot is
+ * 1-based (1-4); `materialName` is required (the slot editor always resolves a
+ * material from the model's fixed palette), and `colorHex` must be a 6-digit hex
+ * with an optional leading '#'. Both string fields are trimmed before validation.
  */
 export const SlotConfigRequestSchema = z.object({
   contextId: z.string().optional(),
@@ -317,12 +317,11 @@ export const SlotConfigRequestSchema = z.object({
     .int('slot must be an integer')
     .min(1, 'slot must be at least 1')
     .max(4, 'slot must be at most 4'),
-  materialName: z.string().min(1).nullable(),
+  materialName: z.string().trim().min(1, 'Material name is required'),
   colorHex: z
     .string()
-    .regex(/^#?[0-9a-fA-F]{3}(?:[0-9a-fA-F]{3}(?:[0-9a-fA-F]{2})?)?$/, 'Invalid hex color'),
-  /** Optional fallback material to keep when `materialName` is null. */
-  currentMaterial: z.string().min(1).nullable().optional(),
+    .trim()
+    .regex(/^#?[0-9a-fA-F]{6}$/, 'A valid 6-digit hex color is required'),
 });
 
 // ============================================================================

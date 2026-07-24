@@ -229,7 +229,7 @@ export function registerSpoolmanRoutes(router: Router, deps: RouteDependencies):
         return sendErrorResponse<SlotConfigResponse>(res, 400, validationError.error);
       }
 
-      const { contextId, slot, materialName, colorHex, currentMaterial } = validation.data;
+      const { contextId, slot, materialName, colorHex } = validation.data;
       const overrideContextId = contextId || null;
 
       const contextResult = resolveContext(req, deps, {
@@ -258,16 +258,9 @@ export function registerSpoolmanRoutes(router: Router, deps: RouteDependencies):
         );
       }
 
-      // Resolve the material to write: the client snaps the spool material to the
-      // fixed palette; when it does not resolve, keep the slot's current material.
-      const materialToWrite = materialName ?? currentMaterial ?? null;
-      if (!materialToWrite) {
-        return sendErrorResponse<SlotConfigResponse>(
-          res,
-          400,
-          'Spool material did not match a known material and the slot has no current material to keep'
-        );
-      }
+      // The client snaps the spool material to the model's fixed palette and always
+      // sends a resolved material, so `materialName` is the value to write.
+      const materialToWrite = materialName;
 
       const primaryClient = backend.getPrimaryClient();
       if (!(primaryClient instanceof FiveMClient)) {

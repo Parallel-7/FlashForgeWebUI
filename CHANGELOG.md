@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The TCP probe remains the fallback for anything without a product ID — genuine legacy printers, and manual connects that selected "Legacy"
 - Manual connections now send a product ID hint for every modern model (previously Creator 5 / Creator 5 Pro only), so those connects skip the probe as well
 - The manual-connect endpoint now requires a serial number for **all** modern printers, not just the Creator 5 series, since a named model is no longer probed for it. The Creator 5 series keeps its model-specific error message
+- The material-station slot-config request schema (`/spoolman/slot-config`) was tightened to the correct rules — a required material name and a strict 6-digit hex color — matching the AD5X / Creator 5 fixed material and color palettes. The previously permissive 3/6/8-digit hex and nullable material (with the `currentMaterial` fallback) are gone, since the slot editor always sends a material resolved from the model's fixed palette
 
 ### Fixed
 

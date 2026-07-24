@@ -318,7 +318,7 @@ function openSlotEditor(slot: MaterialSlotInfo): void {
 
   applyBtn.addEventListener('click', () => {
     if (selectedHex) {
-      void applyManualSlot(slot, displaySlotId, selectedMaterial, selectedHex, close);
+      void applyManualSlot(displaySlotId, selectedMaterial, selectedHex, close);
     }
   });
 
@@ -330,7 +330,6 @@ function openSlotEditor(slot: MaterialSlotInfo): void {
  * slot-config route, then refresh the card.
  */
 async function applyManualSlot(
-  slot: MaterialSlotInfo,
   displaySlotId: number,
   material: string,
   colorHex: string,
@@ -345,7 +344,6 @@ async function applyManualSlot(
         slot: displaySlotId,
         materialName: material,
         colorHex,
-        currentMaterial: slot.materialType,
       }),
     });
 
