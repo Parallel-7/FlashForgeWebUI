@@ -17,14 +17,21 @@ interface DiscoveredPrinter {
 }
 
 /**
- * Internal USB product IDs sent for manual connections to HTTP-only models
- * (Creator 5 series). These printers run no legacy TCP server on port 8899, so
- * the server needs the ID up front to skip the TCP probe that would otherwise
- * time out. Dual-API models (5M / 5M Pro / AD5X) are deliberately absent: they
- * answer the TCP probe with their firmware TypeName, and the printer's own
- * answer should always win over the user's dropdown selection.
+ * Internal USB product IDs sent for manual connections so the server types the
+ * model from the product ID and skips the legacy TCP probe entirely. Every modern
+ * (new-API) model is included: the product ID is authoritative for model typing,
+ * the user also supplies the serial, and `FiveMClient.initialize()` provides the
+ * real capability flags — leaving the probe with nothing to contribute (and it is
+ * impossible for the HTTP-only Creator 5 series). Legacy selections carry no
+ * product ID and fall through to the TCP probe on the server.
+ *
+ * Keys must match the `<option value>` entries of the printer-type dropdown in
+ * `index.html`.
  */
 const MANUAL_PRODUCT_ID_HINTS: Readonly<Record<string, number>> = {
+  'adventurer-5m': 35,
+  'adventurer-5m-pro': 36,
+  ad5x: 38,
   'creator-5': 40,
   'creator-5-pro': 41,
 };

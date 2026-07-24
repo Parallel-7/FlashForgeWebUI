@@ -1,9 +1,10 @@
 /**
- * @fileoverview Tests for the HTTP-only short-circuit in
+ * @fileoverview Tests for the product-ID short-circuit in
  * ConnectionEstablishmentService.createTemporaryConnection (issue #17).
- * When a Creator 5 series product ID is supplied, the service must synthesize
- * the type info and return without ever opening a legacy TCP probe — the
- * Creator 5 series runs no TCP server on port 8899.
+ * When the discovery USB product ID identifies any modern (new-API) model, the
+ * service must synthesize the type info from the discovery packet and return
+ * without ever opening a legacy TCP probe. Printers with no product ID still
+ * fall through to the probe, which remains the detection path for legacy models.
  */
 
 import { describe, expect, it, jest } from '@jest/globals';
@@ -35,9 +36,42 @@ describe('ConnectionEstablishmentService.createTemporaryConnection', () => {
     expect(result.typeName).toBe('Creator 5 Pro');
   });
 
-  it('does not short-circuit for dual-API product IDs', async () => {
-    // 5M family printers run a real TCP server, so the probe must actually run.
-    // Stub the legacy client factory so no real socket is opened.
+  it('short-circuits the TCP probe for dual-API product IDs', async () => {
+    // The broadcast carries the serial (0x92) and the product ID (0x88), and
+    // FiveMClient.initialize() supplies the capability flags — so the probe adds
+    // nothing for 5M / 5M Pro / AD5X either, and must not run.
+    const spy = jest.spyOn(
+      service as unknown as { createLegacyClient: () => unknown },
+      'createLegacyClient'
+    );
+
+    try {
+      for (const [productId, expectedTypeName] of [
+        [35, 'Adventurer 5M'],
+        [36, 'Adventurer 5M Pro'],
+        [38, 'AD5X'],
+      ] as const) {
+        spy.mockClear();
+
+        const result = await service.createTemporaryConnection(
+          { ...basePrinter, productId },
+          50,
+          1
+        );
+
+        expect(spy).not.toHaveBeenCalled();
+        expect(result.success).toBe(true);
+        expect(result.typeName).toBe(expectedTypeName);
+        expect(result.printerInfo?.SerialNumber).toBe('SNCRE5PRO001');
+      }
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it('still runs the TCP probe when no product ID is present (legacy fallback)', async () => {
+    // Genuine legacy printers — and manual/headless connects that named no model —
+    // have no product ID, so type detection must still go over TCP.
     const fakeClient = {
       initControl: jest.fn(async () => false),
       dispose: jest.fn(async () => undefined),
@@ -51,7 +85,7 @@ describe('ConnectionEstablishmentService.createTemporaryConnection', () => {
 
     try {
       const result = await service.createTemporaryConnection(
-        { ...basePrinter, productId: 35 },
+        { ...basePrinter, productId: undefined },
         50,
         1
       );

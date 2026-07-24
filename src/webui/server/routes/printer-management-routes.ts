@@ -60,18 +60,21 @@ export function registerPrinterManagementRoutes(router: Router, deps: RouteDepen
           ? body.serialNumber.trim()
           : undefined;
 
-      // HTTP-only models (Creator 5 series) run no legacy TCP server, so their
-      // serial can never be recovered by probing — it must be supplied. Modern
-      // printers authenticate with serial + check code.
-      if (
-        typeof productId === 'number' &&
-        isHttpOnlyModel(detectPrinterModelTypeFromId(productId, '')) &&
-        !serialNumber
-      ) {
+      // Modern printers authenticate with serial + check code, and a manual connect
+      // that names a model skips the legacy TCP probe — so the serial can no longer
+      // be recovered by probing and must be supplied by the caller. The Creator 5
+      // series never had a probe to fall back on in the first place, so it keeps a
+      // model-specific message.
+      if (type === 'new' && !serialNumber) {
+        const isCreator =
+          typeof productId === 'number' &&
+          isHttpOnlyModel(detectPrinterModelTypeFromId(productId, ''));
         return sendErrorResponse(
           res,
           400,
-          'Serial number is required for Creator 5 series printers'
+          isCreator
+            ? 'Serial number is required for Creator 5 series printers'
+            : 'Serial number is required for modern printers'
         );
       }
 
