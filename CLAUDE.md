@@ -180,13 +180,16 @@ src/index.ts                    # Entry point - initializes all singletons, conn
 
 ### Data Directory
 
-The application stores runtime state in `data/` under the project working directory. In the current repo, only `data/runtime/` is ignored by `.gitignore`, so local edits to top-level files like `data/config.json` can appear in `git status`.
+The application stores runtime state in `data/` under the project working directory. The whole directory is ignored by `.gitignore` except `data/*.example.json` — nothing the app writes at runtime is tracked, so local printer credentials never reach a commit.
 
-Key files:
+Key files (all generated; none are tracked):
 - `data/config.json` - User settings (WebUI, Discord, Spoolman, theme, debug settings)
 - `data/printer_details.json` - Saved printer details and printer-specific overrides used for reconnects and camera resolution
+- `data/Thumbnails/{serial}/` - Thumbnail cache written by `ThumbnailCacheService`
 
-Default config values live in `src/types/config.ts` and are loaded through `ConfigManager`.
+Neither file needs to exist at startup: `ConfigManager` falls back to `DEFAULT_CONFIG` and `PrinterDetailsManager` starts with an empty printer map, and both write themselves out on first save. The tracked `data/config.example.json` and `data/printer_details.example.json` document the schema for anyone hand-editing a headless deployment; they are reference only and are never read by the app.
+
+Default config values live in `src/types/config.ts` and are loaded through `ConfigManager`. When you add a config key, update `DEFAULT_CONFIG` **and** `data/config.example.json`.
 
 ### Build System
 
@@ -354,7 +357,7 @@ class Service extends EventEmitter<EventMap> {
 ## Gotchas
 
 1. **Dual Build System**: Backend uses esbuild bundling, frontend uses a separate `tsconfig` for browser modules.
-2. **Data Directory Tracking**: Runtime state lives in `<project>/data/`, but only `data/runtime/` is ignored by the current `.gitignore`.
+2. **Data Directory Tracking**: Runtime state lives in `<project>/data/`, which is fully gitignored except `data/*.example.json`. Do not re-add generated state to git — `printer_details.json` holds per-printer check codes, which are the printers' LAN auth credentials.
 3. **Camera Streams**: go2rtc manages camera streams per context, but browsers never reach the go2rtc port directly — video flows through an authenticated WebUI proxy at `/api/camera/ws` (see `CameraStreamProxy`). Only the WebUI port should be exposed/forwarded; the unauthenticated go2rtc port (default `1984`) must NOT be forwarded. There is no user-facing global `CameraProxyPort` setting.
 4. **go2rtc Binary**: The binary is downloaded at `npm install` time and stored under `resources/bin/`. If download or packaging fails, camera streaming will not work.
 5. **Polling Frequency**: All contexts poll every 3 seconds to avoid inactive-context TCP keep-alive failures.
