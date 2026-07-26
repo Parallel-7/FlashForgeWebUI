@@ -52,7 +52,6 @@ import {
 } from '../utils/PrinterUtils';
 import { applyPerPrinterDefaults } from '../utils/printerSettingsDefaults';
 import { TimeoutError, withTimeout } from '../utils/ShutdownTimeout';
-import { IPAddressSchema } from '../utils/validation.utils';
 import { getLoadingManager } from './LoadingManager';
 import { getPrinterBackendManager } from './PrinterBackendManager';
 import { getPrinterContextManager } from './PrinterContextManager';
@@ -274,7 +273,7 @@ export class ConnectionFlowManager extends EventEmitter {
               return await this.showSavedPrintersForSelection();
 
             case 'manual-ip':
-              return await this.offerManualIPEntry();
+              return this.manualEntryUnavailable();
 
             default:
               return { success: false, error: 'Unknown choice' };
@@ -283,7 +282,7 @@ export class ConnectionFlowManager extends EventEmitter {
           // No saved printers - go directly to manual IP entry
           this.loadingManager.hide();
           console.log('No printers discovered and no saved printers - offering manual IP entry');
-          return await this.offerManualIPEntry();
+          return this.manualEntryUnavailable();
         }
       }
 
@@ -406,7 +405,7 @@ export class ConnectionFlowManager extends EventEmitter {
           }
 
           case 'manual-ip':
-            return await this.offerManualIPEntry();
+            return this.manualEntryUnavailable();
 
           default:
             return { success: false, error: 'Auto-connect cancelled by user' };
@@ -820,73 +819,27 @@ export class ConnectionFlowManager extends EventEmitter {
     }
   }
 
-  /** Offer manual IP entry to user */
-  private async offerManualIPEntry(): Promise<ConnectionResult> {
-    if (!this.inputDialogHandler) {
-      return {
-        success: false,
-        error: 'Manual IP entry not available - input dialog handler not set',
-      };
-    }
-
-    try {
-      const ipAddress = await this.inputDialogHandler({
-        title: 'Manual Printer Connection',
-        message: 'No printers found on network. Enter printer IP address manually:',
-        defaultValue: '',
-        inputType: 'text',
-        placeholder: 'e.g., 192.168.1.100',
-      });
-
-      if (!ipAddress) {
-        return { success: false, error: 'No IP address provided' };
-      }
-
-      // Validate IP address format
-      const validation = IPAddressSchema.safeParse(ipAddress.trim());
-      if (!validation.success) {
-        this.loadingManager.showError('Invalid IP address format', 3000);
-        return { success: false, error: 'Invalid IP address format' };
-      }
-
-      return await this.connectDirectlyToIP(validation.data);
-    } catch (error) {
-      const errorMessage = getConnectionErrorMessage(error);
-      this.loadingManager.showError(`Manual connection failed: ${errorMessage}`, 4000);
-      return { success: false, error: errorMessage };
-    }
-  }
-
-  /** Connect directly to an IP address */
-  public async connectDirectlyToIP(ipAddress: string): Promise<ConnectionResult> {
-    try {
-      this.loadingManager.show({
-        message: `Connecting to printer at ${ipAddress}...`,
-        canCancel: false,
-      });
-
-      // Create a mock discovered printer for the connection process
-      // The actual name and serial will be determined during temporary connection
-      const mockDiscoveredPrinter: DiscoveredPrinter = {
-        name: `Printer at ${ipAddress}`, // Temporary name, will be updated
-        ipAddress: ipAddress,
-        serialNumber: '', // Will be determined during connection
-        model: undefined, // Will be determined during connection
-      };
-
-      console.log('Starting direct IP connection to:', ipAddress);
-
-      // Use the standard connection flow which will:
-      // 1. Create temporary connection to get printer info
-      // 2. Extract proper name and serial number
-      // 3. Establish final connection with correct details
-      return await this.connectToPrinter(mockDiscoveredPrinter);
-    } catch (error) {
-      const errorMessage = getConnectionErrorMessage(error);
-      console.error('Direct IP connection failed:', error);
-      this.loadingManager.showError(`Direct connection failed: ${errorMessage}`, 4000);
-      return { success: false, error: errorMessage };
-    }
+  /**
+   * Direct the user to the typed manual-connect form.
+   *
+   * This replaces `offerManualIPEntry()` / `connectDirectlyToIP(ip)`, which
+   * built a DiscoveredPrinter with NO productId from an IP address alone. With
+   * no product ID, `createTemporaryConnection` cannot tell that the printer is
+   * HTTP-only, falls through to `createLegacyClient()`, and probes TCP 8899 -
+   * which the Creator 5 series refuses outright (it runs no TCP server), so
+   * adding one by IP failed with ECONNREFUSED. Reported against FlashForgeWebUI
+   * in ff-5mp-hass#18.
+   *
+   * The browser's "Add Printer" form requires a printer type and sends the
+   * matching product ID, so it identifies an HTTP-only model before any socket
+   * is opened. That is the only manual path that is safe to offer.
+   */
+  private manualEntryUnavailable(): ConnectionResult {
+    const message =
+      'Use the "Add Printer" form to add a printer by IP - it asks for the printer type, ' +
+      'which is required to connect models that have no legacy TCP service (Creator 5 / 5 Pro).';
+    this.loadingManager.showError(message, 5000);
+    return { success: false, error: message };
   }
 
   /** Show saved printers for manual selection */
