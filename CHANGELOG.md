@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.2.0-alpha.3] - 2026-07-26
 
+### Added
+
+- **SSH toolset ported from the desktop app** — file manager, calibration assistant, per-printer SSH settings, and remote reboot, all reachable from the topbar.
+  - **File manager** — browse, rename, and multi-select delete gcode/3MF files on internal storage and USB over SFTP, with thumbnails resolved from the printer-side cache and ranged `.3mf` reads rather than full-file downloads.
+  - **Calibration assistant** — the full desktop workflow in the browser, including the bed-mesh visualizer, input-shaper plots, screw-adjustment solver, and animated recommendations.
+  - **SSH settings** — per-printer credentials keyed by serial and encrypted at rest. Passwords can be changed but are never read back to the browser.
+  - **Remote reboot** — one-click printer reboot with live progress.
+  - Requires SSH provisioned the [FlashForge-EasySSH](https://github.com/Parallel-7/FlashForge-EasySSH) way and works only on the Adventurer 5M / 5M Pro / AD5X; the buttons stay hidden on every other model, including the Creator 5 series.
+
 ### Changed
 
 - Modern printers are now identified from the USB product ID carried in the UDP discovery broadcast instead of an unauthenticated TCP `M115` probe. The probe was previously skipped only for the HTTP-only Creator 5 series; it is now skipped for every new-API model (5M, 5M Pro, AD5X, Creator 5, Creator 5 Pro), removing a redundant round trip from every modern connect. The same broadcast supplies the serial and name, and `FiveMClient.initialize()` supplies the authoritative capability flags and reachability, so the probe contributed nothing
