@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.2.0-alpha.3] - 2026-07-26
 
 ### Changed
 
@@ -14,10 +14,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Manual connections now send a product ID hint for every modern model (previously Creator 5 / Creator 5 Pro only), so those connects skip the probe as well
 - The manual-connect endpoint now requires a serial number for **all** modern printers, not just the Creator 5 series, since a named model is no longer probed for it. The Creator 5 series keeps its model-specific error message
 - The material-station slot-config request schema (`/spoolman/slot-config`) was tightened to the correct rules — a required material name and a strict 6-digit hex color — matching the AD5X / Creator 5 fixed material and color palettes. The previously permissive 3/6/8-digit hex and nullable material (with the `currentMaterial` fallback) are gone, since the slot editor always sends a material resolved from the model's fixed palette
-- Printer discovery now delegates to the library's `PrinterDiscovery` (`@ghosttypes/ff-api` 1.7.0) instead of a local fork in `PrinterDiscoveryService.ts`, removing ~200 lines of duplicated logic and gaining proper loopback-address discovery. The discovery route was updated to match.
+- Printer discovery now delegates to the library's `PrinterDiscovery` (`@ghosttypes/ff-api` 1.7.1) instead of a local fork in `PrinterDiscoveryService.ts`, removing ~200 lines of duplicated logic and gaining proper loopback-address discovery. The discovery route was updated to match.
+- Bumped `@ghosttypes/ff-api` to `^1.7.1`, which fixes `FFMachineInfo.HasMatlStation` — a raw copy of an AD5X-only `/detail` field the Creator 5 series never sends, so it arrived `undefined` on a Creator 5 Pro with four loaded slots. This UI gates the material station on `MatlStationInfo` rather than that flag, so nothing here was affected, but 1.7.0 should not ship in a new build.
 - The `data/` directory is no longer tracked in git. `data/config.json` and `data/printer_details.json` were previously committed, so a clone carried the maintainer's local settings and saved printers — including per-printer check codes — and every local run showed up as a dirty working tree. Both are now generated on first run (`ConfigManager` falls back to `DEFAULT_CONFIG`, `PrinterDetailsManager` starts with no printers), and `data/config.example.json` / `data/printer_details.example.json` are tracked in their place to document the schema
 
 ### Fixed
+
+- Removed the untyped manual-IP connection path (`offerManualIPEntry` / `connectDirectlyToIP`). It built a printer record from an IP address alone with no product ID, which left `createTemporaryConnection` unable to tell that the printer was HTTP-only — so it fell through to the legacy client and probed TCP 8899, which the Creator 5 series refuses outright. That is the `ECONNREFUSED` reported against this project in [ff-5mp-hass#18](https://github.com/GhostTypes/ff-5mp-hass/issues/18). The path was already unreachable in practice (its input-dialog handler is never registered), but it remained a working re-entry point for the bug. Those entry points now direct the user to the "Add Printer" form, which requires a printer type and so identifies an HTTP-only model before any socket is opened.
 
 - Raw G-code availability is now reported per printer (`features.gcodeCommands`) and the Home Axes button is disabled on printers that don't support it. HTTP-only printers (Creator 5 series) have no TCP channel for raw G-code, so `~G28` could never have worked there
 - `DualAPIBackend` no longer assumes a legacy TCP client exists: `executeGCodeCommand` returns a clear error instead of throwing, and the pause/resume/cancel legacy fallbacks are skipped on HTTP-only backends. Those fallbacks also now report the fallback's own error rather than masking it with the original
@@ -227,7 +230,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Optional password authentication
 - Configuration persistence in `data/config.json`
 
-[Unreleased]: https://github.com/Parallel-7/FlashForgeWebUI/compare/v1.2.0-alpha.2...HEAD
+[Unreleased]: https://github.com/Parallel-7/FlashForgeWebUI/compare/v1.2.0-alpha.3...HEAD
+[1.2.0-alpha.3]: https://github.com/Parallel-7/FlashForgeWebUI/compare/v1.2.0-alpha.2...v1.2.0-alpha.3
 [1.2.0-alpha.2]: https://github.com/Parallel-7/FlashForgeWebUI/compare/v1.2.0-alpha.1...v1.2.0-alpha.2
 [1.2.0-alpha.1]: https://github.com/Parallel-7/FlashForgeWebUI/compare/v1.1.0...v1.2.0-alpha.1
 [1.1.0]: https://github.com/Parallel-7/FlashForgeWebUI/compare/v1.0.2...v1.1.0
