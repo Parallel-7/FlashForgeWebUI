@@ -130,6 +130,25 @@ jobs:
           fi
           echo "✓ Binary size: $size bytes"
 
+      # Write a deterministic config so the E2E auth assertions do not depend on the
+      # current DEFAULT_CONFIG values. Auth is explicitly enabled with the password
+      # the login step posts below ("changeme"). ConfigManager merges any omitted
+      # keys from DEFAULT_CONFIG at load time, so only auth-relevant keys are pinned.
+      - name: Write deterministic test config
+        if: matrix.can_execute == true
+        shell: bash
+        run: |
+          mkdir -p data
+          cat > data/config.json <<'EOF'
+          {
+            "WebUIEnabled": true,
+            "WebUIPort": 3000,
+            "WebUIPassword": "changeme",
+            "WebUIPasswordRequired": true
+          }
+          EOF
+          echo "✓ Wrote deterministic data/config.json"
+
       # Windows: use cmd wrapper to redirect output while keeping process detached
       - name: Start binary (Windows)
         if: matrix.can_execute == true && runner.os == 'Windows'

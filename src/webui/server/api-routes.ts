@@ -12,6 +12,7 @@ import { getPrinterConnectionManager } from '../../managers/ConnectionFlowManage
 import { getPrinterBackendManager } from '../../managers/PrinterBackendManager';
 import { getPrinterContextManager } from '../../managers/PrinterContextManager';
 import { getSpoolmanIntegrationService } from '../../services/SpoolmanIntegrationService';
+import { createAuthMiddleware } from './auth-middleware';
 import { registerCalibrationRoutes } from './routes/calibration-routes';
 import { registerCameraRoutes } from './routes/camera-routes';
 import { registerContextRoutes } from './routes/context-routes';
@@ -42,6 +43,24 @@ export function buildRouteDependencies(): RouteDependencies {
 
 export function createAPIRoutes(deps: RouteDependencies = buildRouteDependencies()): Router {
   const router = Router();
+
+  // Per-route authentication: wrap each HTTP-verb registration method so the auth
+  // middleware is prepended to every route's handler chain. This MUST be per-route
+  // (rather than a pathless `router.use(auth)` or a blanket `app.use('/api', auth)`),
+  // because any pathless auth layer runs for EVERY /api/* request — including
+  // unknown paths — and would turn would-be 404s into 401s, defeating the
+  // app-level /api/*splat 404 handler. With per-route binding, requests to unknown
+  // /api/* paths find no matching route and fall through to 404, while every
+  // registered route stays authenticated exactly as before.
+  const auth = createAuthMiddleware();
+  type Verb = 'get' | 'post' | 'put' | 'patch' | 'delete';
+  const verbs: readonly Verb[] = ['get', 'post', 'put', 'patch', 'delete'];
+  const routerMethods = router as unknown as Record<Verb, (...args: unknown[]) => Router>;
+  for (const verb of verbs) {
+    const original = routerMethods[verb].bind(router);
+    routerMethods[verb] = (path: unknown, ...handlers: unknown[]): Router =>
+      original(path, auth, ...handlers);
+  }
 
   registerPrinterStatusRoutes(router, deps);
   registerPrinterControlRoutes(router, deps);

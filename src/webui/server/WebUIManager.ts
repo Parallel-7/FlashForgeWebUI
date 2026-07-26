@@ -35,7 +35,6 @@ import { buildRouteDependencies, createAPIRoutes } from './api-routes';
 import { CameraStreamProxy } from './CameraStreamProxy';
 import {
   type AuthenticatedRequest,
-  createAuthMiddleware,
   createErrorMiddleware,
   createLoginRateLimiter,
   createRequestLogger,
@@ -223,10 +222,11 @@ export class WebUIManager extends EventEmitter {
     // Public routes that should be available without authentication (e.g., theme defaults)
     registerPublicThemeRoutes(this.expressApp, routeDependencies);
 
-    // Protected API routes (WebUI auth required)
-    this.expressApp.use('/api', createAuthMiddleware());
-
-    // Import and use API routes
+    // Protected API routes (WebUI auth required).
+    // Auth is applied PER-ROUTE inside createAPIRoutes (not as a blanket /api
+    // middleware) so that unknown /api/* paths find no matching route and fall
+    // through to the splat 404 handler below instead of being rejected with 401.
+    // Public routes registered above (auth + theme) stay open.
     const apiRoutes = createAPIRoutes(routeDependencies);
     this.expressApp.use('/api', apiRoutes);
 
