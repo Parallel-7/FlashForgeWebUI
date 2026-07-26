@@ -75,5 +75,28 @@ export function hydrateLucideIcons(
 }
 
 export function initializeLucideIcons(): void {
-  hydrateLucideIcons(['settings', 'lock', 'package', 'search', 'circle', 'folder', 'gauge', 'power'], document);
+  // Pre-hydrate every icon referenced by static `data-lucide` markup in
+  // index.html so it renders at boot. The vendored lucide build (v0.552.0)
+  // dropped its legacy kebab-case aliases, so lucide's own bare `createIcons()`
+  // scan can no longer resolve names like `hard-drive` or `alert-triangle`.
+  // `hydrateLucideIcons` converts each name to PascalCase (e.g. `alert-triangle`
+  // -> `AlertTriangle`, which still exists in the registry), registers the node,
+  // and renders it in one pass. Icons only used inside dynamically rendered
+  // markup (file-manager tiles, calibration tabs, reboot overlay) are hydrated
+  // by their own scoped `hydrateLucideIcons(...)` calls at render time.
+  hydrateLucideIcons(
+    [
+      // Header / global chrome
+      'settings', 'lock', 'package', 'search', 'circle', 'folder', 'gauge', 'power',
+      // Printer discovery modal
+      'wifi', 'keyboard', 'archive', 'link',
+      // File manager / storage browser
+      'hard-drive', 'usb', 'refresh-cw', 'check-square', 'square', 'trash-2',
+      'pencil', 'alert-triangle',
+      // Calibration modal + shared action icons
+      'grid-3x3', 'activity', 'terminal', 'history', 'file-up', 'download', 'play',
+      'sparkles', 'copy', 'upload', 'plug', 'unplug', 'check-circle',
+    ],
+    document,
+  );
 }

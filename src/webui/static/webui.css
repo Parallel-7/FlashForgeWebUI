@@ -2536,6 +2536,10 @@ body {
   border-radius: inherit;
 }
 
+.fm-overlay.hidden {
+  display: none;
+}
+
 .fm-overlay-panel {
   background: var(--theme-surface);
   border: 1px solid var(--border-color);
@@ -2674,6 +2678,10 @@ body {
   align-items: center;
   justify-content: center;
   z-index: 1200;
+}
+
+.reboot-overlay.hidden {
+  display: none;
 }
 
 .reboot-overlay-panel {

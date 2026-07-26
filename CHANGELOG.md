@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0-alpha.4] - 2026-07-26
+
+### Fixed
+
+- The dashboard was unusable on a fresh load: a full-screen "Rebooting printer…" overlay rendered whenever no printer was connected (including `--no-printers` startup) and could not be dismissed. The `.reboot-overlay` `display: flex` rule had equal CSS specificity to `.hidden` and came later in source order, so the overlay was always visible. Added `.reboot-overlay.hidden { display: none; }`, mirroring the existing `.cal-overlay.hidden` override. Regression from the SSH toolset port in 1.2.0-alpha.3
+- Same latent CSS specificity bug on the file-manager overlay (`.fm-overlay`); added the matching `.fm-overlay.hidden { display: none; }` override. It only surfaced when the file-manager modal was open, not on a fresh load
+- Lucide "icon name was not found" warnings in the browser console. The vendored lucide bundle (v0.552.0) dropped the legacy kebab-case aliases the boot-time icon scan relied on (wifi, trash-2, alert-triangle, refresh-cw, and others). The boot-time pre-hydration set was expanded to cover every icon used in the static HTML, resolved to its PascalCase key via the existing kebab→PascalCase helper
+
 ## [1.2.0-alpha.3] - 2026-07-26
 
 ### Added
@@ -239,7 +247,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Optional password authentication
 - Configuration persistence in `data/config.json`
 
-[Unreleased]: https://github.com/Parallel-7/FlashForgeWebUI/compare/v1.2.0-alpha.3...HEAD
+[Unreleased]: https://github.com/Parallel-7/FlashForgeWebUI/compare/v1.2.0-alpha.4...HEAD
+[1.2.0-alpha.4]: https://github.com/Parallel-7/FlashForgeWebUI/compare/v1.2.0-alpha.3...v1.2.0-alpha.4
 [1.2.0-alpha.3]: https://github.com/Parallel-7/FlashForgeWebUI/compare/v1.2.0-alpha.2...v1.2.0-alpha.3
 [1.2.0-alpha.2]: https://github.com/Parallel-7/FlashForgeWebUI/compare/v1.2.0-alpha.1...v1.2.0-alpha.2
 [1.2.0-alpha.1]: https://github.com/Parallel-7/FlashForgeWebUI/compare/v1.1.0...v1.2.0-alpha.1
