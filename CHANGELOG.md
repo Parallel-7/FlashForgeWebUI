@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0-alpha.5] - 2026-07-26
+
+### Fixed
+
+- Unknown `/api/*` paths returned 401 instead of 404. The auth middleware was mounted as a blanket `app.use('/api', ...)` layer, so it ran for every request under `/api` — including paths with no matching route — and rejected them before they could reach the splat 404 handler. Auth is now applied per-route inside `createAPIRoutes`, so every registered route stays authenticated exactly as before while unmatched paths fall through to 404
+- The E2E workflow now writes a deterministic `data/config.json` before starting the binary, so its auth assertions no longer depend on the current `DEFAULT_CONFIG` values
+
 ## [1.2.0-alpha.4] - 2026-07-26
 
 ### Fixed
@@ -247,7 +254,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Optional password authentication
 - Configuration persistence in `data/config.json`
 
-[Unreleased]: https://github.com/Parallel-7/FlashForgeWebUI/compare/v1.2.0-alpha.4...HEAD
+[Unreleased]: https://github.com/Parallel-7/FlashForgeWebUI/compare/v1.2.0-alpha.5...HEAD
+[1.2.0-alpha.5]: https://github.com/Parallel-7/FlashForgeWebUI/compare/v1.2.0-alpha.2...v1.2.0-alpha.5
 [1.2.0-alpha.4]: https://github.com/Parallel-7/FlashForgeWebUI/compare/v1.2.0-alpha.3...v1.2.0-alpha.4
 [1.2.0-alpha.3]: https://github.com/Parallel-7/FlashForgeWebUI/compare/v1.2.0-alpha.2...v1.2.0-alpha.3
 [1.2.0-alpha.2]: https://github.com/Parallel-7/FlashForgeWebUI/compare/v1.2.0-alpha.1...v1.2.0-alpha.2
