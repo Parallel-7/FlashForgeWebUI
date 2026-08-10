@@ -233,7 +233,7 @@ Default config values live in `src/types/config.ts` and are loaded through `Conf
 ## Dependencies
 
 **Core**:
-- `@ghosttypes/ff-api` - FlashForge printer API clients (`FiveMClient`, `FlashForgeClient`)
+- `@ghosttypes/ff-api` - FlashForge printer API clients (`FiveMClient`, `FlashForgeClient`). Pinned at `^2.0.0` since 1.2.0-alpha.6. The 2.0.0 major was one breaking change — `FFMachineInfo.CompletionTime` became `Date | null` — which this app is immune to because it never reads that field; it derives its own ETA from the remaining duration. 2.0.0 is also what brings the Creator 5 Pro `"pause"` status mapping, so a paused C5 Pro no longer reads as `Unknown`. Published to **GitHub Packages**, not public npm: `.npmrc` needs the `@ghosttypes:registry` line and a token, which CI writes from `secrets.GITHUB_TOKEN`.
 - `@parallel-7/slicer-meta` - Printer metadata and model detection
 - `express` - HTTP server
 - `ws` - WebSocket server
@@ -281,6 +281,8 @@ Some printers support **both** (dual API). The backend system abstracts these di
 - **Manual connects supply what the broadcast would have.** Because a named model skips the probe, the manual connect form requires the serial number and check code, and sends a product ID hint (`MANUAL_PRODUCT_ID_HINTS` in `src/webui/static/features/printer-discovery.ts`, keys matching the type dropdown in `index.html`). Selecting `legacy` sends no product ID and is probed as before.
 - **Once paired, trust the library.** After the check code is supplied and `FiveMClient.initialize()` succeeds, `client.isPro` / `client.isAD5X` / `info.Pid` (from `@ghosttypes/ff-api>=1.3.1`) are derived from the firmware `pid` (35 = 5M, 36 = 5M Pro, 38 = AD5X). Read those flags for capability gating; do not re-substring-match `info.Name` — that field is user-set via the LCD or cloud and changing it broke detection in pre-fix builds (`ff-5mp-hass#13`).
 - **Don't manually overwrite `client.isAD5X`.** If you find yourself re-deriving capability flags that the library already sets, prefer fixing the library or the backend-selection input over mutating the FiveMClient instance from app code.
+
+**The wall-clock ETA is gated on `isPrintAdvancing`**: `isPrintAdvancing` (`src/types/polling.ts`, mirrored browser-side in `src/webui/static/shared/formatting.ts`) covers `Printing` and nothing else, and every surface that converts a remaining duration into a clock time must gate on it — the dashboard panel (`src/webui/static/ui/panels.ts`) and the Discord embed. The reason: `now + remaining` only holds still while the firmware counts `estimatedTime` down, and it freezes that field the moment the print stops advancing — so the ETA stepped forward a minute every minute and receded for as long as a pause lasted. **`Heating` is excluded along with the paused states**: the pre-print warmup does not advance the job either and drifts identically, just for minutes rather than hours. Duration readouts are unaffected and need no gate. The predicate is duplicated server-side and browser-side because the two run in different bundles; change both, and note the same rule exists in FlashForgeUI-Electron and in both API libraries.
 
 ## Event Flow
 
