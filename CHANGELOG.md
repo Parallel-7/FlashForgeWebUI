@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+## [1.2.0-alpha.6] - 2026-08-10
+
+### Fixed
+
+- **A paused Creator 5 Pro no longer shows as `Unknown`.** The printer reports the raw status `"pause"`, while the API library only knew the documented `"pausing"` and `"paused"` — so every pause fell through to `Unknown`, and it did so at the worst possible moment: the printer pauses itself when it detects a clog, so the status went blank precisely when you needed to know why the print had stopped. Fixed upstream in `@ghosttypes/ff-api` 2.0.0, which this release bumps to; `"downloading"` now reads as `Busy` for the same reason. Observed on a Creator 5 Pro running firmware 1.9.4.
+
+- **The ETA no longer walks forward while a print is paused.** The displayed completion time was computed as `now + remaining` on every poll, which only holds still while the firmware is counting `estimatedTime` down. It freezes that field the moment the print stops advancing, so with one term fixed and the clock still moving the ETA stepped forward a minute every minute — pause on a clog for an hour and the dashboard claimed the print would finish an hour later than when the pause started, receding indefinitely. The dashboard panel and the Discord notification embed both kept recomputing with nothing to suppress them. Each now shows `--:--` (and the Discord embed omits the ETA field) unless the print is actually advancing, via the new `isPrintAdvancing` predicate in `types/polling.ts`, mirrored browser-side in `webui/static/shared/formatting.ts` — which covers `Printing` only, since the pre-print `Heating` warmup does not advance the job either and drifts identically, just for minutes rather than hours. The *duration* readouts were never wrong and are unchanged. The same bug exists in FlashForgeUI-Electron and in both API libraries, fixed in each; it originates in the C# `ff-5mp-api` (`MachineInfo.cs:210`) that every port inherited the line from.
+
+### Changed
+
+- `@ghosttypes/ff-api` 1.7.1 -> 2.0.0. The major bump is the library making `FFMachineInfo.CompletionTime` nullable for the same paused-print reason described above; this app never read that field (it derives its own ETA from the remaining duration), so nothing here changed but the pin.
+
 ## [1.2.0-alpha.5] - 2026-07-26
 
 ### Fixed
@@ -254,7 +268,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Optional password authentication
 - Configuration persistence in `data/config.json`
 
-[Unreleased]: https://github.com/Parallel-7/FlashForgeWebUI/compare/v1.2.0-alpha.5...HEAD
+[Unreleased]: https://github.com/Parallel-7/FlashForgeWebUI/compare/v1.2.0-alpha.6...HEAD
+[1.2.0-alpha.6]: https://github.com/Parallel-7/FlashForgeWebUI/compare/v1.2.0-alpha.5...v1.2.0-alpha.6
 [1.2.0-alpha.5]: https://github.com/Parallel-7/FlashForgeWebUI/compare/v1.2.0-alpha.2...v1.2.0-alpha.5
 [1.2.0-alpha.4]: https://github.com/Parallel-7/FlashForgeWebUI/compare/v1.2.0-alpha.3...v1.2.0-alpha.4
 [1.2.0-alpha.3]: https://github.com/Parallel-7/FlashForgeWebUI/compare/v1.2.0-alpha.2...v1.2.0-alpha.3

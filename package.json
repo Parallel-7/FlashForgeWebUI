@@ -1,6 +1,6 @@
 {
   "name": "flashforge-webui",
-  "version": "1.2.0-alpha.5",
+  "version": "1.2.0-alpha.6",
   "description": "Standalone WebUI for FlashForge 3D Printers",
   "main": "dist/index.js",
   "bin": "dist/index.js",
@@ -59,7 +59,7 @@
   "author": "Parallel-7",
   "license": "MIT",
   "dependencies": {
-    "@ghosttypes/ff-api": "^1.7.1",
+    "@ghosttypes/ff-api": "^2.0.0",
     "@parallel-7/slicer-meta": "1.1.0-20251121155836",
     "axios": "^1.8.4",
     "express": "^5.1.0",
