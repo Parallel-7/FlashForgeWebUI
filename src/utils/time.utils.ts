@@ -123,7 +123,12 @@ export function calculateETA(progress: number, elapsedSeconds: number): number {
 }
 
 /**
- * Format ETA as date/time string
+ * Format ETA as date/time string.
+ *
+ * Only valid while the print is advancing - guard calls with `isPrintAdvancing`
+ * from src/types/polling.ts. The firmware freezes `estimatedTime` when the
+ * print is not progressing, so `Date.now() + etaSeconds` recomputed each poll
+ * walks forward a minute every minute rather than holding still.
  */
 export function formatETA(etaSeconds: number): string {
   const eta = new Date(Date.now() + etaSeconds * 1000);

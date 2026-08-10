@@ -20,6 +20,7 @@ import type {
   DiscordWebhookPayload,
 } from '../../types/discord';
 import type { PrinterState, PrinterStatus } from '../../types/polling';
+import { isPrintAdvancing } from '../../types/polling';
 import type { ContextRemovedEvent } from '../../types/printer';
 import { getGo2rtcService } from '../Go2rtcService';
 import type { PrintStateMonitor } from '../PrintStateMonitor';
@@ -560,9 +561,14 @@ export class DiscordNotificationService extends EventEmitter {
     };
   }
 
+  /**
+   * Returns null unless the print is advancing. The firmware freezes
+   * `estimatedTime` when the print is not progressing, so `now() + remaining`
+   * would report a completion time that recedes by a minute every minute.
+   */
   private resolveEtaDate(status: PrinterStatus): Date | null {
     const progress = status.currentJob?.progress;
-    if (!progress) {
+    if (!progress || !isPrintAdvancing(status.state)) {
       return null;
     }
 
