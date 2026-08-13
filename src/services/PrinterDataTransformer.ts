@@ -274,6 +274,16 @@ export class PrinterDataTransformer {
     // Extract formatted ETA if available
     const printEta = safeExtractString(backendData, 'printEta', '');
 
+    // The library supplies an absolute completion time (Date | null). Accept a
+    // string too, for safety across serialization boundaries.
+    const rawCompletionTime = backendData.completionTime;
+    const completionTime: Date | null =
+      rawCompletionTime instanceof Date
+        ? rawCompletionTime
+        : typeof rawCompletionTime === 'string' && rawCompletionTime.trim() !== ''
+          ? new Date(rawCompletionTime)
+          : null;
+
     // Calculate start time from elapsed time
     const startTime = new Date(Date.now() - printDuration * 1000);
 
@@ -297,6 +307,7 @@ export class PrinterDataTransformer {
       weightUsed: filamentWeight,
       lengthUsed: filamentUsed,
       formattedEta: printEta || undefined,
+      completionTime,
     };
 
     // Validate progress data for type safety

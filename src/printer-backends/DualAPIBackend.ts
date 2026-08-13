@@ -282,11 +282,11 @@ export abstract class DualAPIBackend extends BasePrinterBackend {
       // Allow subclasses to process machine info
       await this.processMachineInfo(machineInfo);
 
-      // Calculate time estimates properly
+      // estimatedTime is already a remaining countdown. Do not subtract elapsed
+      // time again (that double-counts and shrinks the remaining duration).
       const estimatedTimeSeconds = machineInfo?.EstimatedTime || 0;
       const elapsedTimeSeconds = machineInfo?.PrintDuration || 0;
-      const remainingTimeSeconds =
-        estimatedTimeSeconds > elapsedTimeSeconds ? estimatedTimeSeconds - elapsedTimeSeconds : 0;
+      const remainingTimeSeconds = estimatedTimeSeconds;
 
       // Extract current filament usage values
       const estimatedRightLen = machineInfo?.EstLength || 0;
@@ -349,6 +349,7 @@ export abstract class DualAPIBackend extends BasePrinterBackend {
         estimatedRightLen: finalEstimatedRightLen,
         estimatedRightWeight: finalEstimatedRightWeight,
         printEta: machineInfo?.PrintEta || undefined,
+        completionTime: machineInfo?.CompletionTime ?? null,
         cumulativePrintTime: machineInfo?.CumulativePrintTime || 0,
         cumulativeFilament: machineInfo?.CumulativeFilament || 0,
         nozzleSize: machineInfo?.NozzleSize || '0.4mm',

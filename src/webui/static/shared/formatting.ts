@@ -99,9 +99,21 @@ export function isPrintAdvancing(printerState: string | undefined): boolean {
   return printerState === 'Printing';
 }
 
-export function formatETA(remainingMinutes: number): string {
-  const now = new Date();
-  const completionTime = new Date(now.getTime() + remainingMinutes * 60 * 1000);
+/**
+ * Format the library completion time as a wall-clock string.
+ *
+ * The value is an absolute timestamp from ff-api (null when the print is not
+ * advancing). Do not re-derive it from a remaining duration.
+ */
+export function formatCompletionTime(value: Date | string | null): string {
+  if (value === null || value === undefined) {
+    return '--:--';
+  }
+
+  const completionTime = new Date(value);
+  if (Number.isNaN(completionTime.getTime())) {
+    return '--:--';
+  }
 
   return completionTime.toLocaleTimeString('en-US', {
     hour: 'numeric',
@@ -150,16 +162,4 @@ export function formatElapsedSeconds(seconds: number): string {
   return hours > 0 ? `${hours}:${mm}:${ss}` : `${mm}:${ss}`;
 }
 
-/**
- * Convert a firmware ETA string (HH:MM remaining) to a wall-clock completion time.
- */
-export function formatETAFromString(hhmm: string): string {
-  const [hours, minutes] = hhmm.split(':').map(Number);
-  const completionTime = new Date(Date.now() + (hours * 60 + minutes) * 60_000);
 
-  return completionTime.toLocaleTimeString('en-US', {
-    hour: 'numeric',
-    minute: '2-digit',
-    hour12: true,
-  });
-}

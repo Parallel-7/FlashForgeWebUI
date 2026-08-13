@@ -501,6 +501,10 @@ export class WebSocketManager extends EventEmitter {
     const status = data.printerStatus;
     const currentJob = status.currentJob;
 
+    // The library completion time is a Date here; serialize it to an ISO string
+    // so the wire payload matches PrinterStatusData (string | null).
+    const completionDate = currentJob?.progress.completionTime;
+
     // Extract temperature data with null safety
     const bedTemp = status.temperatures?.bed || { current: 0, target: 0 };
     const extruderTemp = status.temperatures?.extruder || { current: 0, target: 0 };
@@ -536,6 +540,7 @@ export class WebSocketManager extends EventEmitter {
         currentJob?.progress.formattedEta !== undefined
           ? currentJob.progress.formattedEta
           : undefined,
+      completionTime: completionDate instanceof Date ? completionDate.toISOString() : null,
       elapsedTimeSeconds:
         currentJob?.progress.elapsedTimeSeconds !== undefined
           ? currentJob.progress.elapsedTimeSeconds

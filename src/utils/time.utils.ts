@@ -112,45 +112,6 @@ export function calculateRemaining(elapsed: number, total: number): number {
 }
 
 /**
- * Calculate ETA based on progress and elapsed time
- */
-export function calculateETA(progress: number, elapsedSeconds: number): number {
-  if (progress <= 0) {
-    return 0;
-  }
-
-  return Math.round((elapsedSeconds / progress) * 100);
-}
-
-/**
- * Format ETA as date/time string.
- *
- * Only valid while the print is advancing - guard calls with `isPrintAdvancing`
- * from src/types/polling.ts. The firmware freezes `estimatedTime` when the
- * print is not progressing, so `Date.now() + etaSeconds` recomputed each poll
- * walks forward a minute every minute rather than holding still.
- */
-export function formatETA(etaSeconds: number): string {
-  const eta = new Date(Date.now() + etaSeconds * 1000);
-  const now = new Date();
-
-  // If ETA is today, show time only
-  if (eta.toDateString() === now.toDateString()) {
-    return formatTime(eta);
-  }
-
-  // If ETA is tomorrow, show "Tomorrow HH:MM"
-  const tomorrow = new Date(now);
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  if (eta.toDateString() === tomorrow.toDateString()) {
-    return `Tomorrow ${formatTime(eta)}`;
-  }
-
-  // Otherwise show full date and time
-  return formatDateTime(eta);
-}
-
-/**
  * Parse duration string to seconds
  */
 export function parseDuration(duration: string): number {

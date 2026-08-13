@@ -20,7 +20,6 @@ import type {
   DiscordWebhookPayload,
 } from '../../types/discord';
 import type { PrinterState, PrinterStatus } from '../../types/polling';
-import { isPrintAdvancing } from '../../types/polling';
 import type { ContextRemovedEvent } from '../../types/printer';
 import { getGo2rtcService } from '../Go2rtcService';
 import type { PrintStateMonitor } from '../PrintStateMonitor';
@@ -562,28 +561,11 @@ export class DiscordNotificationService extends EventEmitter {
   }
 
   /**
-   * Returns null unless the print is advancing. The firmware freezes
-   * `estimatedTime` when the print is not progressing, so `now() + remaining`
-   * would report a completion time that recedes by a minute every minute.
+   * Returns the library-sourced completion time, or null when the print is not
+   * advancing (the library sets completionTime to null in that case).
    */
   private resolveEtaDate(status: PrinterStatus): Date | null {
-    const progress = status.currentJob?.progress;
-    if (!progress || !isPrintAdvancing(status.state)) {
-      return null;
-    }
-
-    if (progress.formattedEta && progress.formattedEta !== '--:--') {
-      const [hours, minutes] = progress.formattedEta.split(':').map(Number);
-      if (Number.isFinite(hours) && Number.isFinite(minutes)) {
-        return new Date(Date.now() + (hours * 60 + minutes) * 60_000);
-      }
-    }
-
-    if (progress.timeRemaining != null) {
-      return new Date(Date.now() + progress.timeRemaining * 60_000);
-    }
-
-    return null;
+    return status.currentJob?.progress?.completionTime ?? null;
   }
 
   private getStatusColor(state: PrinterState): number {

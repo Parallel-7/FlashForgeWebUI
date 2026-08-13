@@ -104,6 +104,7 @@ export interface PrinterStatusData {
   readonly cumulativeFilament?: number; // Total lifetime filament usage in meters
   readonly cumulativePrintTime?: number; // Total lifetime print time in minutes
   readonly formattedEta?: string; // Firmware ETA string (e.g. "04:48" = 4h48m remaining)
+  readonly completionTime?: string | null; // Library completion timestamp (ISO string), null when not advancing
   readonly elapsedTimeSeconds?: number; // Precise elapsed seconds for HH:MM:SS display
   // Creator 5 series (multi-tool) fields. Undefined/empty on single-nozzle printers.
   readonly toolTemps?: readonly ToolTemperatureData[];

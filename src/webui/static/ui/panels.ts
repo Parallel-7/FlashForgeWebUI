@@ -13,13 +13,11 @@ import { state } from '../core/AppState.js';
 import { isSpoolmanAvailableForCurrentContext } from '../features/layout-theme.js';
 import { $, hideElement, setTextContent, showElement } from '../shared/dom.js';
 import {
+  formatCompletionTime,
   formatElapsedSeconds,
-  formatETA,
-  formatETAFromString,
   formatLifetimeFilament,
   formatLifetimePrintTime,
   formatTime,
-  isPrintAdvancing,
 } from '../shared/formatting.js';
 
 export function updateConnectionStatus(connected: boolean): void {
@@ -99,18 +97,9 @@ export function updatePrinterStatus(status: PrinterStatus | null): void {
       setTextContent('elapsed-time', '--:--');
     }
 
-    // ETA is suppressed unless the print is advancing: the firmware freezes
-    // `estimatedTime` while paused, so a wall-clock completion time recomputed
-    // each poll would recede by a minute every minute.
-    if (!isPrintAdvancing(status.printerState)) {
-      setTextContent('time-remaining', '--:--');
-    } else if (status.formattedEta && status.formattedEta !== '--:--') {
-      setTextContent('time-remaining', formatETAFromString(status.formattedEta));
-    } else if (status.timeRemaining !== undefined && !Number.isNaN(status.timeRemaining)) {
-      setTextContent('time-remaining', formatETA(status.timeRemaining));
-    } else {
-      setTextContent('time-remaining', '--:--');
-    }
+    // The library sets completionTime to null while the print is not
+    // advancing, so the display falls back to '--:--' automatically.
+    setTextContent('time-remaining', formatCompletionTime(status.completionTime ?? null));
 
     if (status.estimatedWeight !== undefined && !Number.isNaN(status.estimatedWeight)) {
       setTextContent('job-weight', `${Math.round(status.estimatedWeight)}g`);

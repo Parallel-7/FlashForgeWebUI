@@ -1,17 +1,15 @@
 /**
- * @fileoverview Tests for the WebUI wall-clock ETA gate.
+ * @fileoverview Tests for the WebUI wall-clock completion time formatter.
  *
- * The ETA formatters convert a remaining *duration* into a wall-clock time
- * against a fresh Date.now(). That conversion is only stable while the firmware
- * is counting `estimatedTime` down: it freezes the field the moment the print
- * stops advancing, so `now() + remaining` recomputed each poll walks the
- * displayed completion time forward a minute every minute. A paused print would
- * appear to recede forever. `isPrintAdvancing` is what callers gate on to
- * suppress the display instead.
+ * `formatCompletionTime` formats the absolute completion timestamp that the
+ * ff-api library supplies (null while the print is not advancing). It does not
+ * re-derive the time from a remaining duration, so it does not drift while the
+ * print is paused. `isPrintAdvancing` is kept as a browser-side mirror of the
+ * app-side predicate.
  */
 
 import { describe, expect, it } from '@jest/globals';
-import { formatETA, formatETAFromString, isPrintAdvancing } from '../formatting';
+import { formatCompletionTime, isPrintAdvancing } from '../formatting';
 
 describe('isPrintAdvancing', () => {
   it('is true only for the state that counts estimatedTime down', () => {
@@ -42,23 +40,24 @@ describe('isPrintAdvancing', () => {
   // to src/webui/static, so it cannot import across the boundary.
 });
 
-describe('ETA formatters', () => {
-  it('convert a remaining duration into a wall-clock completion time', () => {
-    const expected = new Date(Date.now() + 90 * 60_000).toLocaleTimeString('en-US', {
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true,
-    });
-    expect(formatETA(90)).toBe(expected);
+describe('formatCompletionTime', () => {
+  const completion = new Date('2026-01-01T14:30:00.000Z');
+  const expected = completion.toLocaleTimeString('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  });
 
-    const expectedFromString = new Date(Date.now() + (2 * 60 + 15) * 60_000).toLocaleTimeString(
-      'en-US',
-      {
-        hour: 'numeric',
-        minute: '2-digit',
-        hour12: true,
-      }
-    );
-    expect(formatETAFromString('02:15')).toBe(expectedFromString);
+  it('formats a fixed Date completion time as a wall-clock string', () => {
+    expect(formatCompletionTime(completion)).toBe(expected);
+  });
+
+  it('formats an ISO string completion time the same way', () => {
+    expect(formatCompletionTime(completion.toISOString())).toBe(expected);
+  });
+
+  it('returns "--:--" for null and invalid values', () => {
+    expect(formatCompletionTime(null)).toBe('--:--');
+    expect(formatCompletionTime('not-a-date')).toBe('--:--');
   });
 });

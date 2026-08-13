@@ -88,6 +88,7 @@ export interface JobProgress {
   weightUsed: number; // grams
   lengthUsed: number; // meters
   formattedEta?: string; // formatted ETA from ff-api (e.g. "14:30")
+  completionTime?: Date | null; // absolute completion time from ff-api (null when not advancing)
 }
 
 /**
