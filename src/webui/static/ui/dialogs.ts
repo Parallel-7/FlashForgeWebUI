@@ -83,6 +83,15 @@ export async function loadFileList(source: 'recent' | 'local'): Promise<void> {
     return;
   }
 
+  // Defensive: Creator 5 series exposes no resident-file material mappings over
+  // the local API, so local/recent jobs can't be started. The entry buttons are
+  // also disabled for these printers (see updateButtonStates in panels.ts); this
+  // guard keeps any other caller from dead-ending too.
+  if (state.printerFeatures?.hasMultiTool) {
+    showToast('Local job management is not available on this printer.', 'error');
+    return;
+  }
+
   try {
     const result = await apiRequest<FileListResponse>(`/api/jobs/${source}`);
 
