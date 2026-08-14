@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Local and recent job start is now disabled for the Creator 5 series.** Creator 5 / Creator 5 Pro firmware neither sends nor accepts material mappings over the HTTP API, so starting a previously-uploaded local or recent job dead-ended at material selection — only a fresh `.3mf` upload and start works. The dashboard's Start Recent and Start Local buttons are now disabled with the message "Local job management is not available on this printer." (the Recent/Local file dialogs show the same message as a toast instead of loading a file list). Fresh uploads are unaffected. Home Axes is likewise disabled for the series — it needs the TCP/G-code passthrough these printers lack — and a second fix was required for that gate to show at all: the shared backend base class hardcoded G-code availability in `BasePrinterBackend.buildFeatureSet()` and silently discarded the Creator 5 backend's "unavailable" declaration; the builder now honors each backend's declaration, keeping the old defaults only as fallback.
+
+- **Security: logging out now actually revokes the session token.** The logout route runs without the auth middleware (a logged-out caller must still reach it), so the code that read the token from the request never saw one and the revocation branch was dead code — a token from a logged-out session kept full API access until it expired. The route now extracts the token from the `Authorization` header directly, using the same helper the middleware uses. Found by the new browser test suite on its first run.
+
+### Testing
+
+- **New browser end-to-end suite drives the real built server against emulated printers — no stubs.** Coverage: login/token lifecycle (bad password, websocket auth gate, session restore, anonymous and forged tokens rejected, logout revocation), cache-busted asset and stale-build checks, printer context switching verified against the server's own state, and the Creator 5 gating above pinned across three printer models. The suite found both fixed bugs above. Note for future tests: the login rate limiter allows 5 logins per 15 minutes per IP and counts successes — every spec file documents its exact budget.
+
 ## [1.2.0-alpha.6] - 2026-08-10
 
 ### Fixed
