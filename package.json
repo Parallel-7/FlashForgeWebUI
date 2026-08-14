@@ -40,14 +40,16 @@
     "format:fix": "biome format --write .",
     "check": "biome check .",
     "check:fix": "biome check --write .",
-    "type-check": "npm run type-check:app",
+    "type-check": "npm run type-check:app && npm run type-check:e2e",
     "type-check:app": "tsc --noEmit",
     "docs:check": "go run scripts/check-fileoverview.go",
     "docs:check:debug": "go run scripts/check-fileoverview.go -debug",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
-    "test:verbose": "jest --verbose"
+    "test:verbose": "jest --verbose",
+    "test:e2e": "npm run build && playwright test",
+    "type-check:e2e": "tsc --noEmit -p tsconfig.e2e.json"
   },
   "keywords": [
     "flashforge",
@@ -75,6 +77,7 @@
   "devDependencies": {
     "@biomejs/biome": "2.4.5",
     "@jest/globals": "^30.2.0",
+    "@playwright/test": "^1.62.1",
     "@types/express": "^4.17.21",
     "@types/jest": "^30.0.0",
     "@types/node": "^20.17.9",

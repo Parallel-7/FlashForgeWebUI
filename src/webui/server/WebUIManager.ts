@@ -320,8 +320,14 @@ export class WebUIManager extends EventEmitter {
 
     // Logout endpoint (optional auth)
     this.expressApp.post('/api/auth/logout', (req: AuthenticatedRequest, res) => {
-      if (req.auth?.token) {
-        this.authManager.revokeToken(req.auth.token);
+      // Extract the token manually: this route deliberately runs without the
+      // auth middleware (a logged-out caller must still reach it), so req.auth
+      // is never populated here. Relying on it silently skipped revocation and
+      // tokens stayed valid after logout - caught by the browser E2E suite.
+      const token = this.authManager.extractTokenFromHeader(req.headers.authorization);
+
+      if (token) {
+        this.authManager.revokeToken(token);
       }
 
       const response: StandardAPIResponse = {
