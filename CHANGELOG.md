@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Upload Job, ported from the desktop app.** The WebUI can now upload a `.gcode`, `.gx`, or `.3mf` file from the browser and start it. Before this, only the desktop app could do that, so a phone or a remote browser could only start files already on the printer. The dialog is a 1:1 port: file picker, **Start Now** and **Auto Level**, the plate thumbnail, and the full metadata grid — printer model, filament type and use, slicer name and version, slice date, print time, first layer time, layer height, infill, layer count, support, and slice warnings. The **Upload Job** button sits with the other job controls and turns on whenever the printer is ready for a new job.
+
+  Material matching runs on the AD5X and the Creator 5 series. A 3MF for a material-station printer opens the existing matching dialog, which maps each tool to a slot and refuses a slot whose loaded material differs. The Creator 5 series is deliberately **not** gated here. It cannot start a job that already sits on the printer, because that firmware reports no per-file tool data — but a fresh 3MF carries its own, so upload is the one path that works on those models.
+
+  A browser knows no local file path, so the upload runs in three steps. The file goes to the WebUI server first. The server parses it and returns the metadata. The start request then hands the printer backend a real path, which is the same input the desktop app gives it. The staged file lives in a temporary directory, is limited to 512 MB, and is deleted after the job starts or the dialog closes. Stale files expire after 30 minutes and on server shutdown. The server accepts only a bare `.gcode`, `.gx`, or `.3mf` file name, and rejects a path or any other extension. The progress bar shows the real browser-to-server transfer, which is the slow part over Wi-Fi.
+
+### Changed
+
+- `@parallel-7/slicer-meta` 1.1.0-20251121155836 -> 1.5.0. The old pin could not report layer height, infill, layer count, first layer time, or slice warnings, so the upload dialog would have shown fewer fields than the desktop one. The package was an unused dependency here until now, so nothing else changed.
+
 ### Fixed
 
 - **Local and recent job start is now disabled for the Creator 5 series.** Creator 5 / Creator 5 Pro firmware neither sends nor accepts material mappings over the HTTP API, so starting a previously-uploaded local or recent job dead-ended at material selection — only a fresh `.3mf` upload and start works. The dashboard's Start Recent and Start Local buttons are now disabled with the message "Local job management is not available on this printer." (the Recent/Local file dialogs show the same message as a toast instead of loading a file list). Fresh uploads are unaffected. Home Axes is likewise disabled for the series — it needs the TCP/G-code passthrough these printers lack — and a second fix was required for that gate to show at all: the shared backend base class hardcoded G-code availability in `BasePrinterBackend.buildFeatureSet()` and silently discarded the Creator 5 backend's "unavailable" declaration; the builder now honors each backend's declaration, keeping the old defaults only as fallback.
