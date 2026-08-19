@@ -57,8 +57,6 @@ interface ClientInfo {
   readonly clientId: string;
 }
 
-// FormattedPrinterStatus is now replaced by PrinterStatusData from web-api.types.ts
-
 /**
  * WebSocket Manager - Handles real-time communication
  */

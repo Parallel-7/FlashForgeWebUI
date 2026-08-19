@@ -153,7 +153,7 @@ export class GenericLegacyBackend extends BasePrinterBackend {
    */
   public async getPrinterStatus(): Promise<StatusResult> {
     try {
-      // === RAW API DATA FETCHING (like legacy JavaScript version) ===
+      // === RAW API DATA FETCHING ===
 
       // Get basic printer info
       const printerInfo = await this.legacyClient.getPrinterInfo();
@@ -165,7 +165,7 @@ export class GenericLegacyBackend extends BasePrinterBackend {
         printerInfo: printerInfo ? JSON.stringify(printerInfo, null, 2) : 'null/undefined',
       });
 
-      // Get temperature info (like legacy version)
+      // Get temperature info
       let tempInfo: TempInfo | null = null;
       try {
         tempInfo = await this.legacyClient.getTempInfo();
@@ -173,7 +173,7 @@ export class GenericLegacyBackend extends BasePrinterBackend {
         // Silently handle tempInfo errors
       }
 
-      // Get endstop status (like legacy version)
+      // Get endstop status
       let endstopStatus: EndstopStatus | null = null;
       try {
         endstopStatus = await this.legacyClient.getEndstopInfo();

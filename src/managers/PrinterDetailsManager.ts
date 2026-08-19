@@ -645,48 +645,6 @@ export class PrinterDetailsManager {
   }
 
   // =============================================================================
-  // LEGACY API METHODS (for backward compatibility during transition)
-  // =============================================================================
-
-  /**
-   * Get current printer details (backward compatibility)
-   * Returns the last used printer or null
-   */
-  public getPrinterDetails(): PrinterDetails | null {
-    const lastUsed = this.getLastUsedPrinter();
-    if (!lastUsed) {
-      return null;
-    }
-
-    // Convert StoredPrinterDetails back to PrinterDetails (remove lastConnected)
-    const { lastConnected: _lastConnected, ...printerDetails } = lastUsed;
-    return printerDetails;
-  }
-
-  /**
-   * Save new printer details (backward compatibility)
-   * Saves printer and sets as last used
-   */
-  public async saveNewPrinterDetails(details: PrinterDetails): Promise<void> {
-    await this.savePrinter(details);
-  }
-
-  /**
-   * Check if printer details exist (backward compatibility)
-   */
-  public hasPrinterDetails(): boolean {
-    return this.getLastUsedPrinter() !== null;
-  }
-
-  /**
-   * Clear stored printer details (backward compatibility)
-   * Clears all printers
-   */
-  public clearPrinterDetails(): void {
-    this.clearAllPrinters();
-  }
-
-  // =============================================================================
   // UTILITY METHODS
   // =============================================================================
 

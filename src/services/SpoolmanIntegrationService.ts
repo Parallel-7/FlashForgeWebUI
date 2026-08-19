@@ -20,9 +20,8 @@
  */
 
 import type { ConfigManager } from '../managers/ConfigManager';
+import type { PrinterBackendManager } from '../managers/PrinterBackendManager';
 import type { PrinterContextManager } from '../managers/PrinterContextManager';
-// TODO: Import PrinterBackendManager when Phase 1 is complete
-// import type { PrinterBackendManager } from '../managers/PrinterBackendManager';
 import { getPrinterDetailsManager } from '../managers/PrinterDetailsManager';
 import type { ConfigUpdateEvent } from '../types/config';
 import type { PrinterDetails } from '../types/printer';
@@ -30,11 +29,6 @@ import type { ActiveSpoolData, SpoolResponse, SpoolSearchQuery } from '../types/
 import { EventEmitter } from '../utils/EventEmitter';
 import { toAppError } from '../utils/error.utils';
 import { SpoolmanService } from './SpoolmanService';
-
-// Temporary stub until PrinterBackendManager is implemented
-interface PrinterBackendManager {
-  getFeatures(contextId: string): { materialStation?: { available: boolean } } | null;
-}
 
 /**
  * Event payload for spool selection changes

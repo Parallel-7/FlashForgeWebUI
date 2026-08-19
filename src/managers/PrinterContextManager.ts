@@ -429,7 +429,7 @@ export class PrinterContextManager extends EventEmitter {
 
   /**
    * Set active spool for a context
-   * Will be implemented once SpoolmanIntegrationService is ported
+   * Stores the spool data and spool ID on the in-memory context
    *
    * @param contextId - Context ID (defaults to active context if not provided)
    * @param spoolData - Active spool data (null to clear)
@@ -438,10 +438,6 @@ export class PrinterContextManager extends EventEmitter {
     contextId: string | undefined,
     spoolData: ActiveSpoolData | null
   ): Promise<void> {
-    // TODO: Implement once SpoolmanIntegrationService is ported
-    console.warn(
-      '[PrinterContextManager] setActiveSpool not yet implemented - SpoolmanIntegrationService pending'
-    );
     const targetContextId = contextId || this.activeContextId;
     if (targetContextId) {
       const context = this.contexts.get(targetContextId);

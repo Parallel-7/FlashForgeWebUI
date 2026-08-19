@@ -56,7 +56,7 @@ import { getLoadingManager } from './LoadingManager';
 import { getPrinterBackendManager } from './PrinterBackendManager';
 import { getPrinterContextManager } from './PrinterContextManager';
 
-// Input dialog options interface (matching preload.ts)
+// Options for the host-supplied input dialog handler
 interface InputDialogOptions {
   title?: string;
   message?: string;
