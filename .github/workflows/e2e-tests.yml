@@ -223,7 +223,7 @@ jobs:
           fi
 
           # Test index.html contains expected content
-          if ! curl -sf http://127.0.0.1:3000/ | grep -q "FlashForge Web UI"; then
+          if ! curl -sf http://127.0.0.1:3000/ | grep "FlashForge Web UI" > /dev/null; then
             echo "::error::GET / did not contain 'FlashForge Web UI'"
             curl -s http://127.0.0.1:3000/ | head -20
             exit 1
@@ -315,7 +315,7 @@ jobs:
         shell: bash
         run: |
           if [[ "${{ runner.os }}" == "Windows" ]]; then
-            if tasklist /FI "IMAGENAME eq ${{ matrix.output }}" 2>/dev/null | grep -q "${{ matrix.output }}"; then
+            if tasklist /FI "IMAGENAME eq ${{ matrix.output }}" 2>/dev/null | grep "${{ matrix.output }}" > /dev/null; then
               echo "::error::Binary left zombie processes"
               exit 1
             fi
