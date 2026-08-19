@@ -191,7 +191,6 @@ export class WorkflowEngine {
       };
     }
 
-    // Calculate belt adjustments
     const beltThreshold = this.settings.thresholds.beltThreshold;
     const toothMm = this.settings.hardware.beltToothMm;
 
@@ -238,7 +237,7 @@ export class WorkflowEngine {
     // Simulate belt adjustment effect (simplified)
     const meshAfter = this.copyMesh(meshBefore);
     // In a full implementation, we'd apply weighted adjustments
-    // For now, we assume belt adjustments reduce tilt proportionally
+    // Belt adjustments are assumed to reduce tilt proportionally
 
     const deviation = this.computeStageDeviation(meshAfter);
 
@@ -288,7 +287,6 @@ export class WorkflowEngine {
     this.screwSolver.autoSelectReferenceCorner(this.settings.hardware.cornerAveraging);
     const adjustments = this.screwSolver.calculateAdjustments(this.settings.hardware.cornerAveraging);
 
-    // Build actions from adjustments
     const actions: StageAction[] = adjustments
       .filter((adj) => adj.requiresAdjustment)
       .map((adj) => ({
@@ -356,11 +354,9 @@ export class WorkflowEngine {
       };
     }
 
-    // Find and optimize tape spots
     const spots = this.tapeCalculator.findLowSpots(meshBefore);
     const optimizedSpots = this.tapeCalculator.optimizeTapeLayout(spots);
 
-    // Build actions from spots
     const actions: StageAction[] = optimizedSpots.map((spot) => ({
       kind: 'tape' as const,
       identifier: `${spot.y + 1}${String.fromCharCode(65 + spot.x)}`,
@@ -372,7 +368,6 @@ export class WorkflowEngine {
       },
     }));
 
-    // Apply tape spots
     const meshAfter =
       optimizedSpots.length > 0
         ? this.tapeCalculator.applySpots(meshBefore, optimizedSpots)
@@ -402,7 +397,6 @@ export class WorkflowEngine {
   private buildTemperatureStage(meshBefore: number[][]): { stage: WorkflowStageResult; meshAfter: number[][] } {
     const baseline = this.computeStageDeviation(meshBefore);
 
-    // Get active thermal preset
     const activePreset = this.settings.thermalPresets.find((p) => p.name === this.settings.activeThermalPreset);
 
     if (!activePreset) {
@@ -422,7 +416,6 @@ export class WorkflowEngine {
       };
     }
 
-    // Apply thermal model
     const meshAfter = this.applyThermalEffect(meshBefore, activePreset);
     const deviation = this.computeStageDeviation(meshAfter);
 
@@ -548,7 +541,6 @@ export class WorkflowEngine {
     // Temperature stage
     const { stage: tempStage, meshAfter: meshAfterTemp } = this.buildTemperatureStage(meshAfterTape);
 
-    // Build stage results
     const beltSyncResult: BeltSyncResult = {
       xAxisTilt: 0, // Calculated from belt stage
       yAxisTilt: 0,
@@ -572,7 +564,6 @@ export class WorkflowEngine {
       expansionCoeff: this.settings.environment.thermalExpansionCoeff,
     };
 
-    // Store stage results
     stages.set(WorkflowStage.INITIAL, {
       stage: WorkflowStage.INITIAL,
       success: true,
@@ -618,7 +609,6 @@ export class WorkflowEngine {
     });
     completedStages.push(WorkflowStage.THERMAL_PREDICT);
 
-    // Calculate final metrics
     const finalRange = tempStage.deviation;
     const improvementPercent = initialRange > 0 ? ((initialRange - finalRange) / initialRange) * 100 : 0;
 

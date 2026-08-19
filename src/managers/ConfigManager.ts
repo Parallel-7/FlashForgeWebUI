@@ -60,13 +60,10 @@ export class ConfigManager extends EventEmitter {
     this.configPath = path.join(dataPath, 'config.json');
     this.lockFilePath = path.join(dataPath, 'config.lock');
 
-    // Ensure data directory exists
     this.ensureDataDirectory(dataPath);
 
-    // Initialize with defaults
     this.currentConfig = { ...DEFAULT_CONFIG };
 
-    // Load existing configuration
     void this.loadFromFile().catch((error) => {
       console.error('Failed to load initial configuration:', error);
     });
@@ -145,7 +142,6 @@ export class ConfigManager extends EventEmitter {
     const previousConfig = { ...this.currentConfig };
     const changedKeys: Array<keyof AppConfig> = [];
 
-    // Apply updates and track changed keys
     for (const [key, value] of Object.entries(updates)) {
       if (key in DEFAULT_CONFIG) {
         const configKey = key as keyof AppConfig;
@@ -169,7 +165,6 @@ export class ConfigManager extends EventEmitter {
     const previousConfig = { ...this.currentConfig };
     const sanitizedConfig = sanitizeConfig(newConfig);
 
-    // Find all changed keys
     const changedKeys: Array<keyof AppConfig> = [];
     for (const key of Object.keys(DEFAULT_CONFIG) as Array<keyof AppConfig>) {
       if (this.currentConfig[key] !== sanitizedConfig[key]) {
@@ -276,7 +271,6 @@ export class ConfigManager extends EventEmitter {
           const previousConfig = { ...this.currentConfig };
           this.currentConfig = { ...sanitizedConfig };
 
-          // Emit update event for initialization
           const changedKeys = Object.keys(DEFAULT_CONFIG) as Array<keyof AppConfig>;
           this.emitUpdateEvent(previousConfig, changedKeys);
 
@@ -297,13 +291,11 @@ export class ConfigManager extends EventEmitter {
           const changedKeys = Object.keys(DEFAULT_CONFIG) as Array<keyof AppConfig>;
           this.emitUpdateEvent(previousConfig, changedKeys);
 
-          // Save the sanitized version
           this.scheduleSave();
         }
       }
     } catch (error) {
       console.error('Failed to load config file:', error);
-      // Keep current defaults and save them immediately
       void this.forceSave().catch((error) => {
         console.error('Failed to force save config after load error:', error);
       });
@@ -311,7 +303,6 @@ export class ConfigManager extends EventEmitter {
       this.isLoading = false;
       this.configLoaded = true;
 
-      // Emit config-loaded event for initialization coordination
       console.log('Config loading complete - emitting config-loaded event');
       this.emit('config-loaded');
     }
@@ -345,14 +336,11 @@ export class ConfigManager extends EventEmitter {
     this.isSaving = true;
 
     try {
-      // Create lock file to prevent concurrent writes
       await fs.promises.writeFile(this.lockFilePath, '');
 
-      // Ensure directory exists
       const configDir = path.dirname(this.configPath);
       await fs.promises.mkdir(configDir, { recursive: true });
 
-      // Write configuration with pretty formatting for human readability
       const configData = JSON.stringify(this.currentConfig, null, 2);
       await fs.promises.writeFile(this.configPath, configData, 'utf8');
 
@@ -362,7 +350,6 @@ export class ConfigManager extends EventEmitter {
       this.emit('saveError', error);
       throw error;
     } finally {
-      // Clean up lock file
       try {
         if (fs.existsSync(this.lockFilePath)) {
           await fs.promises.unlink(this.lockFilePath);
@@ -381,14 +368,11 @@ export class ConfigManager extends EventEmitter {
    */
   private saveToFileSync(): void {
     try {
-      // Create lock file to prevent concurrent writes
       fs.writeFileSync(this.lockFilePath, '');
 
-      // Ensure directory exists
       const configDir = path.dirname(this.configPath);
       fs.mkdirSync(configDir, { recursive: true });
 
-      // Write configuration with pretty formatting for human readability
       const configData = JSON.stringify(this.currentConfig, null, 2);
       fs.writeFileSync(this.configPath, configData, 'utf8');
 
@@ -398,7 +382,6 @@ export class ConfigManager extends EventEmitter {
       console.error('Failed to save config file synchronously:', error);
       this.emit('saveError', error);
     } finally {
-      // Clean up lock file
       try {
         if (fs.existsSync(this.lockFilePath)) {
           fs.unlinkSync(this.lockFilePath);
@@ -424,7 +407,6 @@ export class ConfigManager extends EventEmitter {
 
     this.emit('configUpdated', updateEvent);
 
-    // Emit specific events for each changed key
     changedKeys.forEach((key) => {
       this.emit(`config:${key}`, this.currentConfig[key], previousConfig[key]);
     });

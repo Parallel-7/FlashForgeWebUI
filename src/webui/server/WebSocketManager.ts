@@ -21,7 +21,7 @@
 import { EventEmitter } from 'events';
 import type * as http from 'http';
 import type { Duplex } from 'node:stream';
-import { type RawData, type WebSocket, WebSocketServer } from 'ws';
+import { type RawData, WebSocket, WebSocketServer } from 'ws';
 import { getPrinterBackendManager } from '../../managers/PrinterBackendManager';
 import { getPrinterContextManager } from '../../managers/PrinterContextManager';
 import type { SpoolmanChangedEvent } from '../../services/SpoolmanIntegrationService';
@@ -106,16 +106,13 @@ export class WebSocketManager extends EventEmitter {
       return;
     }
 
-    // Create WebSocket server
     this.wss = new WebSocketServer({
       noServer: true,
       verifyClient: this.verifyClient.bind(this),
     });
 
-    // Setup event handlers
     this.wss.on('connection', this.handleConnection.bind(this));
 
-    // Setup Spoolman integration event listener
     try {
       const spoolmanService = getSpoolmanIntegrationService();
       spoolmanService.on('spoolman-changed', this.handleSpoolmanChanged.bind(this));
@@ -162,7 +159,6 @@ export class WebSocketManager extends EventEmitter {
         return;
       }
 
-      // Extract token from URL query params or Authorization header
       const url = new URL(info.req.url || '', `http://${info.req.headers.host}`);
       const token =
         url.searchParams.get('token') || info.req.headers.authorization?.replace('Bearer ', '');
@@ -172,7 +168,6 @@ export class WebSocketManager extends EventEmitter {
         return;
       }
 
-      // Validate token
       const validation = this.authManager.validateToken(token);
 
       if (!validation.isValid) {
@@ -180,7 +175,6 @@ export class WebSocketManager extends EventEmitter {
         return;
       }
 
-      // Store token for later use - properly typed
       (info.req as ExtendedIncomingMessage).wsToken = token;
       callback(true);
     } catch (error) {
@@ -204,7 +198,6 @@ export class WebSocketManager extends EventEmitter {
 
     const clientId = this.generateClientId();
 
-    // Create client info
     const clientInfo: ClientInfo = {
       token: token ?? null,
       connectedAt: new Date(),
@@ -212,7 +205,6 @@ export class WebSocketManager extends EventEmitter {
       clientId,
     };
 
-    // Store client
     this.clients.set(ws, clientInfo);
 
     // Add to token-based map for multi-tab support
@@ -225,12 +217,10 @@ export class WebSocketManager extends EventEmitter {
       tokenClients.add(ws);
     }
 
-    // Update client count
     this.updateClientCount();
 
     console.log(`WebSocket client connected: ${clientId} - Total clients: ${this.clients.size}`);
 
-    // Send authentication success
     const authMessage: WebSocketMessage = {
       type: 'AUTH_SUCCESS',
       timestamp: new Date().toISOString(),
@@ -238,16 +228,13 @@ export class WebSocketManager extends EventEmitter {
     };
     this.sendToClient(ws, authMessage);
 
-    // Send initial printer status if connected
     void this.sendInitialStatus(ws);
 
-    // Setup event handlers
     ws.on('message', (data) => this.handleMessage(ws, data));
     ws.on('close', () => this.handleDisconnect(ws));
     ws.on('error', (error) => this.handleError(ws, error));
     ws.on('pong', () => this.handlePong(ws));
 
-    // Start ping interval for this client
     this.startPingInterval(ws);
   }
 
@@ -262,10 +249,8 @@ export class WebSocketManager extends EventEmitter {
         return;
       }
 
-      // Update last activity
       clientInfo.lastActivity = new Date();
 
-      // Parse message safely
       let parsedData: unknown;
       try {
         parsedData = JSON.parse(data.toString());
@@ -280,7 +265,6 @@ export class WebSocketManager extends EventEmitter {
         return;
       }
 
-      // Validate as WebSocket command
       const validation = WebSocketCommandSchema.safeParse(parsedData);
 
       if (!validation.success) {
@@ -295,7 +279,6 @@ export class WebSocketManager extends EventEmitter {
 
       const command = validation.data;
 
-      // Handle command based on type
       await this.handleCommand(ws, command);
     } catch (error) {
       console.error('Error handling WebSocket message:', error);
@@ -378,10 +361,8 @@ export class WebSocketManager extends EventEmitter {
 
     console.log(`WebSocket client disconnected: ${clientInfo.clientId}`);
 
-    // Remove from clients map
     this.clients.delete(ws);
 
-    // Remove from token map
     if (clientInfo.token) {
       const tokenClients = this.clientsByToken.get(clientInfo.token);
       if (tokenClients) {
@@ -392,7 +373,6 @@ export class WebSocketManager extends EventEmitter {
       }
     }
 
-    // Update client count
     this.updateClientCount();
   }
 
@@ -401,7 +381,6 @@ export class WebSocketManager extends EventEmitter {
    */
   private handleError(ws: WebSocket, error: Error): void {
     console.error('WebSocket error:', error);
-    // Close the connection on error
     ws.close();
   }
 
@@ -420,15 +399,13 @@ export class WebSocketManager extends EventEmitter {
    */
   private startPingInterval(ws: WebSocket): void {
     const interval = setInterval(() => {
-      if (ws.readyState === 1) {
-        // WebSocket.OPEN = 1
+      if (ws.readyState === WebSocket.OPEN) {
         ws.ping();
       } else {
         clearInterval(interval);
       }
     }, 30000); // Ping every 30 seconds
 
-    // Clear interval when connection closes
     ws.on('close', () => clearInterval(interval));
   }
 
@@ -503,11 +480,9 @@ export class WebSocketManager extends EventEmitter {
     // so the wire payload matches PrinterStatusData (string | null).
     const completionDate = currentJob?.progress.completionTime;
 
-    // Extract temperature data with null safety
     const bedTemp = status.temperatures?.bed || { current: 0, target: 0 };
     const extruderTemp = status.temperatures?.extruder || { current: 0, target: 0 };
 
-    // Extract filtration mode with null safety and ensure it's a valid type
     const rawFiltrationMode = status.filtration?.mode || 'none';
     const filtrationMode: 'external' | 'internal' | 'none' =
       rawFiltrationMode === 'external' || rawFiltrationMode === 'internal'
@@ -548,7 +523,6 @@ export class WebSocketManager extends EventEmitter {
       estimatedWeight: currentJob?.progress.weightUsed || undefined,
       estimatedLength: currentJob?.progress.lengthUsed || undefined,
       thumbnailData: data.thumbnailData || null, // Include thumbnail data
-      // Extract lifetime statistics from cumulative stats
       // Backend provides filament usage in meters, same as main UI
       cumulativeFilament: status.cumulativeStats?.totalFilamentUsed || undefined,
       cumulativePrintTime: status.cumulativeStats?.totalPrintTime || undefined,
@@ -649,8 +623,7 @@ export class WebSocketManager extends EventEmitter {
    * Send message to specific client
    */
   private sendToClient(ws: WebSocket, message: WebSocketMessage): void {
-    if (ws.readyState === 1) {
-      // WebSocket.OPEN = 1
+    if (ws.readyState === WebSocket.OPEN) {
       ws.send(JSON.stringify(message));
     }
   }
@@ -662,8 +635,7 @@ export class WebSocketManager extends EventEmitter {
     const messageStr = JSON.stringify(message);
 
     for (const [ws] of this.clients) {
-      if (ws.readyState === 1) {
-        // WebSocket.OPEN = 1
+      if (ws.readyState === WebSocket.OPEN) {
         ws.send(messageStr);
       }
     }
@@ -679,8 +651,7 @@ export class WebSocketManager extends EventEmitter {
     const messageStr = JSON.stringify(message);
 
     for (const ws of clients) {
-      if (ws.readyState === 1) {
-        // WebSocket.OPEN = 1
+      if (ws.readyState === WebSocket.OPEN) {
         ws.send(messageStr);
       }
     }
@@ -754,17 +725,14 @@ export class WebSocketManager extends EventEmitter {
   public shutdown(): void {
     if (!this.wss) return;
 
-    // Close all client connections
     for (const [ws] of this.clients) {
       ws.close(1000, 'Server shutting down');
     }
 
-    // Clear maps
     this.clients.clear();
     this.clientsByToken.clear();
     this.latestPollingDataByContext.clear();
 
-    // Close server
     this.wss.close(() => {
       console.log('WebSocket server shut down');
     });

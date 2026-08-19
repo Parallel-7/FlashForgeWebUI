@@ -84,7 +84,6 @@ export class TapeCalculator {
     const lastRow = this.bed.config.meshPointsY - 1;
     const lastCol = this.bed.config.meshPointsX - 1;
 
-    // Check all four corners
     return (
       (row === 0 && col === 0) || // Front left
       (row === 0 && col === lastCol) || // Front right
@@ -161,7 +160,6 @@ export class TapeCalculator {
    * @returns Array of TapeSpot objects
    */
   findLowSpots(simulatedMesh: number[][]): TapeSpot[] {
-    // Calculate mean height
     let sum = 0;
     let count = 0;
     for (const row of simulatedMesh) {
@@ -176,7 +174,6 @@ export class TapeCalculator {
 
     for (let row = 0; row < this.bed.config.meshPointsY; row++) {
       for (let col = 0; col < this.bed.config.meshPointsX; col++) {
-        // Skip screw corner positions
         if (this.isAtScrewCorner(row, col)) {
           continue;
         }
@@ -200,7 +197,6 @@ export class TapeCalculator {
       }
     }
 
-    // Sort by priority (ascending) and height diff (descending)
     return spots.sort((a, b) => {
       if (a.priority !== b.priority) {
         return a.priority - b.priority;
@@ -225,19 +221,16 @@ export class TapeCalculator {
         continue;
       }
 
-      // Find nearby spots
       const nearby = spots.filter(
         (s) => Math.abs(s.x - spot.x) <= 1 && Math.abs(s.y - spot.y) <= 1 && !used.has(`${s.x},${s.y}`)
       );
 
       if (nearby.length > 0) {
-        // Merge nearby spots
         const avgDiff = nearby.reduce((sum, s) => sum + s.heightDiff, 0) / nearby.length;
         const avgLayers = Math.max(1, Math.ceil(avgDiff / this.config.tapeThickness));
         const totalArea = nearby.reduce((sum, s) => sum + s.areaSize, 0);
         const minPriority = Math.min(...nearby.map((s) => s.priority));
 
-        // Find center spot
         const avgX = nearby.reduce((sum, s) => sum + s.x, 0) / nearby.length;
         const avgY = nearby.reduce((sum, s) => sum + s.y, 0) / nearby.length;
         const center = nearby.reduce((best, s) => {
@@ -255,7 +248,6 @@ export class TapeCalculator {
           areaSize: totalArea,
         });
 
-        // Mark all nearby as used
         for (const s of nearby) {
           used.add(`${s.x},${s.y}`);
         }
@@ -282,7 +274,6 @@ export class TapeCalculator {
     for (const spot of spots) {
       const heightIncrease = spot.layers * this.config.tapeThickness;
 
-      // Apply to surrounding area
       const rowStart = Math.max(0, spot.y - 1);
       const rowEnd = Math.min(this.bed.config.meshPointsY, spot.y + 2);
       const colStart = Math.max(0, spot.x - 1);
@@ -311,11 +302,9 @@ export class TapeCalculator {
 
     const simulatedMesh = this.applySpots(this.bed.meshData, spots);
 
-    // Calculate current deviation
     const currentStats = this.bed.getMeshStats();
     const currentDeviation = currentStats.range / 2;
 
-    // Calculate simulated deviation
     let _sum = 0;
     let _count = 0;
     let min = Infinity;
@@ -357,7 +346,6 @@ export class TapeCalculator {
     );
 
     for (const spot of spots) {
-      // Convert grid coordinates to alphanumeric
       const position = `${spot.y + 1}${String.fromCharCode(65 + spot.x)}`;
 
       let instruction =

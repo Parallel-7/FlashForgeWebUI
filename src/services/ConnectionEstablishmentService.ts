@@ -167,7 +167,6 @@ export class ConnectionEstablishmentService extends EventEmitter {
         // Always use legacy API for type detection
         tempClient = this.createLegacyClient(printer);
 
-        // Wrap initControl in timeout
         console.log(`[Connection] Initializing control connection (timeout: ${timeout}ms)...`);
         const connected = await Promise.race([
           tempClient.initControl(),
@@ -205,7 +204,6 @@ export class ConnectionEstablishmentService extends EventEmitter {
           `[Connection] Control initialized, fetching printer info (timeout: ${timeout}ms)...`
         );
 
-        // Get printer info with timeout
         const printerInfo = await Promise.race([
           tempClient.getPrinterInfo(),
           new Promise<never>((_, reject) =>
@@ -279,7 +277,6 @@ export class ConnectionEstablishmentService extends EventEmitter {
       } catch (error) {
         console.error(`[Connection] Attempt ${attempt} failed:`, error);
 
-        // Clean up temp client on error
         if (tempClient) {
           try {
             void tempClient.dispose();
@@ -385,7 +382,6 @@ export class ConnectionEstablishmentService extends EventEmitter {
       httpOnly,
     });
 
-    // Validate that we have a valid serial number for FiveMClient
     if (!printer.serialNumber || printer.serialNumber.trim() === '') {
       console.error('Cannot create FiveMClient without valid serial number');
       throw new Error('Serial number is required for dual API connection but was not provided');
@@ -458,7 +454,6 @@ export class ConnectionEstablishmentService extends EventEmitter {
       };
     } catch (error) {
       console.error('Error in establishDualAPIConnection:', error);
-      // Clean up on failure
       try {
         await primaryClient.dispose();
       } catch (disposeError) {
@@ -489,7 +484,6 @@ export class ConnectionEstablishmentService extends EventEmitter {
         primaryClient: tempInfo.printerInfo._reuseableClient as FlashForgeClient,
       };
     } else {
-      // Create new legacy connection
       const primaryClient = this.createLegacyClient(printer);
       const connected = await primaryClient.initControl();
 
@@ -525,7 +519,6 @@ export class ConnectionEstablishmentService extends EventEmitter {
     secondaryClient: FlashForgeClient | null,
     clientType?: string
   ): Promise<void> {
-    // Send logout to legacy clients before disposal
     if (clientType === 'legacy' && primaryClient) {
       await this.sendLogoutCommand(primaryClient as FlashForgeClient);
       await new Promise((resolve) => setTimeout(resolve, 200)); // Give time to process
@@ -536,7 +529,6 @@ export class ConnectionEstablishmentService extends EventEmitter {
       await new Promise((resolve) => setTimeout(resolve, 200));
     }
 
-    // Dispose clients
     if (primaryClient) {
       try {
         void primaryClient.dispose();
@@ -557,7 +549,6 @@ export class ConnectionEstablishmentService extends EventEmitter {
   }
 }
 
-// Export singleton getter function
 export const getConnectionEstablishmentService = (): ConnectionEstablishmentService => {
   return ConnectionEstablishmentService.getInstance();
 };

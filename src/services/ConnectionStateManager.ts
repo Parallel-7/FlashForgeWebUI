@@ -79,7 +79,6 @@ export class ConnectionStateManager extends EventEmitter {
 
     this.contextStates.set(contextId, state);
 
-    // Update context manager
     this.contextManager.updateConnectionState(contextId, 'connecting');
 
     this.emit('state-changed', { contextId, state: 'connecting', printer });
@@ -111,7 +110,6 @@ export class ConnectionStateManager extends EventEmitter {
 
     this.contextStates.set(contextId, state);
 
-    // Update context manager
     this.contextManager.updateConnectionState(contextId, 'connected');
 
     this.emit('state-changed', { contextId, state: 'connected', details });
@@ -126,10 +124,8 @@ export class ConnectionStateManager extends EventEmitter {
     const existingState = this.contextStates.get(contextId);
     const previousDetails = existingState?.details;
 
-    // Update context manager
     this.contextManager.updateConnectionState(contextId, 'disconnected');
 
-    // Remove from map
     this.contextStates.delete(contextId);
 
     this.emit('state-changed', { contextId, state: 'disconnected', previousDetails });
@@ -345,7 +341,6 @@ export class ConnectionStateManager extends EventEmitter {
   }
 }
 
-// Export singleton getter function
 export const getConnectionStateManager = (): ConnectionStateManager => {
   return ConnectionStateManager.getInstance();
 };

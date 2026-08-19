@@ -66,10 +66,6 @@ export async function refreshRebootButton(): Promise<void> {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Overlay phases
-// ---------------------------------------------------------------------------
-
 function setOverlay(options: {
   title: string;
   message: string;
@@ -160,10 +156,6 @@ function handleRebootStatus(contextId: string, payload: RebootStatusPayload): vo
       break;
   }
 }
-
-// ---------------------------------------------------------------------------
-// Trigger flow
-// ---------------------------------------------------------------------------
 
 async function executeReboot(): Promise<void> {
   const contextId = getCurrentContextId();

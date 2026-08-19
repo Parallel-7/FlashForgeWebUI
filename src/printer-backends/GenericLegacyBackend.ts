@@ -155,7 +155,6 @@ export class GenericLegacyBackend extends BasePrinterBackend {
     try {
       // === RAW API DATA FETCHING ===
 
-      // Get basic printer info
       const printerInfo = await this.legacyClient.getPrinterInfo();
       console.log('[DEBUG] Raw printerInfo response:', {
         type: typeof printerInfo,
@@ -165,7 +164,6 @@ export class GenericLegacyBackend extends BasePrinterBackend {
         printerInfo: printerInfo ? JSON.stringify(printerInfo, null, 2) : 'null/undefined',
       });
 
-      // Get temperature info
       let tempInfo: TempInfo | null = null;
       try {
         tempInfo = await this.legacyClient.getTempInfo();
@@ -173,7 +171,6 @@ export class GenericLegacyBackend extends BasePrinterBackend {
         // Silently handle tempInfo errors
       }
 
-      // Get endstop status
       let endstopStatus: EndstopStatus | null = null;
       try {
         endstopStatus = await this.legacyClient.getEndstopInfo();
@@ -187,21 +184,18 @@ export class GenericLegacyBackend extends BasePrinterBackend {
 
       // === BUILDING STATUS OBJECT (using proper ff-api types) ===
 
-      // Use proper ff-api temperature extraction
       let bedTemp = 0;
       let bedTarget = 0;
       let nozzleTemp = 0;
       let nozzleTarget = 0;
 
       if (tempInfo) {
-        // Get bed temperature using proper types
         const bedTempData: TempData | null = tempInfo.getBedTemp();
         if (bedTempData) {
           bedTemp = bedTempData.getCurrent();
           bedTarget = bedTempData.getSet();
         }
 
-        // Get extruder temperature using proper types
         const extruderTempData: TempData | null = tempInfo.getExtruderTemp();
         if (extruderTempData) {
           nozzleTemp = extruderTempData.getCurrent();
@@ -210,10 +204,8 @@ export class GenericLegacyBackend extends BasePrinterBackend {
       }
       // If tempInfo is null, temperatures remain at default 0 values
 
-      // Use proper ff-api state extraction with explicit switch
       let printerState = 'unknown';
       if (endstopStatus) {
-        // Use explicit switch for reliable core parsing logic
         const machineStatus: MachineStatus = endstopStatus._MachineStatus;
 
         switch (machineStatus) {
@@ -253,14 +245,12 @@ export class GenericLegacyBackend extends BasePrinterBackend {
           const printStatus: PrintStatus | null = await this.legacyClient.getPrintStatus();
 
           if (printStatus) {
-            // Extract progress percentage
             const progressPercent = printStatus.getPrintPercent();
             if (!Number.isNaN(progressPercent)) {
               progress = progressPercent;
               console.log(`[GenericLegacyBackend] Progress: ${progress}%`);
             }
 
-            // Extract layer information
             const layerProgress = printStatus.getLayerProgress();
             if (layerProgress?.includes('/')) {
               const layerParts = layerProgress.split('/');
@@ -277,8 +267,7 @@ export class GenericLegacyBackend extends BasePrinterBackend {
               console.log(`[GenericLegacyBackend] Layers: ${currentLayer}/${totalLayers}`);
             }
 
-            // Enhanced job name could be extracted from PrintStatus if needed
-            // For now, keep using endstopStatus._CurrentFile as it's reliable
+            // Keep endstopStatus._CurrentFile for the job name; it is reliable
           } else {
             console.log('[GenericLegacyBackend] PrintStatus returned null');
           }
@@ -297,12 +286,12 @@ export class GenericLegacyBackend extends BasePrinterBackend {
         bedTargetTemperature: bedTarget,
         nozzleTemperature: nozzleTemp,
         nozzleTargetTemperature: nozzleTarget,
-        progress, // Now using PrintStatus.getPrintPercent() when available
+        progress, // PrintStatus.getPrintPercent() when available
         currentJob: enhancedJobName,
         // Legacy API does NOT provide estimatedTime or remainingTime
         estimatedTime: undefined,
         remainingTime: undefined,
-        // Now using PrintStatus.getLayerProgress() when available
+        // PrintStatus.getLayerProgress() when available
         currentLayer,
         totalLayers,
         // Legacy printers don't provide these fields
@@ -346,7 +335,6 @@ export class GenericLegacyBackend extends BasePrinterBackend {
     try {
       const fileNames = await this.getLegacyFileList();
 
-      // Convert filenames to BasicJobInfo objects
       const jobs: BasicJobInfo[] = fileNames.map((fileName) => ({
         fileName,
         printingTime: 0, // Legacy printers don't provide time estimates via M661
@@ -380,7 +368,6 @@ export class GenericLegacyBackend extends BasePrinterBackend {
       const fileNames = await this.getLegacyFileList();
       const recentFileNames = fileNames.slice(0, 10);
 
-      // Convert filenames to BasicJobInfo objects
       const jobs: BasicJobInfo[] = recentFileNames.map((fileName) => ({
         fileName,
         printingTime: 0, // Legacy printers don't provide time estimates via M661
@@ -551,14 +538,12 @@ export class GenericLegacyBackend extends BasePrinterBackend {
    */
   public async getModelPreview(): Promise<string | null> {
     try {
-      // Check if printer is currently printing
       const status = await this.getPrinterStatus();
       if (!status.success || !status.status.currentJob) {
         // No active print job, no preview available
         return null;
       }
 
-      // Use the general job thumbnail method for the current job
       return this.getJobThumbnail(status.status.currentJob);
     } catch (error) {
       console.error('Error getting model preview:', error);
@@ -579,7 +564,6 @@ export class GenericLegacyBackend extends BasePrinterBackend {
 
       console.log(`[ThumbnailRequest] Starting thumbnail request for: ${fileName}`);
 
-      // Use the FlashForgeClient getThumbnail method
       const thumbnailInfo = await this.legacyClient.getThumbnail(fileName);
 
       if (!thumbnailInfo) {
@@ -587,7 +571,6 @@ export class GenericLegacyBackend extends BasePrinterBackend {
         return null;
       }
 
-      // Get the base64 data using the proper method
       const base64Data = thumbnailInfo.getImageData();
       if (!base64Data) {
         console.warn(`Thumbnail data is empty for file: ${fileName}`);
@@ -596,7 +579,6 @@ export class GenericLegacyBackend extends BasePrinterBackend {
 
       console.log(`[ThumbnailRequest] Successfully fetched thumbnail for: ${fileName}`);
 
-      // Convert to base64 data URL
       return `data:image/png;base64,${base64Data}`;
     } catch (error) {
       console.error(`Error getting thumbnail for ${fileName}:`, error);
@@ -621,7 +603,6 @@ export class GenericLegacyBackend extends BasePrinterBackend {
         };
       }
 
-      // Use proper FlashForgeClient LED methods
       const result = enabled ? await this.legacyClient.ledOn() : await this.legacyClient.ledOff();
 
       if (!result) {
@@ -706,7 +687,7 @@ export class GenericLegacyBackend extends BasePrinterBackend {
   }
 
   protected supportsRecentJobs(): boolean {
-    return true; // Legacy printers now support recent jobs via M661 (first 10 files)
+    return true; // Recent jobs via M661, limited to the first 10 files
   }
 
   protected supportsUploadJobs(): boolean {

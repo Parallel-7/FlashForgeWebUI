@@ -150,7 +150,6 @@ function calculateVibrationReduction(shaperType: ShaperType, shaperFreq: number,
   const { a, t } = pulses;
   const omega = 2 * Math.PI * resonanceFreq;
 
-  // Calculate transfer function magnitude at resonance frequency
   let realSum = 0;
   let imagSum = 0;
 
@@ -192,25 +191,19 @@ export class ShaperAnalyzer {
    * Analyze accelerometer data for a single axis.
    */
   analyzeAxis(csvContent: string, axis: 'x' | 'y'): AxisCalibration {
-    // Parse CSV
     const data = this.fftProcessor.parseCSV(csvContent);
 
-    // Get appropriate acceleration data
     const accelData = axis === 'x' ? data.accelX : data.accelY;
 
-    // Process FFT
     const spectrum = this.fftProcessor.processAxis(accelData, data.sampleRate);
 
-    // Find resonance peaks
     const peakFrequencies = this.fftProcessor.findPeaks(spectrum);
 
-    // Use primary peak as resonance frequency
     const primaryResonance = spectrum.peakFrequency;
 
     // Evaluate all shapers
     const allResults = this.evaluateShapers(primaryResonance, spectrum);
 
-    // Find best shaper
     const recommendedShaper = this.findBestShaper(allResults);
 
     return {
@@ -230,7 +223,6 @@ export class ShaperAnalyzer {
     const results: ShaperResult[] = [];
 
     for (const definition of SHAPER_DEFINITIONS) {
-      // Find optimal frequency for this shaper
       const optimalFreq = this.findOptimalFrequency(
         definition.type,
         resonanceFreq,
@@ -256,7 +248,6 @@ export class ShaperAnalyzer {
       });
     }
 
-    // Sort by score (highest first)
     return results.sort((a, b) => b.score - a.score);
   }
 
@@ -280,7 +271,6 @@ export class ShaperAnalyzer {
     const searchMax = Math.min(maxFreq, resonanceFreq * 2);
 
     for (let freq = searchMin; freq <= searchMax; freq += step) {
-      // Calculate total vibration reduction across spectrum
       let totalReduction = 0;
       let totalWeight = 0;
 

@@ -94,7 +94,6 @@ export class SavedPrinterService extends EventEmitter {
     const printer = this.getSavedPrinter(serialNumber);
     if (printer) {
       // Note: PrinterDetailsManager doesn't have a remove method yet
-      // This would need to be implemented
       this.emit('printer-removed', serialNumber);
     }
   }
@@ -201,7 +200,6 @@ export class SavedPrinterService extends EventEmitter {
   }
 }
 
-// Export singleton getter function
 export const getSavedPrinterService = (): SavedPrinterService => {
   return SavedPrinterService.getInstance();
 };

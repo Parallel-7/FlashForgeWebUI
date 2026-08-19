@@ -18,7 +18,6 @@ global.console = {
   debug: jest.fn(),
 };
 
-// Clean up mocks after each test
 afterEach(() => {
   jest.clearAllMocks();
 });

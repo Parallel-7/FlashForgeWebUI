@@ -194,7 +194,6 @@ export function setupIfsStationCard(): void {
 function openSlotEditor(slot: MaterialSlotInfo): void {
   const displaySlotId = slot.slotId + 1;
 
-  // Resolve the fixed palette for this printer model (AD5X vs Creator 5).
   const palette = getPaletteForModel(latestStation?.printerModelType);
   const paletteMaterials = palette.materials;
   const paletteColors = palette.colors;

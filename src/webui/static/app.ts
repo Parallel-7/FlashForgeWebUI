@@ -552,7 +552,6 @@ async function handlePostLoginTasks(): Promise<void> {
   }
 }
 
-// Start the application when DOM is ready
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', initialize);
 } else {

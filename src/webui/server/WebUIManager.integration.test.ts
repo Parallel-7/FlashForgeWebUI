@@ -36,33 +36,27 @@ describe('WebUIManager Integration Tests', () => {
   const mockStaticPath = path.join(__dirname, '../static/mock-webui');
 
   beforeAll(() => {
-    // Create mock static directory structure
     if (!fs.existsSync(mockStaticPath)) {
       fs.mkdirSync(mockStaticPath, { recursive: true });
     }
 
-    // Create a mock index.html
     const mockIndexHtml = '<!DOCTYPE html><html><body>Mock WebUI</body></html>';
     fs.writeFileSync(path.join(mockStaticPath, 'index.html'), mockIndexHtml);
 
-    // Create a mock CSS file
     const mockCss = 'body { margin: 0; }';
     fs.writeFileSync(path.join(mockStaticPath, 'styles.css'), mockCss);
 
-    // Create a mock JS file
     const mockJs = 'console.log("test");';
     fs.writeFileSync(path.join(mockStaticPath, 'app.js'), mockJs);
   });
 
   afterAll(() => {
-    // Cleanup mock directory
     if (fs.existsSync(mockStaticPath)) {
       fs.rmSync(mockStaticPath, { recursive: true, force: true });
     }
   });
 
   beforeEach(() => {
-    // Setup mocks
     mockEnvironmentService = {
       isPackaged: jest.fn().mockReturnValue(false),
       isProduction: jest.fn().mockReturnValue(false),
@@ -147,7 +141,6 @@ describe('WebUIManager Integration Tests', () => {
         return next();
       }
 
-      // Skip API routes
       if (req.path.startsWith('/api')) {
         return next();
       }
@@ -275,7 +268,6 @@ describe('WebUIManager Integration Tests', () => {
     });
 
     it('should not serve index.html for requests with file extensions', async () => {
-      // This test verifies that file requests don't fall through to SPA
       const response = await request(app).get('/test.json');
 
       expect(response.status).toBe(404);
@@ -317,7 +309,6 @@ describe('WebUIManager Integration Tests', () => {
       // In development (isProduction: false), cache should be disabled
       const response = await request(app).get('/styles.css');
 
-      // Cache header should be 'no-cache' or similar when maxAge is 0
       const cacheControl = response.headers['cache-control'];
       expect(cacheControl).toBeDefined();
     });
@@ -384,4 +375,3 @@ describe('WebUIManager Integration Tests', () => {
 });
 
 // Note: EnvironmentService is fully tested in EnvironmentService.test.ts
-// These integration tests focus on WebUIManager middleware and routing

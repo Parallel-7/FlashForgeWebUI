@@ -130,7 +130,6 @@ export class ThumbnailRequestQueue extends EventEmitter {
    */
   public enqueue(fileName: string, priority: number = 0): Promise<ThumbnailResult> {
     return new Promise((resolve) => {
-      // Check if already processing or queued
       const existingItem = this.findExistingRequest(fileName);
       if (existingItem) {
         console.log(`[ThumbnailQueue] Request already queued for ${fileName}, adding callback`);
@@ -138,7 +137,6 @@ export class ThumbnailRequestQueue extends EventEmitter {
         return;
       }
 
-      // Create new queue item
       const item: QueueItem = {
         id: `${Date.now()}-${Math.random()}`,
         fileName,
@@ -148,16 +146,13 @@ export class ThumbnailRequestQueue extends EventEmitter {
         callback: resolve,
       };
 
-      // Add to queue
       this.queue.push(item);
       this.sortQueue();
 
       console.log(`[ThumbnailQueue] Enqueued ${fileName}, queue size: ${this.queue.length}`);
 
-      // Start processing if not already running
       if (!this.isProcessing) {
         console.log('[ThumbnailQueue] Starting new processing cycle');
-        // Reset cancelled flag when starting a new cycle
         this.isCancelled = false;
         this.processQueue().catch((error) => {
           console.error('[ThumbnailQueue] Processing error:', error);
@@ -174,7 +169,6 @@ export class ThumbnailRequestQueue extends EventEmitter {
     console.log('[ThumbnailQueue] Cancelling all requests');
     this.isCancelled = true;
 
-    // Clear queue
     const cancelledCount = this.queue.length;
     this.queue.length = 0;
 
@@ -202,7 +196,6 @@ export class ThumbnailRequestQueue extends EventEmitter {
     }
     this.pendingCallbacks.clear();
 
-    // Reset processing flag to allow new processing cycles
     this.isProcessing = false;
 
     console.log(`[ThumbnailQueue] Cancelled ${cancelledCount} queued items`);
@@ -261,7 +254,6 @@ export class ThumbnailRequestQueue extends EventEmitter {
       let lastStatusLog = Date.now();
 
       while ((this.queue.length > 0 || this.processing.size > 0) && !this.isCancelled) {
-        // Log status every 2 seconds
         if (Date.now() - lastStatusLog > 2000) {
           console.log(
             `[ThumbnailQueue] Status - Queue: ${this.queue.length}, Processing: ${this.processing.size}, Completed: ${this.stats.completed}, Failed: ${this.stats.failed}`
@@ -269,7 +261,6 @@ export class ThumbnailRequestQueue extends EventEmitter {
           lastStatusLog = Date.now();
         }
 
-        // Process up to max concurrent items
         while (
           this.processing.size < concurrency.maxConcurrent &&
           this.queue.length > 0 &&
@@ -283,14 +274,12 @@ export class ThumbnailRequestQueue extends EventEmitter {
               console.error(`[ThumbnailQueue] Error processing ${item.fileName}:`, error);
             });
 
-            // Add delay between requests to prevent overwhelming the printer
             if (this.queue.length > 0) {
               await new Promise((resolve) => setTimeout(resolve, concurrency.requestDelay));
             }
           }
         }
 
-        // Wait a bit before checking again
         await new Promise((resolve) => setTimeout(resolve, 100));
       }
     } finally {
@@ -310,7 +299,6 @@ export class ThumbnailRequestQueue extends EventEmitter {
     try {
       console.log(`[ThumbnailQueue] Processing ${item.fileName}`);
 
-      // Get active context ID
       const contextManager = getPrinterContextManager();
       const contextId = contextManager.getActiveContextId();
 
@@ -318,7 +306,6 @@ export class ThumbnailRequestQueue extends EventEmitter {
         throw new Error('No active printer context');
       }
 
-      // Check if backend is ready
       if (!this.backendManager || !this.backendManager.isBackendReady(contextId)) {
         throw new Error('Backend not ready');
       }
@@ -333,10 +320,8 @@ export class ThumbnailRequestQueue extends EventEmitter {
           thumbnail: thumbnail.replace('data:image/png;base64,', ''),
         };
 
-        // Notify main callback
         item.callback(result);
 
-        // Notify any pending callbacks
         this.notifyPendingCallbacks(item.fileName, result);
 
         this.stats.completed++;
@@ -357,11 +342,10 @@ export class ThumbnailRequestQueue extends EventEmitter {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       console.error(`[ThumbnailQueue] Failed to process ${item.fileName}:`, errorMessage);
 
-      // Check if we should retry
       if (item.retryCount < 2 && !this.isCancelled) {
         item.retryCount++;
         console.log(`[ThumbnailQueue] Retrying ${item.fileName} (attempt ${item.retryCount + 1})`);
-        this.queue.unshift(item); // Add back to front of queue
+        this.queue.unshift(item);
       } else {
         const result: ThumbnailResult = {
           success: false,
@@ -369,7 +353,6 @@ export class ThumbnailRequestQueue extends EventEmitter {
           error: errorMessage,
         };
 
-        // Notify callbacks
         item.callback(result);
         this.notifyPendingCallbacks(item.fileName, result);
 
@@ -396,7 +379,6 @@ export class ThumbnailRequestQueue extends EventEmitter {
       return { modelType: 'generic-legacy', maxConcurrent: 1, requestDelay: 100 };
     }
 
-    // Get active context ID
     const contextManager = getPrinterContextManager();
     const contextId = contextManager.getActiveContextId();
 
@@ -419,12 +401,10 @@ export class ThumbnailRequestQueue extends EventEmitter {
    * Find existing request in queue or processing
    */
   private findExistingRequest(fileName: string): QueueItem | undefined {
-    // Check processing first
     if (this.processing.has(fileName)) {
       return this.processing.get(fileName);
     }
 
-    // Check queue
     return this.queue.find((item) => item.fileName === fileName);
   }
 

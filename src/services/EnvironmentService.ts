@@ -25,7 +25,6 @@ export class EnvironmentService {
   private readonly _isPackaged: boolean;
 
   constructor() {
-    // Detect if running as a pkg-bundled binary
     // In pkg binaries, __dirname points to a snapshot filesystem path
     // Also check for the PKG_EXECPATH environment variable which pkg sets
     this._isPackaged = this.detectPackagedEnvironment();
@@ -140,7 +139,6 @@ export class EnvironmentService {
     // In development or running via node directly, use process.cwd()
     const devStaticPath = path.join(process.cwd(), 'dist/webui/static');
 
-    // Verify the path exists for better error messages
     if (!fs.existsSync(devStaticPath)) {
       console.warn(`[EnvironmentService] Static path not found: ${devStaticPath}`);
       console.warn('[EnvironmentService] Did you run "npm run build" first?');

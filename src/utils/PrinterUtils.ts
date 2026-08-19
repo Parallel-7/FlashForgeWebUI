@@ -437,7 +437,6 @@ export const isValidCheckCode = (checkCode: string): boolean => {
     return false;
   }
 
-  // Check codes should be at least 1 character
   const trimmed = checkCode.trim();
   return trimmed.length >= 1 && trimmed.length <= 20;
 };
@@ -486,7 +485,6 @@ export const getConnectionErrorMessage = (error: unknown): string => {
       return errorObj.message;
     }
 
-    // Handle specific error types
     if (errorObj.code === 'ECONNREFUSED') {
       return 'Connection refused - printer may be offline or unreachable';
     }
@@ -508,7 +506,6 @@ export const getConnectionErrorMessage = (error: unknown): string => {
  * 5M family printers may need longer timeouts for pairing
  */
 export const getConnectionTimeout = (is5MFamily: boolean): number => {
-  // Return timeout in milliseconds
   return is5MFamily ? 15000 : 10000; // 15s for 5M, 10s for legacy
 };
 

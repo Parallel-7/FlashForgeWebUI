@@ -37,10 +37,8 @@ export class WebUIMobileLayoutManager {
       throw new Error('Mobile layout not initialized');
     }
 
-    // Clear existing content
     container.innerHTML = '';
 
-    // Add components in predefined mobile order
     this.componentOrder.forEach((componentId) => {
       if (visibleComponents.includes(componentId)) {
         const wrapper = document.createElement('div');

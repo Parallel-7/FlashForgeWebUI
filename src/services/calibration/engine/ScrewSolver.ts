@@ -158,7 +158,6 @@ export class ScrewSolver {
     const currentHeight = this.bed.getCornerHeight(corner, averagingSize);
     const deviation = targetHeight - currentHeight;
 
-    // Check if adjustment is needed
     const requiresAdjustment = Math.abs(deviation) >= this.config.minAdjust;
 
     // Clamp deviation to max adjustment
@@ -169,7 +168,6 @@ export class ScrewSolver {
     const degrees = this.deviationToDegrees(clampedDeviation);
     const turns = this.deviationToTurns(clampedDeviation);
 
-    // Format the adjustment string
     let formattedAmount: string;
     if (!requiresAdjustment) {
       formattedAmount = 'No adjustment needed';
@@ -207,7 +205,6 @@ export class ScrewSolver {
 
     const adjustments: ScrewAdjustment[] = [];
 
-    // Calculate adjustment for each corner
     for (const corner of Object.values(BedCorner)) {
       const adjustment = this.calculateCornerAdjustment(corner, referenceHeight, averagingSize);
       adjustments.push(adjustment);

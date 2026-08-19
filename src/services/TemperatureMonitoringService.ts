@@ -130,7 +130,6 @@ export class TemperatureMonitoringService extends EventEmitter<TempMonitorEventM
    * Set the printer polling service to monitor
    */
   public setPollingService(pollingService: PrinterPollingService): void {
-    // Remove listeners from old service
     if (this.pollingService) {
       this.removePollingServiceListeners();
     }
@@ -145,7 +144,6 @@ export class TemperatureMonitoringService extends EventEmitter<TempMonitorEventM
    * Set the print state monitor to listen to
    */
   public setPrintStateMonitor(monitor: PrintStateMonitor): void {
-    // Remove listeners from old monitor
     if (this.printStateMonitor) {
       this.removePrintStateMonitorListeners();
     }
@@ -162,11 +160,9 @@ export class TemperatureMonitoringService extends EventEmitter<TempMonitorEventM
   private setupPollingServiceListeners(): void {
     if (!this.pollingService) return;
 
-    // Listen for status updates to track current temperature
     this.pollingService.on('status-updated', (status: PrinterStatus) => {
       this.lastPrinterStatus = status;
 
-      // Update temperature monitoring if active
       if (this.state.monitoringActive) {
         void this.checkTemperature(status);
       }
@@ -188,7 +184,6 @@ export class TemperatureMonitoringService extends EventEmitter<TempMonitorEventM
   private setupPrintStateMonitorListeners(): void {
     if (!this.printStateMonitor) return;
 
-    // Start monitoring when print completes
     this.printStateMonitor.on('print-completed', (event) => {
       if (event.contextId === this.contextId) {
         console.log('[TemperatureMonitor] Print completed, starting temperature monitoring');
@@ -196,7 +191,6 @@ export class TemperatureMonitoringService extends EventEmitter<TempMonitorEventM
       }
     });
 
-    // Reset state when print starts
     this.printStateMonitor.on('print-started', (event) => {
       if (event.contextId === this.contextId) {
         console.log('[TemperatureMonitor] Print started, resetting state');
@@ -204,7 +198,6 @@ export class TemperatureMonitoringService extends EventEmitter<TempMonitorEventM
       }
     });
 
-    // Reset state when print cancelled
     this.printStateMonitor.on('print-cancelled', (event) => {
       if (event.contextId === this.contextId) {
         console.log('[TemperatureMonitor] Print cancelled, resetting state');
@@ -212,7 +205,6 @@ export class TemperatureMonitoringService extends EventEmitter<TempMonitorEventM
       }
     });
 
-    // Reset state when print error
     this.printStateMonitor.on('print-error', (event) => {
       if (event.contextId === this.contextId) {
         console.log('[TemperatureMonitor] Print error, resetting state');
@@ -241,19 +233,15 @@ export class TemperatureMonitoringService extends EventEmitter<TempMonitorEventM
    * Start temperature monitoring
    */
   private startMonitoring(): void {
-    // Stop any existing timer
     this.stopMonitoring();
 
-    // Update state
     this.state.printCompleteTime = new Date();
     this.state.monitoringActive = true;
     this.state.hasCooled = false;
 
-    // Emit event
     this.emit('monitoring-started', { contextId: this.contextId });
     console.log(`[TemperatureMonitor] Started monitoring for context ${this.contextId}`);
 
-    // Start timer
     this.temperatureCheckTimer = setInterval(() => {
       if (this.lastPrinterStatus) {
         void this.checkTemperature(this.lastPrinterStatus);
@@ -281,12 +269,10 @@ export class TemperatureMonitoringService extends EventEmitter<TempMonitorEventM
    * Check current temperature against cooling threshold
    */
   private async checkTemperature(status: PrinterStatus): Promise<void> {
-    // Skip if already cooled
     if (this.state.hasCooled) {
       return;
     }
 
-    // Skip if print complete time not set
     if (!this.state.printCompleteTime) {
       return;
     }
@@ -295,7 +281,6 @@ export class TemperatureMonitoringService extends EventEmitter<TempMonitorEventM
     this.state.lastCheckedTemp = bedTemp;
     const hasCooled = bedTemp < this.config.temperatureThreshold;
 
-    // Emit temperature check event
     this.emit('temperature-checked', {
       contextId: this.contextId,
       temperature: bedTemp,

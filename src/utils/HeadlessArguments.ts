@@ -71,7 +71,6 @@ export function parseHeadlessArguments(): HeadlessConfig {
   let printers: PrinterSpec[] | undefined;
 
   if (hasNoPrinters) {
-    // Start server without connecting to any printers (WebUI only)
     mode = 'no-printers';
   } else if (hasLastUsed) {
     mode = 'last-used';
@@ -85,7 +84,6 @@ export function parseHeadlessArguments(): HeadlessConfig {
     mode = 'no-printers';
   }
 
-  // Parse optional overrides
   const webUIPort = parseNumberArgument(args, '--webui-port');
   const webUIPassword = parseStringArgument(args, '--webui-password');
 
@@ -115,10 +113,8 @@ function parsePrintersArgument(arg: string): PrinterSpec[] {
     return [];
   }
 
-  // Remove quotes if present
   const cleanValue = value.replace(/^["']|["']$/g, '');
 
-  // Split by comma to get individual printer specs
   const printerStrings = cleanValue.split(',');
 
   const specs: PrinterSpec[] = [];
@@ -183,7 +179,6 @@ function parseStringArgument(args: string[], flag: string): string | undefined {
   }
 
   const value = arg.split('=')[1];
-  // Remove quotes if present
   return value?.replace(/^["']|["']$/g, '');
 }
 
@@ -196,12 +191,10 @@ function parseStringArgument(args: string[], flag: string): string | undefined {
 export function validateHeadlessConfig(config: HeadlessConfig): ValidationResult {
   const errors: string[] = [];
 
-  // Validate mode-specific requirements
   if (config.mode === 'explicit-printers') {
     if (!config.printers || config.printers.length === 0) {
       errors.push('No printers specified for explicit-printers mode');
     } else {
-      // Validate each printer spec
       config.printers.forEach((printer, index) => {
         if (!printer.ip) {
           errors.push(`Printer ${index + 1}: Missing IP address`);
@@ -225,7 +218,6 @@ export function validateHeadlessConfig(config: HeadlessConfig): ValidationResult
     }
   }
 
-  // Validate optional overrides
   if (config.webUIPort !== undefined) {
     if (config.webUIPort < 1 || config.webUIPort > 65535) {
       errors.push('WebUI port must be between 1 and 65535');

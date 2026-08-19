@@ -113,13 +113,11 @@ export class ThumbnailCacheService {
       const hash = this.hashFileName(fileName);
       const metadata = await this.getMetadata(printerSerial);
 
-      // Check if entry exists in metadata
       const entry = metadata.entries[hash];
       if (!entry) {
         return { success: false, error: 'Not in cache' };
       }
 
-      // Read the cached file
       const filePath = this.getThumbnailPath(printerSerial, hash);
       const data = await fs.readFile(filePath, 'base64');
 
@@ -142,18 +140,15 @@ export class ThumbnailCacheService {
       const hash = this.hashFileName(fileName);
       const printerDir = path.join(this.basePath, printerSerial);
 
-      // Ensure printer directory exists
       await fs.mkdir(printerDir, { recursive: true });
 
       // Strip data URL prefix if present
       const imageData = base64Data.replace(/^data:image\/\w+;base64,/, '');
 
-      // Write thumbnail file
       const filePath = this.getThumbnailPath(printerSerial, hash);
       const buffer = Buffer.from(imageData, 'base64');
       await fs.writeFile(filePath, buffer);
 
-      // Update metadata
       const metadata = await this.getMetadata(printerSerial);
       metadata.entries[hash] = {
         fileName,
@@ -188,7 +183,6 @@ export class ThumbnailCacheService {
         return false;
       }
 
-      // Verify file actually exists
       const filePath = this.getThumbnailPath(printerSerial, hash);
       try {
         await fs.access(filePath);
@@ -327,7 +321,6 @@ export class ThumbnailCacheService {
    * Load metadata for a printer
    */
   private async getMetadata(printerSerial: string): Promise<CacheMetadata> {
-    // Check memory cache first
     const cached = this.metadataCache.get(printerSerial);
     if (cached) {
       return cached;
@@ -338,7 +331,6 @@ export class ThumbnailCacheService {
       const data = await fs.readFile(metadataPath, 'utf-8');
       const metadata = JSON.parse(data) as CacheMetadata;
 
-      // Validate and migrate if needed
       if (!metadata.version || metadata.version < 1) {
         metadata.version = 1;
       }
@@ -349,7 +341,6 @@ export class ThumbnailCacheService {
       this.metadataCache.set(printerSerial, metadata);
       return metadata;
     } catch {
-      // Return empty metadata if file doesn't exist
       const emptyMetadata: CacheMetadata = {
         version: 1,
         entries: {},
@@ -372,7 +363,6 @@ export class ThumbnailCacheService {
    * Remove a specific entry
    */
   private async removeEntry(printerSerial: string, hash: string): Promise<void> {
-    // Remove file
     const filePath = this.getThumbnailPath(printerSerial, hash);
     try {
       await fs.unlink(filePath);
@@ -380,7 +370,6 @@ export class ThumbnailCacheService {
       // Ignore if file doesn't exist
     }
 
-    // Update metadata
     const metadata = await this.getMetadata(printerSerial);
     delete metadata.entries[hash];
     await this.saveMetadata(printerSerial, metadata);

@@ -35,7 +35,6 @@ export function registerPrinterDetectionRoutes(router: Router, _deps: RouteDepen
       };
       const ipAddress = body.ipAddress;
 
-      // Validate IP address
       if (!ipAddress || typeof ipAddress !== 'string') {
         return sendErrorResponse(res, 400, 'IP address is required');
       }
@@ -64,7 +63,6 @@ export function registerPrinterDetectionRoutes(router: Router, _deps: RouteDepen
         productId: typeof body.productId === 'number' ? body.productId : undefined,
       };
 
-      // Create temporary connection to probe the printer
       const tempResult = await connectionService.createTemporaryConnection(mockPrinter);
 
       if (!tempResult.success || !tempResult.typeName) {
@@ -72,7 +70,6 @@ export function registerPrinterDetectionRoutes(router: Router, _deps: RouteDepen
         return sendErrorResponse(res, 500, tempResult.error || 'Failed to detect printer type');
       }
 
-      // Extract printer information
       const typeName = tempResult.typeName;
       const serialNumber =
         tempResult.printerInfo?.SerialNumber &&
@@ -84,7 +81,6 @@ export function registerPrinterDetectionRoutes(router: Router, _deps: RouteDepen
           ? tempResult.printerInfo.Name
           : `Printer at ${ipAddress}`;
 
-      // Detect printer family and determine requirements
       const familyInfo = detectPrinterFamily(typeName);
       const clientType = determineClientType(familyInfo.is5MFamily);
 

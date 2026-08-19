@@ -41,7 +41,6 @@ export class AutoConnectService extends EventEmitter {
    */
   public shouldAutoConnect(): boolean {
     // Auto-connect is always enabled by default
-    // We could add a config option later if needed
     return true;
   }
 
@@ -83,8 +82,7 @@ export class AutoConnectService extends EventEmitter {
       return null;
     }
 
-    // For now, return null to let the UI handle selection
-    // We could add last used printer tracking later
+    // Return null; the UI handles printer selection
     return null;
   }
 
@@ -93,8 +91,6 @@ export class AutoConnectService extends EventEmitter {
    * Can be used for direct connection attempts
    */
   public shouldAutoConnectToPrinter(_serialNumber: string): boolean {
-    // For now, always return false
-    // We could add last used printer tracking later
     return false;
   }
 
@@ -102,7 +98,6 @@ export class AutoConnectService extends EventEmitter {
    * Update auto-connect preferences after successful connection
    */
   public updateAutoConnectPreferences(serialNumber: string): void {
-    // This might update config settings for future auto-connect
     this.emit('auto-connect-preferences-updated', serialNumber);
   }
 
@@ -111,7 +106,6 @@ export class AutoConnectService extends EventEmitter {
    * Allows for a brief delay before attempting auto-connect
    */
   public getAutoConnectDelay(): number {
-    // Return default delay of 100ms
     return 100;
   }
 
@@ -136,7 +130,6 @@ export class AutoConnectService extends EventEmitter {
   }
 }
 
-// Export singleton getter function
 export const getAutoConnectService = (): AutoConnectService => {
   return AutoConnectService.getInstance();
 };

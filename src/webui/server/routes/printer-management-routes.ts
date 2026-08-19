@@ -41,7 +41,6 @@ export function registerPrinterManagementRoutes(router: Router, deps: RouteDepen
       const httpPort = body.httpPort;
       const productId = body.productId;
 
-      // Validate required fields
       if (!ipAddress || typeof ipAddress !== 'string') {
         return sendErrorResponse(res, 400, 'IP address is required');
       }
@@ -50,7 +49,6 @@ export function registerPrinterManagementRoutes(router: Router, deps: RouteDepen
         return sendErrorResponse(res, 400, 'Type must be "new" or "legacy"');
       }
 
-      // Validate check code for new printers
       if (type === 'new' && (!checkCode || typeof checkCode !== 'string')) {
         return sendErrorResponse(res, 400, 'Check code is required for modern printers');
       }
@@ -78,7 +76,6 @@ export function registerPrinterManagementRoutes(router: Router, deps: RouteDepen
         );
       }
 
-      // Build printer spec
       const spec = {
         ip: ipAddress,
         type: type as PrinterClientType,
@@ -89,7 +86,6 @@ export function registerPrinterManagementRoutes(router: Router, deps: RouteDepen
         serialNumber,
       };
 
-      // Connect via ConnectionFlowManager
       console.log('[API] Connecting to printer:', spec);
       const results = await deps.connectionManager.connectHeadlessDirect([spec]);
 
@@ -134,13 +130,11 @@ export function registerPrinterManagementRoutes(router: Router, deps: RouteDepen
         return sendErrorResponse(res, 400, 'Context ID is required');
       }
 
-      // Verify context exists
       const context = deps.contextManager.getContext(contextId);
       if (!context) {
         return sendErrorResponse(res, 404, `Context ${contextId} not found`);
       }
 
-      // Disconnect via ConnectionFlowManager
       console.log('[API] Disconnecting printer:', context.printerDetails.Name);
       await deps.connectionManager.disconnectContext(contextId);
 
@@ -188,7 +182,6 @@ export function registerPrinterManagementRoutes(router: Router, deps: RouteDepen
           return sendErrorResponse(res, 400, 'Serial number is required');
         }
 
-        // Check if printer is currently connected
         const contexts = deps.contextManager.getAllContexts();
         const connectedContext = contexts.find(
           (ctx) => ctx.printerDetails.SerialNumber === serialNumber
@@ -202,7 +195,6 @@ export function registerPrinterManagementRoutes(router: Router, deps: RouteDepen
           );
         }
 
-        // Delete from saved printers
         await savedPrinterService.removePrinter(serialNumber);
 
         return res.json({
@@ -236,7 +228,6 @@ export function registerPrinterManagementRoutes(router: Router, deps: RouteDepen
           return sendErrorResponse(res, 404, 'Saved printer not found');
         }
 
-        // Connect using saved details
         console.log('[API] Reconnecting to saved printer:', savedPrinter.Name);
         const results = await deps.connectionManager.connectHeadlessFromSaved([savedPrinter]);
 

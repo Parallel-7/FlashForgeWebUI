@@ -109,7 +109,6 @@ export class SSHConnectionManager extends EventEmitter {
    * @returns Promise that resolves when connected
    */
   async connect(contextId: string, config: SSHConnectionConfig): Promise<void> {
-    // Disconnect existing connection if any
     if (this.connections.has(contextId)) {
       await this.disconnect(contextId);
     }
@@ -141,7 +140,6 @@ export class SSHConnectionManager extends EventEmitter {
         keepaliveInterval: fullConfig.keepaliveInterval,
       };
 
-      // Add authentication
       if (fullConfig.privateKey) {
         connectConfig.privateKey = fullConfig.privateKey;
       } else if (fullConfig.password) {

@@ -83,7 +83,6 @@ describe('DeviationAnalyzer', () => {
   describe('setOptions', () => {
     it('should update analyzer options', () => {
       analyzer.setOptions({ screwThreshold: 0.1 });
-      // Verify by analyzing (thresholds affect recommendations)
       const result = analyzer.analyze();
       expect(result).toBeDefined();
     });

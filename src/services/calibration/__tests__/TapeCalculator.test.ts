@@ -74,7 +74,6 @@ describe('TapeCalculator', () => {
   describe('setConfig', () => {
     it('should update tape configuration', () => {
       calculator.setConfig({ tapeThickness: 0.1 });
-      // Verify by checking calculated layers
       const recommendations = calculator.calculateLayers();
       // With thicker tape, fewer layers should be needed
       expect(recommendations.length).toBeGreaterThanOrEqual(0);
@@ -112,7 +111,6 @@ describe('TapeCalculator', () => {
       const corners = bed.getCornerValues();
       const lowestValue = Math.min(corners.frontLeft, corners.frontRight, corners.rearLeft, corners.rearRight);
 
-      // Find which corners are at lowest value
       const lowestCorners: BedCorner[] = [];
       if (Math.abs(corners.frontLeft - lowestValue) < 0.001) lowestCorners.push(BedCorner.FRONT_LEFT);
       if (Math.abs(corners.frontRight - lowestValue) < 0.001) lowestCorners.push(BedCorner.FRONT_RIGHT);

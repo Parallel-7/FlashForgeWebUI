@@ -140,7 +140,6 @@ export class DeviationAnalyzer {
     const stats = this.bed.getMeshStats();
     const meanHeight = stats.mean;
 
-    // Calculate corner deviations from mean
     const corners = this.bed.getCornerValues(this.options.cornerAveragingSize);
     const cornerDeviations: BedCorners = {
       frontLeft: Math.abs(corners.frontLeft - meanHeight),
@@ -173,7 +172,6 @@ export class DeviationAnalyzer {
     const stats = this.getStats();
     const corners = this.bed.getCornerValues(this.options.cornerAveragingSize);
 
-    // Find max difference between any corners
     const heights = [corners.frontLeft, corners.frontRight, corners.rearLeft, corners.rearRight];
     const maxCornerDiff = Math.max(...heights) - Math.min(...heights);
 
@@ -212,7 +210,6 @@ export class DeviationAnalyzer {
     const levelingStage = this.analyzeLevelingStage();
     const corners = this.bed.getCornerValues(this.options.cornerAveragingSize);
 
-    // Find the reference corner (lowest)
     let referenceCorner = BedCorner.FRONT_LEFT;
     let lowestValue = corners.frontLeft;
 
@@ -270,10 +267,8 @@ export class DeviationAnalyzer {
     // Auto-select reference corner
     this.screwSolver.autoSelectReferenceCorner(this.options.cornerAveragingSize);
 
-    // Calculate adjustments
     const adjustments = this.screwSolver.calculateAdjustmentsToTarget(meanHeight, this.options.cornerAveragingSize);
 
-    // Build adjustment map for simulation
     const cornerAdjustments: Partial<Record<BedCorner, number>> = {};
     for (const adj of adjustments) {
       if (adj.requiresAdjustment) {
@@ -305,7 +300,6 @@ export class DeviationAnalyzer {
     // Simulate screw adjustment
     const bedAfterScrews = this.estimateBedAfterScrewAdjustment();
 
-    // Calculate deviation after screws
     let sum = 0;
     let count = 0;
     for (const row of bedAfterScrews) {

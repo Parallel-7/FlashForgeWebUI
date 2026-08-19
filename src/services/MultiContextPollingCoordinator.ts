@@ -120,12 +120,10 @@ export class MultiContextPollingCoordinator extends EventEmitter<MultiContextPol
       return;
     }
 
-    // Listen for context switches to adjust polling frequencies
     this.contextManager.on('context-switched', (event: ContextSwitchEvent) => {
       this.handleContextSwitch(event.contextId, event.previousContextId);
     });
 
-    // Listen for context removal to clean up polling services
     this.contextManager.on('context-removed', (event: ContextRemovedEvent) => {
       this.stopPollingForContext(event.contextId);
     });
@@ -141,7 +139,6 @@ export class MultiContextPollingCoordinator extends EventEmitter<MultiContextPol
   private handleContextSwitch(newContextId: string, previousContextId: string | null): void {
     this.logDebug(`Context switched from ${previousContextId || 'none'} to ${newContextId}`);
 
-    // Set new active context to fast polling
     const newContextPoller = this.pollingServices.get(newContextId);
     if (newContextPoller) {
       newContextPoller.updateConfig({ intervalMs: ACTIVE_CONTEXT_POLLING_INTERVAL_MS });
@@ -158,7 +155,6 @@ export class MultiContextPollingCoordinator extends EventEmitter<MultiContextPol
       }
     }
 
-    // Set previous active context to slow polling
     if (previousContextId) {
       const previousContextPoller = this.pollingServices.get(previousContextId);
       if (previousContextPoller) {
@@ -179,19 +175,16 @@ export class MultiContextPollingCoordinator extends EventEmitter<MultiContextPol
    * Creates a new polling service instance and starts it with appropriate frequency
    */
   public startPollingForContext(contextId: string): void {
-    // Check if already polling
     if (this.pollingServices.has(contextId)) {
       this.logDebug(`Already polling for context ${contextId}`);
       return;
     }
 
-    // Get context from manager
     const context = this.contextManager.getContext(contextId);
     if (!context) {
       throw new Error(`Cannot start polling: Context ${contextId} does not exist`);
     }
 
-    // Verify backend is available
     if (!context.backend) {
       throw new Error(`Cannot start polling: Context ${contextId} has no backend`);
     }
@@ -203,14 +196,12 @@ export class MultiContextPollingCoordinator extends EventEmitter<MultiContextPol
       ? ACTIVE_CONTEXT_POLLING_INTERVAL_MS
       : INACTIVE_CONTEXT_POLLING_INTERVAL_MS;
 
-    // Create polling configuration
     const config: Partial<PollingConfig> = {
       intervalMs,
       maxRetries: 3,
       retryDelayMs: 2000,
     };
 
-    // Create and configure polling service
     const pollingService = new PrinterPollingService(config);
 
     // Create a wrapper that adapts the context-aware backend to the polling service's interface
@@ -235,13 +226,10 @@ export class MultiContextPollingCoordinator extends EventEmitter<MultiContextPol
       backendWrapper as Parameters<typeof pollingService.setBackendManager>[0]
     );
 
-    // Set up event forwarding with context identification
     this.setupPollingServiceEvents(contextId, pollingService);
 
-    // Store and start the polling service
     this.pollingServices.set(contextId, pollingService);
 
-    // Update context manager reference
     this.contextManager.updatePollingService(contextId, pollingService);
 
     const started = pollingService.start();
@@ -269,11 +257,9 @@ export class MultiContextPollingCoordinator extends EventEmitter<MultiContextPol
       return;
     }
 
-    // Stop and dispose of the polling service
     pollingService.stop();
     pollingService.dispose();
 
-    // Remove from map
     this.pollingServices.delete(contextId);
 
     this.logDebug(`Stopped polling for context ${contextId}`);
@@ -288,12 +274,10 @@ export class MultiContextPollingCoordinator extends EventEmitter<MultiContextPol
     contextId: string,
     pollingService: PrinterPollingService
   ): void {
-    // Forward data updates with context ID
     pollingService.on(POLLING_EVENTS.DATA_UPDATED, (data: PollingData) => {
       this.emit('polling-data', contextId, data);
     });
 
-    // Forward polling errors with context ID
     pollingService.on(POLLING_EVENTS.POLLING_ERROR, (errorData: { error: string }) => {
       this.emit('polling-error', contextId, errorData.error);
     });

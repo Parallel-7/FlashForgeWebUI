@@ -92,7 +92,6 @@ export abstract class BasePrinterBackend extends EventEmitter {
     this.serialNumber = options.printerDetails.serialNumber;
     this.typeName = options.printerDetails.typeName;
 
-    // Store per-printer settings from printer details
     this.customCameraEnabled = options.printerDetails.customCameraEnabled ?? false;
     this.customCameraUrl = options.printerDetails.customCameraUrl ?? '';
     this.customLedsEnabled = options.printerDetails.customLedsEnabled ?? false;
@@ -203,15 +202,12 @@ export abstract class BasePrinterBackend extends EventEmitter {
     }
 
     try {
-      // Validate primary client connection
       await this.validatePrimaryClient();
 
-      // Initialize secondary client if available
       if (this.secondaryClient) {
         await this.validateSecondaryClient();
       }
 
-      // Build feature set
       this.rebuildFeatureSet();
 
       // Perform backend-specific initialization
@@ -305,8 +301,8 @@ export abstract class BasePrinterBackend extends EventEmitter {
         recentJobs: this.supportsRecentJobs(),
         uploadJobs: this.supportsUploadJobs(),
         startJobs: this.supportsStartJobs(),
-        pauseResume: true, // Always available
-        cancelJobs: true, // Always available
+        pauseResume: true,
+        cancelJobs: true,
         usesNewAPI: this.supportsNewAPI(),
       },
       materialStation: {
@@ -475,7 +471,6 @@ export abstract class BasePrinterBackend extends EventEmitter {
    */
   public async dispose(): Promise<void> {
     try {
-      // Dispose of clients
       if (this.primaryClient) {
         await this.primaryClient.dispose();
       }
@@ -484,12 +479,10 @@ export abstract class BasePrinterBackend extends EventEmitter {
         await this.secondaryClient.dispose();
       }
 
-      // Clean up state
       this.initialized = false;
       this.connected = false;
       this.features = null;
 
-      // Remove event listeners
       this.removeAllListeners();
 
       this.emitEvent('disconnected');

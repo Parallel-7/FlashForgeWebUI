@@ -249,7 +249,6 @@ export function validateWebSocketCommand(
 
   const command = commandResult.data;
 
-  // Validate command-specific data if needed
   if (command.command in CommandDataValidators) {
     const validator = CommandDataValidators[command.command as keyof typeof CommandDataValidators];
     const dataResult = validator.safeParse(command.data);

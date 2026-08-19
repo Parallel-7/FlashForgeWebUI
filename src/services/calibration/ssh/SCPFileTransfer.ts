@@ -454,7 +454,6 @@ export class SCPFileTransfer {
     const requestedFilename = path.posix.basename(remotePath) || path.basename(remotePath);
     const destination = localPath || path.join(this.cacheDir, contextId, requestedFilename);
 
-    // Ensure destination directory exists
     await fs.mkdir(path.dirname(destination), { recursive: true });
 
     let bytesTransferred = 0;
@@ -464,7 +463,6 @@ export class SCPFileTransfer {
     try {
       ({ stream, state } = await this.openScpChannel(contextId, `scp -f ${this.shellQuote(remotePath)}`));
 
-      // Start SCP transfer handshake
       stream.write(SCP_ACK);
 
       const header = await this.readNextFileHeader(state, stream);
@@ -577,14 +575,12 @@ export class SCPFileTransfer {
 
       ({ stream, state } = await this.openScpChannel(contextId, `scp -t ${this.shellQuote(targetDirectory)}`));
 
-      // Wait for receiver ready ACK
       await this.readAck(state);
 
       // Announce file metadata to receiver
       stream.write(`C0644 ${totalBytes} ${targetFilename}\n`);
       await this.readAck(state);
 
-      // Send file data with progress updates
       let offset = 0;
       while (offset < totalBytes) {
         const end = Math.min(offset + SCP_CHUNK_SIZE, totalBytes);
@@ -791,7 +787,6 @@ export class SCPFileTransfer {
     // Upload the file
     const result = await this.uploadFile(contextId, tempPath, targetRemotePath);
 
-    // Clean up temp file
     try {
       await fs.unlink(tempPath);
     } catch {

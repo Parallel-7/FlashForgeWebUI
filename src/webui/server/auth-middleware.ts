@@ -46,7 +46,6 @@ export function createAuthMiddleware() {
       return;
     }
 
-    // Extract token from Authorization header
     const authHeader = req.headers.authorization;
     const token = authManager.extractTokenFromHeader(authHeader);
 
@@ -59,7 +58,6 @@ export function createAuthMiddleware() {
       return;
     }
 
-    // Verify token
     if (!authManager.verifyToken(token)) {
       const response: StandardAPIResponse = {
         success: false,
@@ -95,7 +93,6 @@ export function createOptionalAuthMiddleware() {
       return;
     }
 
-    // Extract token from Authorization header
     const authHeader = req.headers.authorization;
     const token = authManager.extractTokenFromHeader(authHeader);
 
@@ -127,7 +124,6 @@ export function createLoginRateLimiter() {
     const ip = req.ip || 'unknown';
     const now = Date.now();
 
-    // Get or create attempt record
     let record = attempts.get(ip);
 
     if (!record || record.resetTime < now) {
@@ -138,7 +134,6 @@ export function createLoginRateLimiter() {
       attempts.set(ip, record);
     }
 
-    // Check if limit exceeded
     if (record.count >= maxAttempts) {
       const response: StandardAPIResponse = {
         success: false,

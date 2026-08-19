@@ -77,7 +77,6 @@ export class KlipperConfigParser {
       let inPointsSection = false;
 
       for (const line of lines) {
-        // Check for mesh section header
         const sectionMatch = this.sectionPattern.exec(line);
         if (sectionMatch) {
           foundProfile = sectionMatch[1];
@@ -86,12 +85,10 @@ export class KlipperConfigParser {
           continue;
         }
 
-        // Skip if not in the target mesh section
         if (!inMeshSection) {
           continue;
         }
 
-        // Check for parameter lines
         const paramMatch = this.paramPattern.exec(line);
         if (paramMatch) {
           const [, key, value] = paramMatch;
@@ -104,7 +101,6 @@ export class KlipperConfigParser {
           continue;
         }
 
-        // Check for point data lines (only when in points section)
         if (inPointsSection && this.pointPattern.test(line)) {
           const cleanLine = line.replace(/^#\*#\s*/, '').trim();
           if (cleanLine) {
@@ -130,7 +126,6 @@ export class KlipperConfigParser {
         }
       }
 
-      // Validate we found data
       if (pointsData.length === 0) {
         return {
           success: false,
@@ -138,7 +133,6 @@ export class KlipperConfigParser {
         };
       }
 
-      // Validate required parameters
       for (const param of this.requiredParams) {
         if (!(param in params)) {
           return {
@@ -148,7 +142,6 @@ export class KlipperConfigParser {
         }
       }
 
-      // Parse parameters
       const xCount = parseInt(params.x_count, 10);
       const yCount = parseInt(params.y_count, 10);
       const minX = parseFloat(params.min_x);
@@ -156,7 +149,6 @@ export class KlipperConfigParser {
       const minY = parseFloat(params.min_y);
       const maxY = parseFloat(params.max_y);
 
-      // Validate matrix dimensions
       if (pointsData.length !== yCount) {
         return {
           success: false,
@@ -223,7 +215,6 @@ export class KlipperConfigParser {
    * @returns Object with isValid flag and optional error message
    */
   validateMeshData(meshData: MeshData): { isValid: boolean; error?: string } {
-    // Check matrix dimensions match declared size
     if (meshData.matrix.length !== meshData.pointsY) {
       return {
         isValid: false,
@@ -262,7 +253,6 @@ export class KlipperConfigParser {
       }
     }
 
-    // Check coordinate bounds make sense
     if (meshData.minX >= meshData.maxX) {
       return {
         isValid: false,

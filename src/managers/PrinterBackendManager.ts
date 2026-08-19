@@ -160,10 +160,8 @@ export class PrinterBackendManager extends EventEmitter {
     options: BackendInitializationOptions
   ): Promise<BackendInitializationResult> {
     try {
-      // Check if we had an old backend before disposal
       const hadOldBackend = this.contextBackends.has(contextId);
 
-      // Dispose of existing backend for this context if any
       if (hadOldBackend) {
         await this.disposeContext(contextId);
 
@@ -172,16 +170,14 @@ export class PrinterBackendManager extends EventEmitter {
         console.log(
           `PrinterBackendManager: Waiting for old backend cleanup to complete for context ${contextId}...`
         );
-        await new Promise((resolve) => setTimeout(resolve, 500)); // 500ms delay
+        await new Promise((resolve) => setTimeout(resolve, 500));
       }
 
-      // Show loading state
       this.loadingManager.show({
         message: 'Initializing printer backend...',
         canCancel: false,
       });
 
-      // Detect printer model from details
       let modelType = detectPrinterModelType(options.printerDetails.printerModel);
 
       // Force legacy mode uses the generic legacy backend regardless of printer family.
@@ -196,23 +192,17 @@ export class PrinterBackendManager extends EventEmitter {
         `Initializing ${getModelDisplayName(modelType)} backend...`
       );
 
-      // Create backend instance
       const backend = this.createBackend(modelType, options);
 
-      // Initialize the backend
       await backend.initialize();
 
-      // Store references in context map
       this.contextBackends.set(contextId, backend);
       this.contextPrinterDetails.set(contextId, options.printerDetails);
 
-      // Update context manager with backend reference
       this.contextManager.updateBackend(contextId, backend);
 
-      // Setup backend event forwarding
       this.setupBackendEventForwarding(backend, contextId);
 
-      // Success!
       this.loadingManager.showSuccess(
         `Backend initialized for ${getModelDisplayName(modelType)}`,
         3000
@@ -309,12 +299,10 @@ export class PrinterBackendManager extends EventEmitter {
    * Now includes contextId for multi-context support
    */
   private setupBackendEventForwarding(backend: BasePrinterBackend, contextId: string): void {
-    // Forward all backend events with context ID
     backend.on('backend-event', (event) => {
       this.emit('backend-event', { ...event, contextId });
     });
 
-    // Forward specific events with context ID
     backend.on('feature-updated', (data) => {
       this.emit('feature-updated', { ...data, contextId });
     });
@@ -342,14 +330,11 @@ export class PrinterBackendManager extends EventEmitter {
 
         console.log(`Disposing backend for context ${contextId} (${printerName})...`);
 
-        // Remove from maps first
         this.contextBackends.delete(contextId);
         this.contextPrinterDetails.delete(contextId);
 
-        // Update context manager
         this.contextManager.updateBackend(contextId, null);
 
-        // Dispose the backend (this calls client.dispose())
         await backend.dispose();
 
         // Additional cleanup delay to ensure ff-api client internal timers stop
@@ -359,7 +344,6 @@ export class PrinterBackendManager extends EventEmitter {
         this.emit('backend-disposed', { contextId });
       } catch (error) {
         console.error(`Error disposing backend for context ${contextId}:`, error);
-        // Clear references even if disposal fails
         this.contextBackends.delete(contextId);
         this.contextPrinterDetails.delete(contextId);
       }
@@ -465,8 +449,6 @@ export class PrinterBackendManager extends EventEmitter {
 
     return backend.getCapabilities();
   }
-
-  // Forward backend operations to context backend
 
   /**
    * Execute G-code command
@@ -687,7 +669,6 @@ export class PrinterBackendManager extends EventEmitter {
       };
     }
 
-    // Check if backend supports AD5X upload
     if (!('uploadFileAD5X' in backend)) {
       return {
         success: false,
@@ -698,7 +679,6 @@ export class PrinterBackendManager extends EventEmitter {
       };
     }
 
-    // Use interface assertion for better type safety
     const ad5xBackend = backend as {
       uploadFileAD5X: (
         filePath: string,
@@ -846,21 +826,17 @@ export class PrinterBackendManager extends EventEmitter {
   public async cleanup(): Promise<void> {
     console.log('PrinterBackendManager: Cleaning up all contexts...');
 
-    // Dispose of all context backends
     const contextIds = Array.from(this.contextBackends.keys());
     for (const contextId of contextIds) {
       await this.disposeContext(contextId);
     }
 
-    // Clear all maps
     this.contextBackends.clear();
     this.contextPrinterDetails.clear();
     this.contextInitPromises.clear();
 
-    // Remove all event listeners
     this.removeAllListeners();
 
-    // Clear singleton instance
     PrinterBackendManager.instance = null;
 
     console.log('PrinterBackendManager: Cleanup complete');

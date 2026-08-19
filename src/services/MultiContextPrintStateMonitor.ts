@@ -68,7 +68,6 @@ export class MultiContextPrintStateMonitor extends EventEmitter<MultiContextPrin
    * Create a print state monitor for a specific context
    */
   public createMonitorForContext(contextId: string, pollingService: PrinterPollingService): void {
-    // Check if monitor already exists
     if (this.monitors.has(contextId)) {
       console.warn(
         `[MultiContextPrintStateMonitor] Monitor already exists for context ${contextId}`
@@ -76,14 +75,11 @@ export class MultiContextPrintStateMonitor extends EventEmitter<MultiContextPrin
       return;
     }
 
-    // Create new monitor
     const monitor = new PrintStateMonitor(contextId);
     monitor.setPollingService(pollingService);
 
-    // Forward events from this monitor
     this.setupEventForwarding(monitor);
 
-    // Store monitor
     this.monitors.set(contextId, monitor);
 
     console.log(`[MultiContextPrintStateMonitor] Created monitor for context ${contextId}`);

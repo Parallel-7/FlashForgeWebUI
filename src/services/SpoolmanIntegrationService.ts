@@ -105,13 +105,11 @@ export class SpoolmanIntegrationService extends EventEmitter<SpoolmanIntegration
    */
   isContextSupported(contextId: string): boolean {
     try {
-      // Check if context exists
       const context = this.contextManager.getContext(contextId);
       if (!context) {
         return false;
       }
 
-      // Check for material station feature (AD5X indicator)
       if (this.backendManager) {
         const features = this.backendManager.getFeatures(contextId);
         if (features?.materialStation?.available === true) {
@@ -119,7 +117,6 @@ export class SpoolmanIntegrationService extends EventEmitter<SpoolmanIntegration
         }
       }
 
-      // Check for AD5X model name
       const printerModel = context.printerDetails?.printerModel || '';
       if (printerModel.startsWith('AD5')) {
         return false; // AD5X model
@@ -183,20 +180,17 @@ export class SpoolmanIntegrationService extends EventEmitter<SpoolmanIntegration
       throw new Error('No active printer context');
     }
 
-    // Validate context support
     if (!this.isContextSupported(targetContextId)) {
       throw new Error(
         'Spoolman integration is disabled for this printer (AD5X with material station)'
       );
     }
 
-    // Get context and current printer details
     const context = this.contextManager.getContext(targetContextId);
     if (!context) {
       throw new Error(`Context ${targetContextId} not found`);
     }
 
-    // Update printer details with new spool data
     const updatedSpoolData = {
       ...spoolData,
       lastUpdated: new Date().toISOString(),
@@ -218,14 +212,13 @@ export class SpoolmanIntegrationService extends EventEmitter<SpoolmanIntegration
       throw new Error('No active printer context');
     }
 
-    // Validate context support (still block AD5X from clearing)
+    // Validate context support (AD5X stays blocked from clearing)
     if (!this.isContextSupported(targetContextId)) {
       throw new Error(
         'Spoolman integration is disabled for this printer (AD5X with material station)'
       );
     }
 
-    // Get context and current printer details
     const context = this.contextManager.getContext(targetContextId);
     if (!context) {
       throw new Error(`Context ${targetContextId} not found`);
@@ -269,7 +262,6 @@ export class SpoolmanIntegrationService extends EventEmitter<SpoolmanIntegration
     const serverUrl = this.getServerUrl();
     const service = new SpoolmanService(serverUrl);
 
-    // Get spool directly by ID using concrete endpoint
     const spool = await service.getSpoolById(spoolId);
 
     return this.convertToActiveSpoolData(spool);

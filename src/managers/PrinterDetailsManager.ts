@@ -41,14 +41,11 @@ export class PrinterDetailsManager {
   private readonly contextLastUsed = new Map<string, string>(); // contextId -> serialNumber
 
   constructor() {
-    // Store printer details in data directory (standalone)
     const dataPath = getDataPath();
     this.filePath = path.join(dataPath, 'printer_details.json');
 
-    // Ensure data directory exists
     this.ensureDataDirectory(dataPath);
 
-    // Initialize with empty config
     this.currentConfig = {
       lastUsedPrinterSerial: null,
       printers: {},
@@ -156,7 +153,6 @@ export class PrinterDetailsManager {
       return false;
     }
 
-    // Validate ClientType is one of the expected values
     const clientType = detailsObj.ClientType as string;
     if (clientType !== 'legacy' && clientType !== 'new') {
       return false;
@@ -176,7 +172,6 @@ export class PrinterDetailsManager {
       return false;
     }
 
-    // Validate optional per-printer settings fields if present
     if (
       'customCameraEnabled' in detailsObj &&
       typeof detailsObj.customCameraEnabled !== 'boolean'
@@ -215,26 +210,22 @@ export class PrinterDetailsManager {
 
     const configObj = config as Record<string, unknown>;
 
-    // Check top-level structure
     if (!('lastUsedPrinterSerial' in configObj) || !('printers' in configObj)) {
       return false;
     }
 
     const { lastUsedPrinterSerial, printers } = configObj;
 
-    // Validate lastUsedPrinterSerial
     if (lastUsedPrinterSerial !== null && typeof lastUsedPrinterSerial !== 'string') {
       return false;
     }
 
-    // Validate printers object
     if (!printers || typeof printers !== 'object') {
       return false;
     }
 
     const printersObj = printers as Record<string, unknown>;
 
-    // Validate each printer entry
     for (const [serialNumber, printerData] of Object.entries(printersObj)) {
       if (!serialNumber || typeof serialNumber !== 'string') {
         return false;
@@ -245,7 +236,6 @@ export class PrinterDetailsManager {
       }
     }
 
-    // Validate lastUsedPrinterSerial exists in printers if not null
     if (lastUsedPrinterSerial && !(lastUsedPrinterSerial in printersObj)) {
       return false;
     }
@@ -263,12 +253,10 @@ export class PrinterDetailsManager {
 
     const detailsObj = details as unknown as Record<string, unknown>;
 
-    // Check for lastConnected field
     if (!('lastConnected' in detailsObj) || typeof detailsObj.lastConnected !== 'string') {
       return false;
     }
 
-    // Validate it's a valid ISO date string
     const date = new Date(detailsObj.lastConnected as string);
     if (Number.isNaN(date.getTime())) {
       return false;
@@ -310,7 +298,6 @@ export class PrinterDetailsManager {
   private migrateFromOldFormat(oldData: PrinterDetails): MultiPrinterConfig {
     console.log(`Migrating old printer format for: ${oldData.Name}`);
 
-    // Ensure modelType is set if missing
     const modelType = oldData.modelType || detectPrinterModelType(oldData.printerModel);
 
     const normalizedOldData = this.sanitizePrinterDetails(oldData);
@@ -344,12 +331,10 @@ export class PrinterDetailsManager {
       const fileContent = fs.readFileSync(this.filePath, 'utf8');
       const parsedData: unknown = JSON.parse(fileContent);
 
-      // Check if old format and migrate
       if (this.isOldFormat(parsedData)) {
         console.log('Detected old single-printer format - migrating to multi-printer format');
         this.currentConfig = this.migrateFromOldFormat(parsedData);
 
-        // Save migrated config immediately
         this.saveConfigToFile()
           .then(() => {
             console.log('Successfully migrated and saved multi-printer configuration');
@@ -360,7 +345,6 @@ export class PrinterDetailsManager {
         return;
       }
 
-      // Validate new format
       if (this.validateMultiPrinterConfig(parsedData)) {
         let needsResave = false;
         const sanitizedPrinters: MultiPrinterConfig['printers'] = {};
@@ -377,7 +361,6 @@ export class PrinterDetailsManager {
           printers: sanitizedPrinters,
         };
 
-        // Validate lastUsedPrinterSerial integrity
         if (
           this.currentConfig.lastUsedPrinterSerial &&
           !(this.currentConfig.lastUsedPrinterSerial in this.currentConfig.printers)
@@ -403,7 +386,6 @@ export class PrinterDetailsManager {
           lastUsedPrinterSerial: null,
           printers: {},
         };
-        // Remove invalid file
         this.clearAllPrinters();
       }
     } catch (error) {
@@ -630,7 +612,6 @@ export class PrinterDetailsManager {
       printers: {},
     };
 
-    // Clear context-specific tracking
     this.contextLastUsed.clear();
   }
 
@@ -675,7 +656,6 @@ export class PrinterDetailsManager {
   }
 }
 
-// Export singleton instance
 let printerDetailsManager: PrinterDetailsManager | null = null;
 
 export const getPrinterDetailsManager = (): PrinterDetailsManager => {

@@ -37,7 +37,6 @@ export class SpoolmanService {
    * @param serverUrl - Base URL of the Spoolman server (e.g., http://192.168.1.10:7912)
    */
   constructor(serverUrl: string) {
-    // Ensure URL ends without trailing slash
     this.baseUrl = `${serverUrl.replace(/\/$/, '')}/api/v1`;
   }
 
@@ -50,7 +49,6 @@ export class SpoolmanService {
   async searchSpools(query: SpoolSearchQuery): Promise<SpoolResponse[]> {
     const params = new URLSearchParams();
 
-    // Build query params
     if (query['filament.name']) params.set('filament.name', query['filament.name']);
     if (query['filament.material']) params.set('filament.material', query['filament.material']);
     if (query['filament.vendor.name'])
@@ -119,7 +117,6 @@ export class SpoolmanService {
    * @throws Error if validation fails or request fails
    */
   async updateUsage(spoolId: number, usage: SpoolUsageUpdate): Promise<SpoolResponse> {
-    // Validate: cannot specify both weight and length
     if (usage.use_weight !== undefined && usage.use_length !== undefined) {
       throw new Error('Cannot specify both use_weight and use_length');
     }

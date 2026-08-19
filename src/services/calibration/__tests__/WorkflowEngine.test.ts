@@ -71,7 +71,6 @@ describe('WorkflowEngine', () => {
     it('should update settings', () => {
       const newSettings = { ...settings, workflow: { enableBelt: false, enableScrews: true, enableTape: true } };
       engine.setSettings(newSettings);
-      // Verify by computing workflow
       const workflow = engine.computeWorkflow();
       expect(workflow).toBeDefined();
     });
@@ -236,7 +235,6 @@ describe('WorkflowEngine', () => {
 
     it('should return undefined for non-existent stage', () => {
       const workflow = engine.computeWorkflow();
-      // Remove a stage manually for testing
       workflow.stages.delete(WorkflowStage.BELT_SYNC);
 
       const result = engine.getStageResult(workflow, WorkflowStage.BELT_SYNC);

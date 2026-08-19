@@ -92,7 +92,6 @@ export class WebUIManager extends EventEmitter {
 
   // Client tracking
   private connectedClients: number = 0;
-  // Track which contexts have WebUI enabled
   private readonly registeredContexts: Set<string> = new Set();
   private readonly contextSerialNumbers: Map<string, string> = new Map();
 
@@ -156,12 +155,10 @@ export class WebUIManager extends EventEmitter {
     const environmentService = getEnvironmentService();
     const webUIStaticPath = environmentService.getWebUIStaticPath();
 
-    // Log environment info for debugging
     const envInfo = environmentService.getEnvironmentInfo();
     console.log(`[WebUI] Environment: ${envInfo.isPackaged ? 'packaged binary' : 'development'}`);
     console.log(`[WebUI] Serving static files from: ${webUIStaticPath}`);
 
-    // Verify the static path exists
     if (!fs.existsSync(webUIStaticPath)) {
       console.error(`[WebUI] Static file path does not exist: ${webUIStaticPath}`);
       console.error('[WebUI] Environment details:', JSON.stringify(envInfo, null, 2));
@@ -196,7 +193,6 @@ export class WebUIManager extends EventEmitter {
       );
       console.log('[WebUI] Static file middleware configured successfully');
 
-      // Store static path for SPA fallback
       this.webUIStaticPath = webUIStaticPath;
     } catch (error) {
       console.error('[WebUI] Failed to configure static file serving:', error);
@@ -244,7 +240,6 @@ export class WebUIManager extends EventEmitter {
     // NOTE: This app does NOT use client-side routing. All UI state is managed via DOM manipulation.
     // The fallback ensures page refreshes and direct URL access work correctly.
     // Using path.extname() to detect file requests is safe since there are no client-side routes.
-    // If client-side routing is added in the future, this should use Accept header detection instead.
     this.expressApp.get('/*splat', (req, res, next) => {
       // Skip if this looks like a file request with extension (handled by static middleware)
       if (path.extname(req.path) && req.path !== '/') {
@@ -393,7 +388,6 @@ export class WebUIManager extends EventEmitter {
    * Initialize and start the web UI server
    */
   public async start(): Promise<boolean> {
-    // Prevent concurrent calls
     if (this.isRunning) {
       console.log('WebUI server is already running');
       return true;
@@ -402,7 +396,6 @@ export class WebUIManager extends EventEmitter {
     try {
       const config = this.configManager.getConfig();
 
-      // Check if WebUI is enabled
       if (!config.WebUIEnabled) {
         console.log('WebUI is disabled in configuration');
         return false;
@@ -411,19 +404,16 @@ export class WebUIManager extends EventEmitter {
       // Note: On Windows, binding to ports below 1024 may require administrator privileges
       // Users should run the application as administrator if needed
 
-      // Initialize Express application
       this.expressApp = express();
       const expressApp = this.expressApp;
       this.port = config.WebUIPort;
 
-      // Setup middleware and routes
       this.setupMiddleware();
       this.setupRoutes();
 
       // Determine server IP
       this.serverIP = await this.determineServerIP();
 
-      // Create HTTP server
       this.httpServer = http.createServer(expressApp);
       const httpServer = this.httpServer;
 
@@ -452,7 +442,6 @@ export class WebUIManager extends EventEmitter {
         }
       });
 
-      // Start listening
       await this.startListening();
 
       this.isRunning = true;
@@ -629,7 +618,6 @@ export class WebUIManager extends EventEmitter {
               // Home network, preferred
               return iface.address;
             } else if (bestIP === 'localhost') {
-              // Use any non-internal IPv4 as fallback
               bestIP = iface.address;
             }
           }
@@ -825,13 +813,11 @@ export class WebUIManager extends EventEmitter {
    * Handle WebUI startup errors
    */
   private async handleStartupError(error: unknown): Promise<void> {
-    // Convert to AppError for consistent handling
     const appError =
       error instanceof AppError
         ? error
         : new AppError(error instanceof Error ? error.message : String(error), ErrorCode.NETWORK);
 
-    // Log error where users can see it
     this.logToUI(`WebUI startup failed: ${appError.message}`);
     console.error('[WebUI] Startup error:', appError);
 

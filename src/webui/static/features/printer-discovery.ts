@@ -88,7 +88,6 @@ function setupDiscoveryButton(): void {
     return;
   }
 
-  // Create button
   const addButton = document.createElement('button');
   addButton.id = 'add-printer-btn';
   addButton.className = 'add-printer-btn';
@@ -99,7 +98,6 @@ function setupDiscoveryButton(): void {
     loadSavedPrinters();
   });
 
-  // Insert before settings button
   const settingsBtn = header.querySelector('#settings-button');
   if (settingsBtn) {
     header.insertBefore(addButton, settingsBtn);
@@ -125,13 +123,11 @@ function setupDiscoveryModal(): void {
       const tabName = btn.getAttribute('data-tab');
       if (!tabName) return;
 
-      // Update active tab button
       tabBtns.forEach((b) => {
         b.classList.remove('active');
       });
       btn.classList.add('active');
 
-      // Update active tab pane
       const panes = document.querySelectorAll('.discovery-tab-pane');
       panes.forEach((pane) => {
         if (pane.id === `discovery-tab-${tabName}`) {
@@ -167,7 +163,6 @@ function setupDiscoveryModal(): void {
     }
   });
 
-  // Close button
   const closeBtn = $('close-discovery');
   closeBtn?.addEventListener('click', () => hideElement('discovery-modal'));
 }
@@ -270,7 +265,6 @@ function displayDiscoveredPrinters(matches: SavedPrinterMatch[]): void {
     })
     .join('');
 
-  // Setup connect buttons
   const connectBtns = printerList.querySelectorAll('.connect-printer-btn');
   connectBtns.forEach((btn) => {
     btn.addEventListener('click', () => {
@@ -387,11 +381,9 @@ async function connectToDiscoveredPrinter(
     // STEP 2: Get check code if needed
     let checkCode: string | undefined;
     if (requiresCheckCode && is5MFamily) {
-      // Check if printer is already saved with a check code
       const savedPrinter = await getSavedPrinterBySerial(detectedSerial);
 
       if (savedPrinter?.CheckCode && savedPrinter.CheckCode !== '123') {
-        // Use saved check code
         checkCode = savedPrinter.CheckCode;
         console.log('[Discovery] Using saved check code');
       } else {
@@ -434,7 +426,6 @@ async function connectToDiscoveredPrinter(
     showToast(`Connected to ${detectedName}!`, 'success');
     hideElement('discovery-modal');
 
-    // Reload page to refresh printer list
     window.location.reload();
   } catch (error) {
     console.error('Connection failed:', error);
@@ -604,7 +595,6 @@ async function connectManually(): Promise<void> {
     showToast('Connected successfully!', 'success');
     hideElement('discovery-modal');
 
-    // Reload page to refresh printer list
     window.location.reload();
   } catch (error) {
     console.error('Manual connection failed:', error);
@@ -662,7 +652,6 @@ async function loadSavedPrinters(): Promise<void> {
       )
       .join('');
 
-    // Setup reconnect buttons
     const reconnectBtns = savedList.querySelectorAll('.reconnect-btn');
     reconnectBtns.forEach((btn) => {
       btn.addEventListener('click', () => {
@@ -673,7 +662,6 @@ async function loadSavedPrinters(): Promise<void> {
       });
     });
 
-    // Setup delete buttons
     const deleteBtns = savedList.querySelectorAll('.delete-btn');
     deleteBtns.forEach((btn) => {
       btn.addEventListener('click', () => {
@@ -713,7 +701,6 @@ async function reconnectToSavedPrinter(serialNumber: string): Promise<void> {
     showToast('Reconnected successfully!', 'success');
     hideElement('discovery-modal');
 
-    // Reload page
     window.location.reload();
   } catch (error) {
     console.error('Reconnection failed:', error);
@@ -742,7 +729,6 @@ async function deleteSavedPrinter(serialNumber: string): Promise<void> {
 
     showToast('Printer deleted', 'success');
 
-    // Reload saved printers list
     await loadSavedPrinters();
   } catch (error) {
     console.error('Delete failed:', error);

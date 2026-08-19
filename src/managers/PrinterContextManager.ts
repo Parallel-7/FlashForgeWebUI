@@ -151,7 +151,6 @@ export class PrinterContextManager extends EventEmitter {
 
     this.contexts.set(contextId, context);
 
-    // Emit creation event
     const event: ContextCreatedEvent = {
       contextId,
       contextInfo: this.contextToInfo(context),
@@ -189,7 +188,6 @@ export class PrinterContextManager extends EventEmitter {
     // Remove from map (cleanup of backend/services is handled externally)
     this.contexts.delete(contextId);
 
-    // Emit removal event
     const event: ContextRemovedEvent = {
       contextId,
       wasActive,
@@ -228,7 +226,6 @@ export class PrinterContextManager extends EventEmitter {
     context.lastActivity = new Date();
     this.activeContextId = contextId;
 
-    // Emit switch event
     const event: ContextSwitchEvent = {
       contextId,
       previousContextId,

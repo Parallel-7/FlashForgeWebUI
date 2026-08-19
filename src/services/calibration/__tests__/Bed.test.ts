@@ -282,7 +282,6 @@ describe('Bed', () => {
       const deviationMap = bed.calculateDeviationMap();
       const meanHeight = bed.getMeanValue();
 
-      // Check that deviations are correct
       for (let row = 0; row < 3; row++) {
         for (let col = 0; col < 3; col++) {
           const expected = sampleMesh3x3[row][col] - meanHeight;

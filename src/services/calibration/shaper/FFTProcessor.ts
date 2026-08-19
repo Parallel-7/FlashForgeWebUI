@@ -167,7 +167,6 @@ function fft(input: Complex[]): Complex[] {
     throw new Error('FFT input length must be a power of 2');
   }
 
-  // Split even and odd
   const even: Complex[] = [];
   const odd: Complex[] = [];
   for (let i = 0; i < n; i++) {
@@ -182,7 +181,6 @@ function fft(input: Complex[]): Complex[] {
   const fftEven = fft(even);
   const fftOdd = fft(odd);
 
-  // Combine
   const result: Complex[] = new Array(n);
   for (let k = 0; k < n / 2; k++) {
     const angle = (-2 * Math.PI * k) / n;
@@ -242,7 +240,6 @@ export class FFTProcessor {
     const accelY: number[] = [];
     const accelZ: number[] = [];
 
-    // Skip header line if present
     const startLine = lines[0].includes('time') || lines[0].includes('#') ? 1 : 0;
 
     for (let i = startLine; i < lines.length; i++) {
@@ -258,7 +255,6 @@ export class FFTProcessor {
       }
     }
 
-    // Calculate sample rate from time values
     let sampleRate = 1000; // Default
     if (time.length >= 2) {
       const avgDelta = (time[time.length - 1] - time[0]) / (time.length - 1);
@@ -278,22 +274,17 @@ export class FFTProcessor {
    * Process accelerometer data for a single axis.
    */
   processAxis(data: number[], sampleRate: number): PowerSpectrum {
-    // Apply window function
     const windowed = applyWindow(data, this.options.windowFunction);
 
     // Pad to power of 2
     const padded = padToPowerOf2(windowed);
 
-    // Convert to complex
     const complex: Complex[] = padded.map((v) => ({ re: v, im: 0 }));
 
-    // Compute FFT
     const fftResult = fft(complex);
 
-    // Compute power spectral density
     const { frequencies, power } = computePSD(fftResult, sampleRate);
 
-    // Filter to desired frequency range
     const filteredFrequencies: number[] = [];
     const filteredPower: number[] = [];
 
@@ -313,7 +304,6 @@ export class FFTProcessor {
       }
     }
 
-    // Find peak
     let peakIndex = 0;
     let peakPower = normalizedPower[0] || 0;
     for (let i = 1; i < normalizedPower.length; i++) {
@@ -356,11 +346,9 @@ export class FFTProcessor {
 
     if (power.length < 3) return peaks;
 
-    // Calculate mean power
     const meanPower = power.reduce((a, b) => a + b, 0) / power.length;
     const peakThreshold = meanPower + threshold * (Math.max(...power) - meanPower);
 
-    // Find local maxima above threshold
     for (let i = 1; i < power.length - 1; i++) {
       if (power[i] > power[i - 1] && power[i] > power[i + 1] && power[i] > peakThreshold) {
         peaks.push(frequencies[i]);

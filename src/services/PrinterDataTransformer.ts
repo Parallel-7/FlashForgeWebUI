@@ -67,31 +67,25 @@ export class PrinterDataTransformer {
       return null;
     }
 
-    // Extract printer state
     const rawState = safeExtractString(backendData, 'printerState', 'unknown').toLowerCase();
     const state = this.mapPrinterState(rawState);
 
-    // Extract temperatures
     const bedTemp = safeExtractNumber(backendData, 'bedTemperature', 0);
     const bedTarget = safeExtractNumber(backendData, 'bedTargetTemperature', 0);
     const nozzleTemp = safeExtractNumber(backendData, 'nozzleTemperature', 0);
     const nozzleTarget = safeExtractNumber(backendData, 'nozzleTargetTemperature', 0);
 
-    // Extract current job info
     const currentJobName = safeExtractString(backendData, 'currentJob', '');
     const currentJob = this.extractCurrentJob(backendData, state, currentJobName);
 
-    // Extract additional info
     const nozzleSize = safeExtractString(backendData, 'nozzleSize', '0.4mm');
     const filamentType = safeExtractString(backendData, 'filamentType', 'PLA');
     const printSpeedAdjust = safeExtractNumber(backendData, 'printSpeedAdjust', 100);
     const zAxisCompensation = safeExtractNumber(backendData, 'zAxisCompensation', 0);
 
-    // Extract fan speeds
     const coolingFanSpeed = safeExtractNumber(backendData, 'coolingFanSpeed', 0);
     const chamberFanSpeed = safeExtractNumber(backendData, 'chamberFanSpeed', 0);
 
-    // Extract filtration status
     const tvoc = safeExtractNumber(backendData, 'tvoc', 0);
     const filtrationInfo = this.extractFiltrationStatus(backendData);
 
@@ -107,7 +101,6 @@ export class PrinterDataTransformer {
     const chamberTemp = safeExtractNumber(backendData, 'chamberTemp', 0);
     const chamberTargetTemp = safeExtractNumber(backendData, 'chamberTargetTemp', 0);
 
-    // Extract cumulative stats
     const cumulativePrintTime = safeExtractNumber(backendData, 'cumulativePrintTime', 0);
     const cumulativeFilament = safeExtractNumber(backendData, 'cumulativeFilament', 0);
 
@@ -262,16 +255,14 @@ export class PrinterDataTransformer {
         );
       } else {
         // Integer format (0-100) from legacy PrintStatus.getPrintPercent()
-        progressPercentage = Math.min(rawProgress, 100); // Clamp to 100
+        progressPercentage = Math.min(rawProgress, 100);
         console.log(`[DataTransformer] Using integer progress: ${progressPercentage}%`);
       }
     }
 
-    // Extract filament usage if available
     const filamentUsed = safeExtractNumber(backendData, 'estimatedRightLen', 0);
     const filamentWeight = safeExtractNumber(backendData, 'estimatedRightWeight', 0);
 
-    // Extract formatted ETA if available
     const printEta = safeExtractString(backendData, 'printEta', '');
 
     // The library supplies an absolute completion time (Date | null). Accept a
@@ -284,21 +275,18 @@ export class PrinterDataTransformer {
           ? new Date(rawCompletionTime)
           : null;
 
-    // Calculate start time from elapsed time
     const startTime = new Date(Date.now() - printDuration * 1000);
 
     // Enhanced layer data processing
     const currentLayer = rawCurrentLayer > 0 ? rawCurrentLayer : null;
     const totalLayers = rawTotalLayers > 0 ? rawTotalLayers : null;
 
-    // Log layer information for debugging
     if (currentLayer !== null || totalLayers !== null) {
       console.log(`[DataTransformer] Layer progress: ${currentLayer}/${totalLayers}`);
     }
 
-    // Create progress object
     const progressData = {
-      percentage: progressPercentage, // Now using smart conversion
+      percentage: progressPercentage,
       currentLayer,
       totalLayers,
       timeRemaining: remainingTime > 0 ? remainingTime : null, // Already in minutes from backend
@@ -310,7 +298,6 @@ export class PrinterDataTransformer {
       completionTime,
     };
 
-    // Validate progress data for type safety
     if (
       !this.validateJobProgress({
         percentage: progressData.percentage,
@@ -319,7 +306,6 @@ export class PrinterDataTransformer {
       })
     ) {
       console.warn(`[DataTransformer] Invalid progress data for job: ${fileName}`);
-      // Use safe defaults for invalid data
       progressData.percentage = 0;
       progressData.currentLayer = null;
       progressData.totalLayers = null;
@@ -383,7 +369,6 @@ export class PrinterDataTransformer {
     currentLayer: number | null;
     totalLayers: number | null;
   }): boolean {
-    // Validate percentage range
     if (progressData.percentage < 0 || progressData.percentage > 100) {
       console.warn(
         `[DataTransformer] Invalid progress percentage: ${progressData.percentage}% (expected 0-100)`
@@ -391,7 +376,6 @@ export class PrinterDataTransformer {
       return false;
     }
 
-    // Validate layer data consistency
     if (progressData.currentLayer !== null && progressData.totalLayers !== null) {
       if (progressData.currentLayer > progressData.totalLayers) {
         console.warn(
@@ -416,18 +400,15 @@ export class PrinterDataTransformer {
       return false;
     }
 
-    // Check required fields
     if (!status.state || !status.temperatures || !status.fans) {
       return false;
     }
 
-    // Validate temperature ranges
     const { bed, extruder } = status.temperatures;
     if (bed.current < 0 || bed.current > 150 || extruder.current < 0 || extruder.current > 350) {
       return false;
     }
 
-    // Validate fan speeds
     if (
       status.fans.coolingFan < 0 ||
       status.fans.coolingFan > 100 ||
@@ -485,5 +466,4 @@ export class PrinterDataTransformer {
   }
 }
 
-// Export singleton instance
 export const printerDataTransformer = new PrinterDataTransformer();

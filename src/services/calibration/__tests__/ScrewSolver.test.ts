@@ -182,7 +182,6 @@ describe('ScrewSolver', () => {
     });
 
     it('should format large adjustments as turns', () => {
-      // Create mesh with large deviation
       const largeMesh = [
         [1.0, 0.5, 0.0],
         [0.5, 0.0, -0.5],
@@ -220,7 +219,6 @@ describe('ScrewSolver', () => {
 
       expect(adjustments.length).toBe(4);
 
-      // Check that all corners are represented
       const corners = adjustments.map((a) => a.corner);
       expect(corners).toContain(BedCorner.FRONT_LEFT);
       expect(corners).toContain(BedCorner.FRONT_RIGHT);

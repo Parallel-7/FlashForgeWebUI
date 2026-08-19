@@ -102,7 +102,6 @@ time,accel_x,accel_y,accel_z
 
   describe('processAxis', () => {
     it('should compute power spectrum for sinusoidal input', () => {
-      // Generate a simple sinusoidal signal at 50 Hz
       const sampleRate = 1000;
       const frequency = 50;
       const samples = 1024;
@@ -207,7 +206,6 @@ time,accel_x,accel_y,accel_z
 
   describe('findPeaks', () => {
     it('should find resonance peaks in spectrum', () => {
-      // Generate signal with multiple frequency components
       const sampleRate = 1000;
       const samples = 1024;
       const data: number[] = [];
@@ -230,7 +228,6 @@ time,accel_x,accel_y,accel_z
     });
 
     it('should return empty array for flat spectrum', () => {
-      // Create a flat spectrum manually
       const flatSpectrum = {
         frequencies: [10, 20, 30, 40, 50],
         power: [0.5, 0.5, 0.5, 0.5, 0.5],

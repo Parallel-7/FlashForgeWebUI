@@ -52,7 +52,6 @@ export class Bed {
   constructor(config: BedConfig = DEFAULT_BED_CONFIG) {
     this.config = config;
 
-    // Calculate corner indices based on mesh dimensions
     // Note: mesh is stored as [row][col] where row=Y, col=X
     // Front = row 0, Rear = last row
     // Left = col 0, Right = last col
@@ -109,13 +108,11 @@ export class Bed {
    * @param meshData - Parsed mesh data from config file
    */
   loadFromMeshData(meshData: MeshData): void {
-    // Update config from mesh data dimensions
     (this.config as BedConfig).meshPointsX = meshData.pointsX;
     (this.config as BedConfig).meshPointsY = meshData.pointsY;
     (this.config as BedConfig).sizeX = meshData.maxX - meshData.minX;
     (this.config as BedConfig).sizeY = meshData.maxY - meshData.minY;
 
-    // Update corner indices
     this.cornerIndices.frontRight = [0, meshData.pointsX - 1];
     this.cornerIndices.rearLeft = [meshData.pointsY - 1, 0];
     this.cornerIndices.rearRight = [meshData.pointsY - 1, meshData.pointsX - 1];
@@ -150,13 +147,11 @@ export class Bed {
       return this._meshData[row][col];
     }
 
-    // Calculate averaging bounds
     const rowStart = Math.max(0, row - averagingSize);
     const rowEnd = Math.min(this.config.meshPointsY, row + averagingSize + 1);
     const colStart = Math.max(0, col - averagingSize);
     const colEnd = Math.min(this.config.meshPointsX, col + averagingSize + 1);
 
-    // Calculate average
     let sum = 0;
     let count = 0;
 
@@ -232,7 +227,6 @@ export class Bed {
     const max = Math.max(...values);
     const range = max - min;
 
-    // Calculate standard deviation
     const squaredDiffs = values.map((v) => (v - mean) ** 2);
     const variance = squaredDiffs.reduce((a, b) => a + b, 0) / n;
     const standardDeviation = Math.sqrt(variance);
@@ -345,7 +339,6 @@ export class Bed {
     // Maximum diagonal distance for influence calculation
     const maxDistance = Math.sqrt((this.config.meshPointsY - 1) ** 2 + (this.config.meshPointsX - 1) ** 2);
 
-    // Apply each corner adjustment
     for (const [corner, adjustment] of Object.entries(cornerAdjustments)) {
       if (adjustment === undefined || adjustment === 0) {
         continue;
@@ -358,7 +351,6 @@ export class Bed {
 
       const [cornerRow, cornerCol] = indices;
 
-      // Apply adjustment with distance-based influence
       for (let row = 0; row < this.config.meshPointsY; row++) {
         for (let col = 0; col < this.config.meshPointsX; col++) {
           const distance = Math.sqrt((row - cornerRow) ** 2 + (col - cornerCol) ** 2);

@@ -34,7 +34,6 @@ export function registerDiscoveryRoutes(router: Router, _deps: RouteDependencies
       const interval = typeof body.interval === 'number' ? body.interval : 2000;
       const retries = typeof body.retries === 'number' ? body.retries : 3;
 
-      // Validate parameters
       if (timeout < 1000 || timeout > 60000) {
         return sendErrorResponse(res, 400, 'Timeout must be between 1000 and 60000ms');
       }
@@ -45,12 +44,10 @@ export function registerDiscoveryRoutes(router: Router, _deps: RouteDependencies
         return sendErrorResponse(res, 400, 'Retries must be between 1 and 5');
       }
 
-      // Check if discovery is already running
       if (discoveryService.isDiscoveryInProgress()) {
         return sendErrorResponse(res, 409, 'Discovery already in progress');
       }
 
-      // Start discovery
       const discoveredPrinters = await discoveryService.scanNetwork(timeout, interval, retries);
 
       // Match with saved printers

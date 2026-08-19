@@ -93,7 +93,6 @@ kinematics: cartesian
       expect(result.data?.matrix.length).toBe(7); // 7 rows
       expect(result.data?.matrix[0].length).toBe(7); // 7 columns
 
-      // Check first row values
       expect(result.data?.matrix[0][0]).toBeCloseTo(0.025, 5);
       expect(result.data?.matrix[0][1]).toBeCloseTo(0.0125, 5);
       expect(result.data?.matrix[0][2]).toBeCloseTo(-0.003125, 5);
@@ -303,7 +302,6 @@ kinematics: cartesian
     });
 
     it('should handle tabs vs spaces in point values', () => {
-      // Use actual tab characters
       const configWithTabs =
         '#*# [bed_mesh default]\n#*# points =\n#*#\t0.1,\t0.0,\t-0.1\n#*# x_count = 3\n#*# y_count = 1\n#*# min_x = 15.0\n#*# max_x = 205.0\n#*# min_y = 15.0\n#*# max_y = 205.0';
       const result = parser.parseConfigFile(configWithTabs);

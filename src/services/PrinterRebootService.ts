@@ -375,7 +375,6 @@ export async function startPrinterReboot(contextId: unknown): Promise<{ success:
   // Fire-and-forget the reboot command (channel-drop treated as success).
   await dispatchRebootCommand(getSSHConnectionManager() as SSHConnectionManager, powerKey);
 
-  // Notify connected clients that the reboot has been dispatched.
   sendRebootStatus(contextId, {
     phase: 'rebooting',
     message: `Rebooting ${printerName}...`,

@@ -85,11 +85,9 @@ export class CalibrationManager {
       return;
     }
 
-    // Ensure data directories exist
     await fs.mkdir(this.dataPath, { recursive: true });
     await fs.mkdir(path.join(this.dataPath, 'printers'), { recursive: true });
 
-    // Load global settings
     await this.loadSettings();
 
     this.initialized = true;
@@ -106,7 +104,6 @@ export class CalibrationManager {
       const loaded = JSON.parse(data) as Partial<CalibrationSettings>;
       this.settings = { ...DEFAULT_CALIBRATION_SETTINGS, ...loaded };
     } catch {
-      // Use defaults if file doesn't exist or is invalid
       this.settings = { ...DEFAULT_CALIBRATION_SETTINGS };
     }
   }
@@ -294,14 +291,12 @@ export class CalibrationManager {
       return null;
     }
 
-    // Validate mesh data
     const validation = this.configParser.validateMeshData(meshData);
     if (!validation.isValid) {
       console.error('Invalid mesh data:', validation.error);
       return null;
     }
 
-    // Create or update workspace
     let workspace = this.workspaces.get(contextId);
     if (!workspace) {
       workspace = this.createWorkspace(contextId, meshData);
@@ -392,7 +387,6 @@ export class CalibrationManager {
    * Get printer-specific calibration data.
    */
   async getPrinterData(contextId: string): Promise<PrinterCalibrationData> {
-    // Check cache first
     const cached = this.printerData.get(contextId);
     if (cached) {
       return cached;
@@ -501,10 +495,8 @@ export class CalibrationManager {
       printerData.calibrationHistory = [];
     }
 
-    // Add new entry at the beginning
     printerData.calibrationHistory.unshift(entry);
 
-    // Trim to max entries
     const maxEntries = this.settings.history.maxEntries;
     if (printerData.calibrationHistory.length > maxEntries) {
       printerData.calibrationHistory = printerData.calibrationHistory.slice(0, maxEntries);
@@ -593,7 +585,6 @@ export class CalibrationManager {
     }
 
     if (format === 'csv') {
-      // Export mesh as CSV
       const lines: string[] = [];
       lines.push('# Calibration Report');
       lines.push(`# Context: ${contextId}`);

@@ -36,10 +36,6 @@ import type { PrinterPollingService } from './PrinterPollingService';
 import type { PrintStateMonitor } from './PrintStateMonitor';
 import { TemperatureMonitoringService } from './TemperatureMonitoringService';
 
-// ============================================================================
-// TYPES
-// ============================================================================
-
 /**
  * Event payload for printer-cooled event
  */
@@ -69,10 +65,6 @@ interface MultiContextTempMonitorEventMap extends Record<string, unknown[]> {
   'monitor-removed': [{ contextId: string }];
 }
 
-// ============================================================================
-// MULTI-CONTEXT TEMPERATURE MONITOR
-// ============================================================================
-
 /**
  * Manages temperature monitoring services for all printer contexts
  */
@@ -92,7 +84,6 @@ export class MultiContextTemperatureMonitor extends EventEmitter<MultiContextTem
 
     const contextManager = getPrinterContextManager();
 
-    // Listen for context removal to cleanup monitors
     contextManager.on('context-removed', (event) => {
       this.removeMonitorForContext(event.contextId);
     });
@@ -114,7 +105,6 @@ export class MultiContextTemperatureMonitor extends EventEmitter<MultiContextTem
     pollingService: PrinterPollingService,
     printStateMonitor: PrintStateMonitor
   ): void {
-    // Check if monitor already exists
     if (this.monitors.has(contextId)) {
       console.warn(
         `[MultiContextTemperatureMonitor] Monitor already exists for context ${contextId}`
@@ -122,22 +112,18 @@ export class MultiContextTemperatureMonitor extends EventEmitter<MultiContextTem
       return;
     }
 
-    // Create new monitor for this context
     const monitor = new TemperatureMonitoringService(contextId);
 
     // Wire dependencies
     monitor.setPollingService(pollingService);
     monitor.setPrintStateMonitor(printStateMonitor);
 
-    // Forward events from this monitor
     this.setupMonitorEventForwarding(monitor);
 
-    // Store monitor
     this.monitors.set(contextId, monitor);
 
     console.log(`[MultiContextTemperatureMonitor] Created monitor for context ${contextId}`);
 
-    // Emit event
     this.emit('monitor-created', { contextId });
   }
 
@@ -147,22 +133,18 @@ export class MultiContextTemperatureMonitor extends EventEmitter<MultiContextTem
   private setupMonitorEventForwarding(monitor: TemperatureMonitoringService): void {
     const contextId = monitor.getContextId();
 
-    // Forward temperature-checked events
     monitor.on('temperature-checked', (event) => {
       this.emit('temperature-checked', event);
     });
 
-    // Forward printer-cooled events
     monitor.on('printer-cooled', (event) => {
       this.emit('printer-cooled', event);
     });
 
-    // Forward monitoring-started events
     monitor.on('monitoring-started', (event) => {
       this.emit('monitoring-started', event);
     });
 
-    // Forward monitoring-stopped events
     monitor.on('monitoring-stopped', (event) => {
       this.emit('monitoring-stopped', event);
     });
@@ -190,15 +172,12 @@ export class MultiContextTemperatureMonitor extends EventEmitter<MultiContextTem
       return;
     }
 
-    // Dispose monitor
     monitor.dispose();
 
-    // Remove from map
     this.monitors.delete(contextId);
 
     console.log(`[MultiContextTemperatureMonitor] Removed monitor for context ${contextId}`);
 
-    // Emit event
     this.emit('monitor-removed', { contextId });
   }
 
@@ -236,26 +215,19 @@ export class MultiContextTemperatureMonitor extends EventEmitter<MultiContextTem
   public dispose(): void {
     console.log('[MultiContextTemperatureMonitor] Disposing all monitors...');
 
-    // Dispose all monitors
     for (const [contextId, monitor] of this.monitors) {
       monitor.dispose();
       console.log(`[MultiContextTemperatureMonitor] Disposed monitor for context ${contextId}`);
     }
 
-    // Clear map
     this.monitors.clear();
 
-    // Remove all event listeners
     this.removeAllListeners();
 
     this.isInitialized = false;
     console.log('[MultiContextTemperatureMonitor] Disposed');
   }
 }
-
-// ============================================================================
-// SINGLETON INSTANCE
-// ============================================================================
 
 /**
  * Global multi-context temperature monitor instance

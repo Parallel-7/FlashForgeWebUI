@@ -39,7 +39,6 @@ import { createHardDeadline } from './utils/ShutdownTimeout';
 import { initializeDataDirectory } from './utils/setup';
 import { getWebUIManager } from './webui/server/WebUIManager';
 
-// Initialize global singleton services
 const configManager = getConfigManager();
 const connectionManager = getConnectionFlowManager();
 const contextManager = getPrinterContextManager();
@@ -106,7 +105,6 @@ async function connectLastUsed(): Promise<string[]> {
     `[Connection] Found last used printer: ${lastUsedPrinter.Name} (${lastUsedPrinter.IPAddress})`
   );
 
-  // Convert StoredPrinterDetails to PrinterDetails
   const printerDetails: PrinterDetails = applyPerPrinterDefaults({
     Name: lastUsedPrinter.Name,
     IPAddress: lastUsedPrinter.IPAddress,
@@ -139,7 +137,6 @@ async function connectAllSaved(): Promise<string[]> {
 
   console.log(`[Connection] Connecting to ${savedPrinters.length} saved printer(s)...`);
 
-  // Convert StoredPrinterDetails to PrinterDetails
   const printerDetailsList: PrinterDetails[] = savedPrinters.map((saved) =>
     applyPerPrinterDefaults({
       Name: saved.Name,
@@ -210,7 +207,6 @@ async function startWebUI(): Promise<void> {
   try {
     console.log('[WebUI] Starting WebUI server...');
 
-    // Enable auto-start after all services are initialized
     webUIManager.enableAutoStart();
 
     const success = await webUIManager.start();
@@ -238,7 +234,6 @@ async function startWebUI(): Promise<void> {
  * Setup event forwarding from polling coordinator to WebUI
  */
 function setupEventForwarding(): void {
-  // Forward polling data to WebUI for real-time updates
   // For WebUI (single-printer or multi-printer), forward all context data
   // The WebUI/WebSocket layer will handle filtering if needed
   pollingCoordinator.on('polling-data', (contextId: string, data: PollingData) => {
@@ -321,7 +316,6 @@ function setupSignalHandlers(): void {
       });
   });
 
-  // Handle termination signal (Linux/Mac)
   process.on('SIGTERM', () => {
     console.log('\n[Shutdown] Received SIGTERM signal');
     void shutdown()
@@ -392,7 +386,6 @@ async function shutdown(): Promise<void> {
 
       console.log(`[Shutdown] Disconnect: ${succeeded} succeeded, ${failed} failed`);
 
-      // Log individual failures for debugging
       results.forEach((result, index) => {
         if (result.status === 'rejected') {
           console.warn(`[Shutdown] Context ${connectedContexts[index]} failed:`, result.reason);
@@ -515,7 +508,7 @@ async function main(): Promise<void> {
         pollingCoordinator.startPollingForContext(contextId);
         console.log(`[Polling] Started for context: ${contextId}`);
 
-        // STEP 2: Get context and polling service (now available after step 1)
+        // STEP 2: Get context and polling service (created by step 1)
         const context = contextManager.getContext(contextId);
         const pollingService = context?.pollingService;
 
@@ -597,7 +590,7 @@ async function main(): Promise<void> {
     });
     console.log('[Events] Context-removed hook configured');
 
-    // 11. Connect to printers (handlers are now ready to receive backend-initialized events)
+    // 11. Connect to printers (backend-initialized handlers are already registered)
     console.log('[Init] Connecting to printers...');
     connectedContexts = await connectPrinters(config);
 
@@ -606,7 +599,6 @@ async function main(): Promise<void> {
     } else if (connectedContexts.length > 0) {
       console.log(`[Init] Connected to ${connectedContexts.length} printer(s)`);
 
-      // Log connection summary
       for (const contextId of connectedContexts) {
         const context = contextManager.getContext(contextId);
         if (context) {
@@ -646,5 +638,4 @@ async function main(): Promise<void> {
   }
 }
 
-// Start the application
 void main();

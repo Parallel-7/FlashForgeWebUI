@@ -154,7 +154,6 @@ export class PrinterDiscoveryService extends EventEmitter {
   }
 }
 
-// Export singleton getter function
 export const getPrinterDiscoveryService = (): PrinterDiscoveryService => {
   return PrinterDiscoveryService.getInstance();
 };
