@@ -20,6 +20,7 @@ import { registerDiscoveryRoutes } from './routes/discovery-routes';
 import { registerFileManagerRoutes } from './routes/file-manager-routes';
 import { registerFiltrationRoutes } from './routes/filtration-routes';
 import { registerJobRoutes } from './routes/job-routes';
+import { registerJobUploadRoutes } from './routes/job-upload-routes';
 import { registerPrinterPowerRoutes } from './routes/printer-power-routes';
 import { registerPrinterControlRoutes } from './routes/printer-control-routes';
 import { registerPrinterDetectionRoutes } from './routes/printer-detection-routes';
@@ -67,6 +68,7 @@ export function createAPIRoutes(deps: RouteDependencies = buildRouteDependencies
   registerTemperatureRoutes(router, deps);
   registerFiltrationRoutes(router, deps);
   registerJobRoutes(router, deps);
+  registerJobUploadRoutes(router, deps);
   registerCameraRoutes(router, deps);
   registerContextRoutes(router, deps);
   registerThemeRoutes(router, deps);

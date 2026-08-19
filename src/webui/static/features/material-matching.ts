@@ -15,7 +15,12 @@ import type {
   PendingJobStart,
   WebUIJobFile,
 } from '../app.js';
-import { getMaterialMatchingState, setMaterialMatchingState, state } from '../core/AppState.js';
+import {
+  getMaterialMatchingState,
+  type MaterialMatchingHooks,
+  setMaterialMatchingState,
+  state,
+} from '../core/AppState.js';
 import { apiRequest } from '../core/Transport.js';
 import { $, hideElement, showElement, showToast } from '../shared/dom.js';
 import { colorsDiffer, isAD5XJobFile, materialsMatch } from '../shared/formatting.js';
@@ -413,10 +418,17 @@ async function fetchMaterialStationStatus(): Promise<MaterialStationStatus | nul
 }
 
 export function resetMaterialMatchingState(): void {
+  const matchingState = getMaterialMatchingState();
   setMaterialMatchingState(null);
   state.pendingJobStart = null;
   clearMaterialMessages();
   updateMaterialMatchingConfirmState();
+
+  // Let a hosting flow (the job uploader) know the user backed out, so it can
+  // put its own dialog back into the "needs matching" state.
+  if (matchingState && !matchingState.confirmed) {
+    matchingState.hooks?.onCancel?.();
+  }
 }
 
 export function closeMaterialMatchingModal(): void {
@@ -424,13 +436,17 @@ export function closeMaterialMatchingModal(): void {
   resetMaterialMatchingState();
 }
 
-export async function openMaterialMatchingModal(pending: PendingJobStart): Promise<void> {
+export async function openMaterialMatchingModal(
+  pending: PendingJobStart,
+  hooks?: MaterialMatchingHooks
+): Promise<void> {
   const modal = getMaterialMatchingElement<HTMLDivElement>('material-matching-modal');
   const title = getMaterialMatchingElement<HTMLHeadingElement>('material-matching-title');
 
   if (!modal || !pending || !pending.job || !isAD5XJobFile(pending.job)) {
     showToast('Material matching is not available for this job.', 'error');
     resetMaterialMatchingState();
+    hooks?.onCancel?.();
     return;
   }
 
@@ -440,6 +456,7 @@ export async function openMaterialMatchingModal(pending: PendingJobStart): Promi
     materialStation: null,
     selectedToolId: null,
     mappings: new Map(),
+    hooks,
   });
 
   if (title) {
@@ -488,19 +505,28 @@ export async function confirmMaterialMatching(): Promise<void> {
     confirmButton.disabled = true;
   }
 
-  const success = await sendJobStartRequest({
-    filename: matchingState.pending.filename,
-    leveling: matchingState.pending.leveling,
-    startNow: true,
-    materialMappings: mappings,
-  });
+  // The job uploader supplies its own confirm handler: the file is not on the
+  // printer yet, so the mappings are handed back to its dialog instead of being
+  // sent straight to /api/jobs/start.
+  const onConfirm = matchingState.hooks?.onConfirm;
+  const success = onConfirm
+    ? await onConfirm(mappings)
+    : await sendJobStartRequest({
+        filename: matchingState.pending.filename,
+        leveling: matchingState.pending.leveling,
+        startNow: true,
+        materialMappings: mappings,
+      });
 
   if (confirmButton) {
     confirmButton.disabled = false;
   }
 
   if (success) {
-    hideElement('file-modal');
+    matchingState.confirmed = true;
+    if (!onConfirm) {
+      hideElement('file-modal');
+    }
     closeMaterialMatchingModal();
   }
 }
