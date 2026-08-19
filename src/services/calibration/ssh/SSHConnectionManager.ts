@@ -104,7 +104,7 @@ export class SSHConnectionManager extends EventEmitter {
   /**
    * Connect to a printer via SSH.
    *
-   * @param contextId - Printer context ID
+   * @param contextId - Context ID
    * @param config - SSH connection configuration
    * @returns Promise that resolves when connected
    */
@@ -183,7 +183,7 @@ export class SSHConnectionManager extends EventEmitter {
   /**
    * Disconnect from a printer.
    *
-   * @param contextId - Printer context ID
+   * @param contextId - Context ID
    */
   async disconnect(contextId: string): Promise<void> {
     const connection = this.connections.get(contextId);
@@ -207,7 +207,7 @@ export class SSHConnectionManager extends EventEmitter {
   /**
    * Check if a connection is active.
    *
-   * @param contextId - Printer context ID
+   * @param contextId - Context ID
    * @returns True if connected
    */
   isConnected(contextId: string): boolean {
@@ -218,7 +218,7 @@ export class SSHConnectionManager extends EventEmitter {
   /**
    * Get connection status.
    *
-   * @param contextId - Printer context ID
+   * @param contextId - Context ID
    * @returns Connection status or 'disconnected' if not found
    */
   getStatus(contextId: string): SSHConnectionStatus {
@@ -229,7 +229,7 @@ export class SSHConnectionManager extends EventEmitter {
   /**
    * Get connection details.
    *
-   * @param contextId - Printer context ID
+   * @param contextId - Context ID
    * @returns Connection object or undefined
    */
   getConnection(contextId: string): SSHConnection | undefined {
@@ -239,7 +239,7 @@ export class SSHConnectionManager extends EventEmitter {
   /**
    * Execute a command on the remote printer.
    *
-   * @param contextId - Printer context ID
+   * @param contextId - Context ID
    * @param command - Command to execute
    * @returns Command result
    */
@@ -309,7 +309,7 @@ export class SSHConnectionManager extends EventEmitter {
   /**
    * Refresh a connection by reconnecting.
    *
-   * @param contextId - Printer context ID
+   * @param contextId - Context ID
    */
   async refreshConnection(contextId: string): Promise<void> {
     const connection = this.connections.get(contextId);
@@ -361,7 +361,7 @@ export class SSHConnectionManager extends EventEmitter {
   /**
    * Update last activity timestamp for a connection.
    *
-   * @param contextId - Printer context ID
+   * @param contextId - Context ID
    */
   touch(contextId: string): void {
     const connection = this.connections.get(contextId);

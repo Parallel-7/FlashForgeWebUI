@@ -189,7 +189,7 @@ export class ConnectionEstablishmentService extends EventEmitter {
           }
 
           if (attempt < retries) {
-            await this.delay(1000 * attempt); // Exponential backoff
+            await this.delay(1000 * attempt); // Linear backoff: delay grows by 1s per attempt
             continue;
           }
 
@@ -311,7 +311,7 @@ export class ConnectionEstablishmentService extends EventEmitter {
   }
 
   /**
-   * Delay helper for exponential backoff
+   * Delay helper for linear backoff
    */
   private async delay(ms: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, ms));

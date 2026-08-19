@@ -445,7 +445,7 @@ export class PrinterDetailsManager {
   /**
    * Get the last used printer (context-aware)
    *
-   * @param contextId - Optional context ID for context-specific tracking
+   * @param contextId - Context ID
    * @returns Last used printer details or null
    */
   public getLastUsedPrinter(contextId?: string): StoredPrinterDetails | null {
@@ -470,7 +470,7 @@ export class PrinterDetailsManager {
    * Context-aware version
    *
    * @param details - Printer details to save
-   * @param contextId - Optional context ID for context-specific last-used tracking
+   * @param contextId - Context ID
    */
   public async savePrinter(
     details: PrinterDetails,
@@ -618,7 +618,7 @@ export class PrinterDetailsManager {
   /**
    * Clear context-specific last-used tracking
    *
-   * @param contextId - Context ID to clear tracking for
+   * @param contextId - Context ID
    */
   public clearContextTracking(contextId: string): void {
     this.contextLastUsed.delete(contextId);

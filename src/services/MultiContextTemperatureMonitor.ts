@@ -96,7 +96,7 @@ export class MultiContextTemperatureMonitor extends EventEmitter<MultiContextTem
    * Create and configure temperature monitor for a context
    * Called when polling service is ready for a context
    *
-   * @param contextId - Context ID to create monitor for
+   * @param contextId - Context ID
    * @param pollingService - Polling service to attach to monitor
    * @param printStateMonitor - Print state monitor to listen to
    */
@@ -154,7 +154,7 @@ export class MultiContextTemperatureMonitor extends EventEmitter<MultiContextTem
 
   /**
    * Destroy monitor for a specific context (public API)
-   * @param contextId - Context ID to destroy monitor for
+   * @param contextId - Context ID
    */
   public destroyMonitor(contextId: string): void {
     this.removeMonitorForContext(contextId);
@@ -164,7 +164,7 @@ export class MultiContextTemperatureMonitor extends EventEmitter<MultiContextTem
    * Remove and dispose monitor for a context
    * Called when context is removed
    *
-   * @param contextId - Context ID to remove monitor for
+   * @param contextId - Context ID
    */
   private removeMonitorForContext(contextId: string): void {
     const monitor = this.monitors.get(contextId);

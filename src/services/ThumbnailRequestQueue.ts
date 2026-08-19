@@ -10,7 +10,7 @@
  * - Backend-specific concurrency (legacy: 1, modern: 3 concurrent requests)
  * - Request deduplication to avoid redundant network calls
  * - Priority-based queue ordering with FIFO within priority levels
- * - Automatic retry with exponential backoff (up to 2 retries)
+ * - Automatic retry (up to 2 retries)
  * - Multi-context support via PrinterContextManager integration
  * - Comprehensive statistics tracking and event emission
  * - Graceful cancellation and queue reset capabilities

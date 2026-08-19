@@ -437,7 +437,7 @@ export class SCPFileTransfer {
   /**
    * Download a file from the remote printer.
    *
-   * @param contextId - Printer context ID
+   * @param contextId - Context ID
    * @param remotePath - Path on the remote printer
    * @param localPath - Local destination path (optional, uses cache if not provided)
    * @param onProgress - Progress callback
@@ -535,7 +535,7 @@ export class SCPFileTransfer {
   /**
    * Upload a file to the remote printer.
    *
-   * @param contextId - Printer context ID
+   * @param contextId - Context ID
    * @param localPath - Local source path
    * @param remotePath - Destination path on printer
    * @param onProgress - Progress callback
@@ -646,7 +646,7 @@ export class SCPFileTransfer {
   /**
    * Read a remote file and return its content as a string.
    *
-   * @param contextId - Printer context ID
+   * @param contextId - Context ID
    * @param remotePath - Path on the remote printer
    * @returns File content as string
    */
@@ -664,7 +664,7 @@ export class SCPFileTransfer {
    * Fetch printer.cfg from the remote printer.
    * Tries multiple known locations.
    *
-   * @param contextId - Printer context ID
+   * @param contextId - Context ID
    * @returns Config file content
    */
   async fetchPrinterConfig(contextId: string, preferredPath?: string): Promise<string> {
@@ -689,7 +689,7 @@ export class SCPFileTransfer {
   /**
    * Fetch input shaper CSV file for an axis.
    *
-   * @param contextId - Printer context ID
+   * @param contextId - Context ID
    * @param axis - Which axis ('x' or 'y')
    * @returns CSV file content
    */
@@ -715,7 +715,7 @@ export class SCPFileTransfer {
   /**
    * List files in a remote directory.
    *
-   * @param contextId - Printer context ID
+   * @param contextId - Context ID
    * @param remotePath - Directory path
    * @returns Array of file names
    */
@@ -738,7 +738,7 @@ export class SCPFileTransfer {
   /**
    * Check if a remote file exists.
    *
-   * @param contextId - Printer context ID
+   * @param contextId - Context ID
    * @param remotePath - File path to check
    * @returns True if file exists
    */
@@ -751,7 +751,7 @@ export class SCPFileTransfer {
   /**
    * Upload config content to the printer.
    *
-   * @param contextId - Printer context ID
+   * @param contextId - Context ID
    * @param content - Config file content
    * @param remotePath - Destination path (defaults to printer.cfg location)
    * @returns Transfer result
@@ -799,7 +799,7 @@ export class SCPFileTransfer {
   /**
    * Clear the local cache for a context.
    *
-   * @param contextId - Printer context ID
+   * @param contextId - Context ID
    */
   async clearCache(contextId: string): Promise<void> {
     const contextCacheDir = path.join(this.cacheDir, contextId);

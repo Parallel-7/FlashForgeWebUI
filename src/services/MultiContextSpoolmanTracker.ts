@@ -86,7 +86,7 @@ export class MultiContextSpoolmanTracker extends EventEmitter<MultiContextSpoolm
    * Create and configure Spoolman usage tracker for a context
    * Called when print state monitor is ready for a context
    *
-   * @param contextId - Context ID to create tracker for
+   * @param contextId - Context ID
    * @param printStateMonitor - Print state monitor to attach to tracker
    */
   public createTrackerForContext(contextId: string, printStateMonitor: PrintStateMonitor): void {
@@ -128,7 +128,7 @@ export class MultiContextSpoolmanTracker extends EventEmitter<MultiContextSpoolm
 
   /**
    * Destroy tracker for a specific context (public API)
-   * @param contextId - Context ID to destroy tracker for
+   * @param contextId - Context ID
    */
   public destroyTracker(contextId: string): void {
     this.removeTrackerForContext(contextId);
@@ -138,7 +138,7 @@ export class MultiContextSpoolmanTracker extends EventEmitter<MultiContextSpoolm
    * Remove and dispose tracker for a context
    * Called when context is removed
    *
-   * @param contextId - Context ID to remove tracker for
+   * @param contextId - Context ID
    */
   private removeTrackerForContext(contextId: string): void {
     const tracker = this.trackers.get(contextId);

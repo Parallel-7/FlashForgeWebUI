@@ -165,7 +165,7 @@ export function resolveCameraConfig(params: CameraUrlResolutionParams): Resolved
 /**
  * Get camera configuration from per-printer settings.
  *
- * @param contextId - Optional context ID to get per-printer camera settings
+ * @param contextId - Context ID
  * @returns Camera user configuration
  */
 export function getCameraUserConfig(contextId?: string): CameraUserConfig {

@@ -100,7 +100,7 @@ export class SpoolmanIntegrationService extends EventEmitter<SpoolmanIntegration
    * Check if a specific printer context supports Spoolman integration
    * Returns false for AD5X printers (material station or model name)
    *
-   * @param contextId - Printer context ID to check
+   * @param contextId - Context ID
    * @returns true if context supports Spoolman, false if AD5X or unsupported
    */
   isContextSupported(contextId: string): boolean {
@@ -135,7 +135,7 @@ export class SpoolmanIntegrationService extends EventEmitter<SpoolmanIntegration
   /**
    * Get disabled reason for a context (if unsupported)
    *
-   * @param contextId - Printer context ID
+   * @param contextId - Context ID
    * @returns Human-readable reason or null if supported
    */
   getDisabledReason(contextId: string): string | null {
@@ -153,7 +153,7 @@ export class SpoolmanIntegrationService extends EventEmitter<SpoolmanIntegration
   /**
    * Get active spool for a context (or active context if not specified)
    *
-   * @param contextId - Optional context ID (defaults to active context)
+   * @param contextId - Context ID (defaults to active context)
    * @returns Active spool data or null
    */
   getActiveSpool(contextId?: string): ActiveSpoolData | null {
@@ -170,7 +170,7 @@ export class SpoolmanIntegrationService extends EventEmitter<SpoolmanIntegration
    * Set active spool for a context
    * Persists to printer details and emits 'spoolman-changed' event
    *
-   * @param contextId - Context ID to set spool for (defaults to active context)
+   * @param contextId - Context ID (defaults to active context)
    * @param spoolData - Spool data to set
    * @throws Error if context is unsupported (AD5X)
    */
@@ -203,7 +203,7 @@ export class SpoolmanIntegrationService extends EventEmitter<SpoolmanIntegration
    * Clear active spool for a context
    * Removes from printer details and emits 'spoolman-changed' event
    *
-   * @param contextId - Context ID to clear spool for (defaults to active context)
+   * @param contextId - Context ID (defaults to active context)
    * @throws Error if context is unsupported (AD5X)
    */
   async clearActiveSpool(contextId?: string): Promise<void> {

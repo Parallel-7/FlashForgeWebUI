@@ -123,7 +123,7 @@ export class PrinterBackendManager extends EventEmitter {
    * Initialize backend based on printer details
    * Now context-aware - requires contextId
    *
-   * @param contextId - Context ID for this backend
+   * @param contextId - Context ID
    * @param options - Backend initialization options
    * @returns Promise resolving to initialization result
    */
@@ -319,7 +319,7 @@ export class PrinterBackendManager extends EventEmitter {
   /**
    * Dispose of backend for a specific context
    *
-   * @param contextId - Context ID to dispose
+   * @param contextId - Context ID
    */
   public async disposeContext(contextId: string): Promise<void> {
     const backend = this.contextBackends.get(contextId);
@@ -373,7 +373,7 @@ export class PrinterBackendManager extends EventEmitter {
   /**
    * Check if backend is initialized and ready for a specific context
    *
-   * @param contextId - Context ID to check
+   * @param contextId - Context ID
    * @returns True if backend is ready
    */
   public isBackendReady(contextId: string): boolean {
@@ -749,7 +749,7 @@ export class PrinterBackendManager extends EventEmitter {
    * Handle connection established event
    * Now requires contextId parameter
    *
-   * @param contextId - Context ID for this connection
+   * @param contextId - Context ID
    * @param printerDetails - Printer details from connection
    * @param primaryClient - Primary API client
    * @param secondaryClient - Optional secondary API client
@@ -808,7 +808,7 @@ export class PrinterBackendManager extends EventEmitter {
    * Handle connection lost event
    * Now requires contextId parameter
    *
-   * @param contextId - Context ID for the lost connection
+   * @param contextId - Context ID
    */
   public async onConnectionLost(contextId: string): Promise<void> {
     console.log(
