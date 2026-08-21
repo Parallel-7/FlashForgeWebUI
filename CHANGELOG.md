@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.0-alpha.7] - 2026-08-21
+
 ### Added
 
 - **Upload Job, ported from the desktop app.** The WebUI can now upload a `.gcode`, `.gx`, or `.3mf` file from the browser and start it. Before this, only the desktop app could do that, so a phone or a remote browser could only start files already on the printer. The dialog is a 1:1 port: file picker, **Start Now** and **Auto Level**, the plate thumbnail, and the full metadata grid — printer model, filament type and use, slicer name and version, slice date, print time, first layer time, layer height, infill, layer count, support, and slice warnings. The **Upload Job** button sits with the other job controls and turns on whenever the printer is ready for a new job.
@@ -296,7 +298,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Optional password authentication
 - Configuration persistence in `data/config.json`
 
-[Unreleased]: https://github.com/Parallel-7/FlashForgeWebUI/compare/v1.2.0-alpha.6...HEAD
+[Unreleased]: https://github.com/Parallel-7/FlashForgeWebUI/compare/v1.2.0-alpha.7...HEAD
+[1.2.0-alpha.7]: https://github.com/Parallel-7/FlashForgeWebUI/compare/v1.2.0-alpha.6...v1.2.0-alpha.7
 [1.2.0-alpha.6]: https://github.com/Parallel-7/FlashForgeWebUI/compare/v1.2.0-alpha.5...v1.2.0-alpha.6
 [1.2.0-alpha.5]: https://github.com/Parallel-7/FlashForgeWebUI/compare/v1.2.0-alpha.2...v1.2.0-alpha.5
 [1.2.0-alpha.4]: https://github.com/Parallel-7/FlashForgeWebUI/compare/v1.2.0-alpha.3...v1.2.0-alpha.4
