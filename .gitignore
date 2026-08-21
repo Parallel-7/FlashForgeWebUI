@@ -54,5 +54,3 @@ playwright-report/
 data/*
 !data/*.example.json
 
-# Headless UI screenshots (scripts/ui-shot.mjs)
-.ui-shots/

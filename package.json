@@ -34,7 +34,6 @@
     "build:all:wrapped": "npm run build:win:wrapped && npm run build:linux:wrapped && npm run build:linux-arm:wrapped && npm run build:linux-armv7:wrapped && npm run build:mac:wrapped && npm run build:mac-arm:wrapped",
     "clean": "rimraf dist",
     "download:go2rtc": "node scripts/download-go2rtc.cjs",
-    "ui:shot": "node scripts/ui-shot.mjs",
     "lint": "biome lint .",
     "lint:fix": "biome lint --write .",
     "format": "biome format .",
