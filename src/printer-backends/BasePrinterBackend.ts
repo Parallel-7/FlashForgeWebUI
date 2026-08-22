@@ -569,6 +569,61 @@ export abstract class BasePrinterBackend extends EventEmitter {
    */
   public abstract setLedEnabled(enabled: boolean): Promise<CommandResult>;
 
+  /**
+   * Set the print bed target temperature
+   * @param temperature - Target temperature in Celsius
+   * @returns Command result with success/failure
+   */
+  public abstract setBedTemperature(temperature: number): Promise<CommandResult>;
+
+  /**
+   * Cancel print bed heating (target back to 0)
+   * @returns Command result with success/failure
+   */
+  public abstract cancelBedTemperature(): Promise<CommandResult>;
+
+  /**
+   * Set the extruder target temperature
+   * @param temperature - Target temperature in Celsius
+   * @returns Command result with success/failure
+   */
+  public abstract setExtruderTemperature(temperature: number): Promise<CommandResult>;
+
+  /**
+   * Cancel extruder heating (target back to 0)
+   * @returns Command result with success/failure
+   */
+  public abstract cancelExtruderTemperature(): Promise<CommandResult>;
+
+  /**
+   * Wrap a boolean temperature-control action into a CommandResult.
+   *
+   * Shared by the backend heater implementations so the only backend-specific
+   * logic is the client routing (legacy TCP vs HTTP temperature control).
+   *
+   * @param action - Heater action resolving to the transport's success flag
+   * @returns Command result with success/failure
+   */
+  protected async runTemperatureControlCommand(
+    action: () => Promise<boolean>
+  ): Promise<CommandResult> {
+    try {
+      const success = await action();
+
+      return {
+        success,
+        error: success ? undefined : 'Temperature command failed',
+        timestamp: new Date(),
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+        timestamp: new Date(),
+      };
+    }
+  }
+
   // Helper methods for feature detection
 
   protected abstract supportsNewAPI(): boolean;

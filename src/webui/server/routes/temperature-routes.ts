@@ -4,6 +4,7 @@
 
 import { FiveMClient } from '@ghosttypes/ff-api';
 import type { Response, Router } from 'express';
+import type { CommandResult } from '../../../types/printer-backend';
 import { toAppError } from '../../../utils/error.utils';
 import { createValidationError, TemperatureSetRequestSchema } from '../../schemas/web-api.schemas';
 import type { StandardAPIResponse } from '../../types/web-api.types';
@@ -17,88 +18,42 @@ const CHAMBER_MAX_TEMP = 80;
 const MAX_TOOL_COUNT = 4;
 
 export function registerTemperatureRoutes(router: Router, deps: RouteDependencies): void {
+  // ----- Single-tool bed / extruder heaters -----------------------------------
+  // These route through backend-manager temperature commands rather than raw
+  // G-code: dual-API printers keep using the legacy TCP channel, while
+  // HTTP-only printers (Creator 5 series, which have no TCP channel) use the
+  // HTTP temperature-control API.
+
   router.post('/printer/temperature/bed', async (req: AuthenticatedRequest, res: Response) => {
-    try {
-      const contextResult = resolveContext(req, deps, { requireBackendReady: true });
-      if (!contextResult.success) {
-        return sendErrorResponse<StandardAPIResponse>(
-          res,
-          contextResult.statusCode,
-          contextResult.error
-        );
-      }
-
-      const validation = TemperatureSetRequestSchema.safeParse(req.body);
-      if (!validation.success) {
-        const validationError = createValidationError(validation.error);
-        return sendErrorResponse<StandardAPIResponse>(res, 400, validationError.error);
-      }
-
-      const temperature = Math.round(validation.data.temperature);
-      const result = await deps.backendManager.executeGCodeCommand(
-        contextResult.contextId,
-        `~M140 S${temperature}`
-      );
-
-      const response: StandardAPIResponse = {
-        success: result.success,
-        message: result.success ? `Setting bed temperature to ${temperature}°C` : undefined,
-        error: result.error,
-      };
-      return res.status(result.success ? 200 : 500).json(response);
-    } catch (error) {
-      const appError = toAppError(error);
-      return sendErrorResponse<StandardAPIResponse>(res, 500, appError.message);
-    }
+    return handleSetTemperature(req, res, deps, 'bed', (contextId, temperature) =>
+      deps.backendManager.setBedTemperature(contextId, temperature)
+    );
   });
 
   router.post('/printer/temperature/bed/off', async (req: AuthenticatedRequest, res: Response) => {
-    await handleSimpleTemperatureCommand(req, res, deps, '~M140 S0', 'Bed heating turned off');
+    return handleTemperatureCommand(
+      req,
+      res,
+      deps,
+      (contextId) => deps.backendManager.cancelBedTemperature(contextId),
+      'Bed heating turned off'
+    );
   });
 
   router.post('/printer/temperature/extruder', async (req: AuthenticatedRequest, res: Response) => {
-    try {
-      const contextResult = resolveContext(req, deps, { requireBackendReady: true });
-      if (!contextResult.success) {
-        return sendErrorResponse<StandardAPIResponse>(
-          res,
-          contextResult.statusCode,
-          contextResult.error
-        );
-      }
-
-      const validation = TemperatureSetRequestSchema.safeParse(req.body);
-      if (!validation.success) {
-        const validationError = createValidationError(validation.error);
-        return sendErrorResponse<StandardAPIResponse>(res, 400, validationError.error);
-      }
-
-      const temperature = Math.round(validation.data.temperature);
-      const result = await deps.backendManager.executeGCodeCommand(
-        contextResult.contextId,
-        `~M104 S${temperature}`
-      );
-
-      const response: StandardAPIResponse = {
-        success: result.success,
-        message: result.success ? `Setting extruder temperature to ${temperature}°C` : undefined,
-        error: result.error,
-      };
-      return res.status(result.success ? 200 : 500).json(response);
-    } catch (error) {
-      const appError = toAppError(error);
-      return sendErrorResponse<StandardAPIResponse>(res, 500, appError.message);
-    }
+    return handleSetTemperature(req, res, deps, 'extruder', (contextId, temperature) =>
+      deps.backendManager.setExtruderTemperature(contextId, temperature)
+    );
   });
 
   router.post(
     '/printer/temperature/extruder/off',
     async (req: AuthenticatedRequest, res: Response) => {
-      await handleSimpleTemperatureCommand(
+      return handleTemperatureCommand(
         req,
         res,
         deps,
-        '~M104 S0',
+        (contextId) => deps.backendManager.cancelExtruderTemperature(contextId),
         'Extruder heating turned off'
       );
     }
@@ -144,6 +99,83 @@ export function registerTemperatureRoutes(router: Router, deps: RouteDependencie
 }
 
 /**
+ * Validate and run a backend-manager set-temperature command for the resolved
+ * context. Used by the single-tool bed and extruder heaters.
+ */
+async function handleSetTemperature(
+  req: AuthenticatedRequest,
+  res: Response,
+  deps: RouteDependencies,
+  heaterLabel: string,
+  run: (contextId: string, temperature: number) => Promise<CommandResult>
+): Promise<Response | undefined> {
+  try {
+    const contextResult = resolveContext(req, deps, { requireBackendReady: true });
+    if (!contextResult.success) {
+      return sendErrorResponse<StandardAPIResponse>(
+        res,
+        contextResult.statusCode,
+        contextResult.error
+      );
+    }
+
+    const validation = TemperatureSetRequestSchema.safeParse(req.body);
+    if (!validation.success) {
+      const validationError = createValidationError(validation.error);
+      return sendErrorResponse<StandardAPIResponse>(res, 400, validationError.error);
+    }
+
+    const temperature = Math.round(validation.data.temperature);
+    const result = await run(contextResult.contextId, temperature);
+
+    const response: StandardAPIResponse = {
+      success: result.success,
+      message: result.success ? `Setting ${heaterLabel} temperature to ${temperature}°C` : undefined,
+      error: result.error,
+    };
+    return res.status(result.success ? 200 : 500).json(response);
+  } catch (error) {
+    const appError = toAppError(error);
+    return sendErrorResponse<StandardAPIResponse>(res, 500, appError.message);
+  }
+}
+
+/**
+ * Run a backend-manager temperature command for the resolved context. Used by
+ * the bed/extruder "off" endpoints, which carry no request body.
+ */
+async function handleTemperatureCommand(
+  req: AuthenticatedRequest,
+  res: Response,
+  deps: RouteDependencies,
+  action: (contextId: string) => Promise<CommandResult>,
+  successMessage: string
+): Promise<Response | undefined> {
+  try {
+    const contextResult = resolveContext(req, deps, { requireBackendReady: true });
+    if (!contextResult.success) {
+      return sendErrorResponse<StandardAPIResponse>(
+        res,
+        contextResult.statusCode,
+        contextResult.error
+      );
+    }
+
+    const result = await action(contextResult.contextId);
+
+    const response: StandardAPIResponse = {
+      success: result.success,
+      message: result.success ? successMessage : undefined,
+      error: result.error,
+    };
+    return res.status(result.success ? 200 : 500).json(response);
+  } catch (error) {
+    const appError = toAppError(error);
+    return sendErrorResponse<StandardAPIResponse>(res, 500, appError.message);
+  }
+}
+
+/**
  * Run a FiveMClient temperature-control action for the resolved context. Used by the
  * Creator 5 per-tool and chamber heaters, which have no G-code passthrough.
  */
@@ -176,37 +208,6 @@ async function handleTempControl(
       error: result ? undefined : 'Temperature command failed',
     };
     return res.status(result ? 200 : 500).json(response);
-  } catch (error) {
-    const appError = toAppError(error);
-    return sendErrorResponse<StandardAPIResponse>(res, 500, appError.message);
-  }
-}
-
-async function handleSimpleTemperatureCommand(
-  req: AuthenticatedRequest,
-  res: Response,
-  deps: RouteDependencies,
-  command: string,
-  successMessage: string
-): Promise<Response | undefined> {
-  try {
-    const contextResult = resolveContext(req, deps, { requireBackendReady: true });
-    if (!contextResult.success) {
-      return sendErrorResponse<StandardAPIResponse>(
-        res,
-        contextResult.statusCode,
-        contextResult.error
-      );
-    }
-
-    const result = await deps.backendManager.executeGCodeCommand(contextResult.contextId, command);
-
-    const response: StandardAPIResponse = {
-      success: result.success,
-      message: result.success ? successMessage : undefined,
-      error: result.error,
-    };
-    return res.status(result.success ? 200 : 500).json(response);
   } catch (error) {
     const appError = toAppError(error);
     return sendErrorResponse<StandardAPIResponse>(res, 500, appError.message);

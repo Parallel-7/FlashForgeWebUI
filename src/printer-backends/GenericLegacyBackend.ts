@@ -148,6 +148,38 @@ export class GenericLegacyBackend extends BasePrinterBackend {
     }
   }
 
+  // ----- Bed / extruder heater control (legacy TCP G-code channel) -----------
+
+  /**
+   * Set the bed target temperature via the legacy TCP G-code channel
+   * (`~M140 S<temp>`), matching the raw G-code path this backend has always used.
+   */
+  public async setBedTemperature(temperature: number): Promise<CommandResult> {
+    return this.runTemperatureControlCommand(() => this.legacyClient.setBedTemp(temperature));
+  }
+
+  /**
+   * Cancel bed heating via the legacy TCP G-code channel (`~M140 S0`).
+   */
+  public async cancelBedTemperature(): Promise<CommandResult> {
+    return this.runTemperatureControlCommand(() => this.legacyClient.cancelBedTemp());
+  }
+
+  /**
+   * Set the extruder target temperature via the legacy TCP G-code channel
+   * (`~M104 S<temp>`).
+   */
+  public async setExtruderTemperature(temperature: number): Promise<CommandResult> {
+    return this.runTemperatureControlCommand(() => this.legacyClient.setExtruderTemp(temperature));
+  }
+
+  /**
+   * Cancel extruder heating via the legacy TCP G-code channel (`~M104 S0`).
+   */
+  public async cancelExtruderTemperature(): Promise<CommandResult> {
+    return this.runTemperatureControlCommand(() => this.legacyClient.cancelExtruderTemp());
+  }
+
   /**
    * Get current printer status using legacy API
    */

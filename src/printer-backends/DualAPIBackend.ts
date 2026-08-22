@@ -253,6 +253,63 @@ export abstract class DualAPIBackend extends BasePrinterBackend {
     }
   }
 
+  // ----- Bed / extruder heater control ---------------------------------------
+
+  /**
+   * Set the bed target temperature.
+   *
+   * Dual-API printers keep preferring the legacy TCP channel (the same `~M140`
+   * wire command the raw G-code path sends); HTTP-only backends (Creator 5
+   * series, no TCP channel) route through the FiveMClient temperature-control
+   * API. The branch is on client presence, so an HTTP-only printer never
+   * attempts a TCP connection.
+   */
+  public async setBedTemperature(temperature: number): Promise<CommandResult> {
+    return this.runTemperatureControlCommand(() =>
+      this.legacyClient
+        ? this.legacyClient.setBedTemp(temperature)
+        : this.fiveMClient.tempControl.setBedTemp(temperature)
+    );
+  }
+
+  /**
+   * Cancel bed heating. Legacy channel sends `~M140 S0`; the HTTP-only path
+   * uses the temperature-control cancel command.
+   */
+  public async cancelBedTemperature(): Promise<CommandResult> {
+    return this.runTemperatureControlCommand(() =>
+      this.legacyClient
+        ? this.legacyClient.cancelBedTemp()
+        : this.fiveMClient.tempControl.cancelBedTemp()
+    );
+  }
+
+  /**
+   * Set the extruder target temperature. Legacy channel sends `~M104`; the
+   * HTTP-only path (Creator 5 series) drives the primary tool via the
+   * temperature-control API.
+   */
+  public async setExtruderTemperature(temperature: number): Promise<CommandResult> {
+    return this.runTemperatureControlCommand(() =>
+      this.legacyClient
+        ? this.legacyClient.setExtruderTemp(temperature)
+        : this.fiveMClient.tempControl.setExtruderTemp(temperature)
+    );
+  }
+
+  /**
+   * Cancel extruder heating. Legacy channel sends `~M104 S0`; the HTTP-only
+   * path (Creator 5 series) turns the primary tool off via the
+   * temperature-control API.
+   */
+  public async cancelExtruderTemperature(): Promise<CommandResult> {
+    return this.runTemperatureControlCommand(() =>
+      this.legacyClient
+        ? this.legacyClient.cancelExtruderTemp()
+        : this.fiveMClient.tempControl.cancelExtruderTemp()
+    );
+  }
+
   /**
    * Get current printer status using new API with legacy fallback
    * Common implementation with hooks for backend-specific fields

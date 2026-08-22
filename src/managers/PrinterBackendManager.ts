@@ -476,6 +476,90 @@ export class PrinterBackendManager extends EventEmitter {
   }
 
   /**
+   * Set the print bed target temperature for a context
+   *
+   * Routes through the context backend, which prefers the legacy TCP channel on
+   * dual-API printers and the HTTP temperature-control API on HTTP-only models
+   * (Creator 5 series).
+   *
+   * @param contextId - Context ID
+   * @param temperature - Target temperature in Celsius
+   * @returns Command result
+   */
+  public async setBedTemperature(contextId: string, temperature: number): Promise<CommandResult> {
+    const backend = this.contextBackends.get(contextId);
+    if (!backend) {
+      return this.noBackendTemperatureResult();
+    }
+
+    return await backend.setBedTemperature(temperature);
+  }
+
+  /**
+   * Cancel print bed heating for a context
+   *
+   * @param contextId - Context ID
+   * @returns Command result
+   */
+  public async cancelBedTemperature(contextId: string): Promise<CommandResult> {
+    const backend = this.contextBackends.get(contextId);
+    if (!backend) {
+      return this.noBackendTemperatureResult();
+    }
+
+    return await backend.cancelBedTemperature();
+  }
+
+  /**
+   * Set the extruder target temperature for a context
+   *
+   * Routes through the context backend, which prefers the legacy TCP channel on
+   * dual-API printers and the HTTP temperature-control API on HTTP-only models
+   * (Creator 5 series).
+   *
+   * @param contextId - Context ID
+   * @param temperature - Target temperature in Celsius
+   * @returns Command result
+   */
+  public async setExtruderTemperature(
+    contextId: string,
+    temperature: number
+  ): Promise<CommandResult> {
+    const backend = this.contextBackends.get(contextId);
+    if (!backend) {
+      return this.noBackendTemperatureResult();
+    }
+
+    return await backend.setExtruderTemperature(temperature);
+  }
+
+  /**
+   * Cancel extruder heating for a context
+   *
+   * @param contextId - Context ID
+   * @returns Command result
+   */
+  public async cancelExtruderTemperature(contextId: string): Promise<CommandResult> {
+    const backend = this.contextBackends.get(contextId);
+    if (!backend) {
+      return this.noBackendTemperatureResult();
+    }
+
+    return await backend.cancelExtruderTemperature();
+  }
+
+  /**
+   * Shared failure result for temperature commands with no initialized backend
+   */
+  private noBackendTemperatureResult(): CommandResult {
+    return {
+      success: false,
+      error: 'No backend initialized',
+      timestamp: new Date(),
+    };
+  }
+
+  /**
    * Get current printer status
    *
    * @param contextId - Context ID
