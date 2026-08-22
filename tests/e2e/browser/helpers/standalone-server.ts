@@ -86,6 +86,12 @@ export interface StandaloneWebUI {
 
 export interface StartStandaloneWebUIOptions {
   printers?: readonly StandalonePrinter[];
+  /**
+   * Printers seeded into the saved profile; defaults to `printers`. Pass a subset
+   * (or []) to boot emulators the server does NOT auto-connect, e.g. so specs can
+   * exercise the manual connect flow against them.
+   */
+  seedPrinters?: readonly StandalonePrinter[];
   password?: string;
   /** Number of printers the server must have connected before tests start. */
   requireConnectedPrinters?: number;
@@ -338,8 +344,9 @@ export const startStandaloneWebUI = async (
   options: StartStandaloneWebUIOptions = {}
 ): Promise<StandaloneWebUI> => {
   const printers = options.printers ?? DEFAULT_STANDALONE_PRINTERS;
+  const seedPrinters = options.seedPrinters ?? printers;
   const password = options.password ?? WEBUI_TEST_PASSWORD;
-  const requiredPrinters = options.requireConnectedPrinters ?? printers.length;
+  const requiredPrinters = options.requireConnectedPrinters ?? seedPrinters.length;
 
   const emulators: Array<{ stop: () => Promise<void> }> = [];
   let dataRoot: string | null = null;
@@ -389,7 +396,7 @@ export const startStandaloneWebUI = async (
     const port = await findFreePort();
     const baseUrl = `http://127.0.0.1:${port}`;
 
-    await seedDataDir(dataDir, printers, printerIp, port, password);
+    await seedDataDir(dataDir, seedPrinters, printerIp, port, password);
 
     server = spawnServer({ dataDir, port, password });
     await waitForServer(baseUrl, server, SERVER_READY_TIMEOUT_MS);
@@ -401,7 +408,7 @@ export const startStandaloneWebUI = async (
     return {
       baseUrl,
       password,
-      printers,
+      printers: seedPrinters,
       logTail: () => formatLogTail(startedServer.logLines),
       stop: cleanup,
     };
