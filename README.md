@@ -66,6 +66,7 @@ FlashForge WebUI supports a wide range of FlashForge printers through its adapta
 | Requirement | Details |
 | --- | --- |
 | **Node.js** | Version 20.0.0 or higher (for source installation) |
+| **pnpm** | Pinned at 10.23.0 via Corepack (`corepack enable`) or installed globally |
 | **Network** | Connection to your printer(s) |
 
 </div>
@@ -112,22 +113,22 @@ git clone https://github.com/Parallel-7/FlashForgeWebUI.git
 cd FlashForgeWebUI
 
 # Install dependencies
-npm install
+pnpm install
 
 # Build the application (required before first run)
-npm run build
+pnpm run build
 
 # Start the server
-npm start
+pnpm start
 
 # Or start with auto-connect to last used printer
-npm start -- --last-used
+pnpm start -- --last-used
 ```
 
 **Development Mode:**
 ```bash
 # Build and watch for changes with hot reload
-npm run dev
+pnpm run dev
 ```
 
 <div align="center">
@@ -177,11 +178,11 @@ By default, runtime data is stored in `./data` under the working directory. Set 
 
 ```bash
 # Linux/macOS
-DATA_DIR=/path/to/flashforge-data npm start
+DATA_DIR=/path/to/flashforge-data pnpm start
 
 # PowerShell
 $env:DATA_DIR = 'C:\FlashForgeWebUI\data'
-npm start
+pnpm start
 ```
 
 <div align="center">
@@ -203,15 +204,15 @@ npm start
 
 ```bash
 # Jest unit/integration tests
-npm test
-npm run test:watch      # watch mode
-npm run test:coverage   # coverage report
+pnpm test
+pnpm run test:watch      # watch mode
+pnpm run test:coverage   # coverage report
 
 # TypeScript checks
-npm run type-check
+pnpm run type-check
 
 # Lint/format
-npm run check
+pnpm run check
 ```
 
 Tests live alongside the source under `src/` (`*.test.ts`) and run through Jest.
@@ -222,12 +223,12 @@ Tests live alongside the source under `src/` (`*.test.ts`) and run through Jest.
 
 ```bash
 # Build for specific platform
-npm run build:linux        # Linux x64
-npm run build:linux-arm    # Linux ARM64 (Raspberry Pi 4/5)
-npm run build:linux-armv7  # Linux ARMv7 (Raspberry Pi 3)
-npm run build:win          # Windows x64
-npm run build:mac          # macOS x64
-npm run build:mac-arm      # macOS ARM (Apple Silicon)
+pnpm run build:linux        # Linux x64
+pnpm run build:linux-arm    # Linux ARM64 (Raspberry Pi 4/5)
+pnpm run build:linux-armv7  # Linux ARMv7 (Raspberry Pi 3)
+pnpm run build:win          # Windows x64
+pnpm run build:mac          # macOS x64
+pnpm run build:mac-arm      # macOS ARM (Apple Silicon)
 ```
 
 <div align="center">
@@ -238,7 +239,7 @@ npm run build:mac-arm      # macOS ARM (Apple Silicon)
 
 | Issue | Solution |
 | --- | --- |
-| **"Cannot GET /" or blank page when accessing WebUI** | If running from source: Make sure you ran `npm run build` before `npm start`<br>If using a pre-1.0.2 binary: Update to version 1.0.2 or later (fixes static file serving bug) |
+| **"Cannot GET /" or blank page when accessing WebUI** | If running from source: Make sure you ran `pnpm run build` before `pnpm start`<br>If using a pre-1.0.2 binary: Update to version 1.0.2 or later (fixes static file serving bug) |
 | **"Permission denied" when running binary** | Run `chmod +x flashforge-webui-linux-*` to make executable |
 | **Port already in use** | Change the port in the active config file (default `data/config.json`, or the directory pointed to by `DATA_DIR`) or use `--webui-port=3001` |
 | **Cannot connect to printer** | Ensure your printer is on the same network as the device running WebUI<br>Check that the printer's IP address is correct<br>For legacy printers, ensure TCP port 8899 is accessible |

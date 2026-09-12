@@ -59,11 +59,16 @@ jobs:
       - name: Checkout FlashForgeWebUI
         uses: actions/checkout@v4
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.23.0
+
       - name: Setup Node.js 20
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: 'npm'
+          cache: 'pnpm'
 
       - name: Configure GitHub Packages Authentication
         shell: bash
@@ -75,10 +80,10 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Run npm ci
+      - name: Install dependencies
         shell: bash
         run: |
-          npm ci
+          pnpm install --frozen-lockfile
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -113,25 +118,25 @@ jobs:
             VERSION="${VERSION}.0.0"
           fi
           echo "Setting version to: $VERSION"
-          npm version "$VERSION" --no-git-tag-version --allow-same-version
+          pnpm version "$VERSION" --no-git-tag-version --allow-same-version
 
       - name: Build application
         shell: bash
         run: |
           # Build the TypeScript source
-          npm run build
+          pnpm run build
 
           # Package with yao-pkg based on platform/arch
           if [[ "${{ matrix.platform }}" == "win" ]]; then
-            npx @yao-pkg/pkg . --targets node20-win-${{ matrix.arch }} --output dist/${{ matrix.output }}
+            pnpm exec @yao-pkg/pkg . --targets node20-win-${{ matrix.arch }} --output dist/${{ matrix.output }}
           elif [[ "${{ matrix.platform }}" == "mac" ]]; then
-            npx @yao-pkg/pkg . --targets node20-macos-${{ matrix.arch }} --output dist/${{ matrix.output }}
+            pnpm exec @yao-pkg/pkg . --targets node20-macos-${{ matrix.arch }} --output dist/${{ matrix.output }}
           elif [[ "${{ matrix.platform }}" == "linux" ]]; then
             # Special case: ARMv7 needs the linuxstatic target to pick the supported Node 20 build
             if [[ "${{ matrix.arch }}" == "armv7" ]]; then
-              npx @yao-pkg/pkg . --targets node20-linuxstatic-armv7 --output dist/${{ matrix.output }}
+              pnpm exec @yao-pkg/pkg . --targets node20-linuxstatic-armv7 --output dist/${{ matrix.output }}
             else
-              npx @yao-pkg/pkg . --targets node20-linux-${{ matrix.arch }} --output dist/${{ matrix.output }}
+              pnpm exec @yao-pkg/pkg . --targets node20-linux-${{ matrix.arch }} --output dist/${{ matrix.output }}
             fi
           fi
 

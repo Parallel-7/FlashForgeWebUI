@@ -65,5 +65,5 @@ yet been brought over, so future syncs know where the two codebases still diverg
 
 ## Validation commands
 
-`npm run type-check` → `npm run build` → `npm run lint` → `npm test` →
-`npm run docs:check` (all passing as of the 2026-07-10 sync).
+`pnpm run type-check` → `pnpm run build` → `pnpm run lint` → `pnpm test` →
+`pnpm run docs:check` (all passing as of the 2026-07-10 sync).

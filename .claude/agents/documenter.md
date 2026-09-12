@@ -145,7 +145,7 @@ When processing multiple files:
 
 Always use this command to find files needing documentation:
 ```bash
-npm run docs:check
+pnpm run docs:check
 ```
 
 This checks all .ts, .tsx, .js, .jsx files in src/ for @fileoverview in the first 20 lines.
