@@ -128,15 +128,15 @@ jobs:
 
           # Package with yao-pkg based on platform/arch
           if [[ "${{ matrix.platform }}" == "win" ]]; then
-            pnpm exec @yao-pkg/pkg . --targets node20-win-${{ matrix.arch }} --output dist/${{ matrix.output }}
+            pnpm exec pkg . --targets node20-win-${{ matrix.arch }} --output dist/${{ matrix.output }}
           elif [[ "${{ matrix.platform }}" == "mac" ]]; then
-            pnpm exec @yao-pkg/pkg . --targets node20-macos-${{ matrix.arch }} --output dist/${{ matrix.output }}
+            pnpm exec pkg . --targets node20-macos-${{ matrix.arch }} --output dist/${{ matrix.output }}
           elif [[ "${{ matrix.platform }}" == "linux" ]]; then
             # Special case: ARMv7 needs the linuxstatic target to pick the supported Node 20 build
             if [[ "${{ matrix.arch }}" == "armv7" ]]; then
-              pnpm exec @yao-pkg/pkg . --targets node20-linuxstatic-armv7 --output dist/${{ matrix.output }}
+              pnpm exec pkg . --targets node20-linuxstatic-armv7 --output dist/${{ matrix.output }}
             else
-              pnpm exec @yao-pkg/pkg . --targets node20-linux-${{ matrix.arch }} --output dist/${{ matrix.output }}
+              pnpm exec pkg . --targets node20-linux-${{ matrix.arch }} --output dist/${{ matrix.output }}
             fi
           fi
 
