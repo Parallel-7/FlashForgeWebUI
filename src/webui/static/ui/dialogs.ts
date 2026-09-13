@@ -17,6 +17,8 @@ import {
   isAD5XJobFile,
   isMultiColorJobFile,
 } from '../shared/formatting.js';
+import { describeStoredFileTracking } from '../shared/stored-file-tracking.js';
+import { loadSpoolmanConfig } from '../features/spoolman.js';
 
 /**
  * A settable heater target. Single-nozzle printers use `bed`/`extruder`; the
@@ -90,6 +92,12 @@ export async function loadFileList(source: 'recent' | 'local'): Promise<void> {
   if (state.printerFeatures?.hasMultiTool) {
     showToast('Local job management is not available on this printer.', 'error');
     return;
+  }
+
+  // The stored-file tracking indicator needs the Spoolman slot assignments;
+  // fetch them lazily if the Spoolman panel has never loaded the config.
+  if (state.spoolmanConfig === null) {
+    void loadSpoolmanConfig();
   }
 
   try {
@@ -176,6 +184,24 @@ export function showFileModal(files: WebUIJobFile[], source: 'recent' | 'local')
       material.className = 'file-meta-item';
       material.textContent = `${file.totalFilamentWeight.toFixed(1)} g`;
       meta.appendChild(material);
+    }
+
+    const trackingHint = describeStoredFileTracking(file, {
+      spoolmanEnabled: Boolean(state.spoolmanConfig?.enabled),
+      hasStation: Boolean(state.printerFeatures?.hasMaterialStation),
+      assignedSpoolSlotIds:
+        state.spoolmanConfig?.station?.slotAssignments.map((assignment) => assignment.slotId) ?? [],
+    });
+    if (trackingHint) {
+      const indicator = document.createElement('span');
+      indicator.className = `file-meta-item spoolman-track-hint ${
+        trackingHint.tracked ? 'spoolman-track-hint--tracked' : 'spoolman-track-hint--untracked'
+      }`;
+      indicator.textContent = trackingHint.label;
+      if (trackingHint.tooltip) {
+        indicator.title = trackingHint.tooltip;
+      }
+      meta.appendChild(indicator);
     }
 
     if (isAD5XJobFile(file) && file.toolDatas.length > 0) {

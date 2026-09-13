@@ -4,6 +4,7 @@
 
 import type { Response, Router } from 'express';
 import { isAD5XJobInfo } from '../../../printer-backends/ad5x/ad5x-utils';
+import { captureStoredFileEstimate } from '../../../services/stored-file-estimate';
 import { getThumbnailCacheService } from '../../../services/ThumbnailCacheService';
 import type { AD5XJobInfo, BasicJobInfo } from '../../../types/printer-backend/backend-operations';
 import { toAppError } from '../../../utils/error.utils';
@@ -82,6 +83,34 @@ export function registerJobRoutes(router: Router, deps: RouteDependencies): void
         additionalParams:
           materialMappings && materialMappings.length > 0 ? { materialMappings } : undefined,
       });
+
+      // Stored-file start (file already on the printer): best-effort capture of
+      // a printer-metadata estimate so single-material jobs started from the
+      // file list are Spoolman-tracked without an app upload. Deliberately
+      // fire-and-forget: never blocks the start response on the printer's
+      // gcodeList round-trip and never fails the start. A one-shot retry for
+      // recent-list propagation lag lives inside that promise, so it adds no
+      // waiting here. The record is only consumed at print completion, so
+      // nobody needs it in this response.
+      // captureStoredFileEstimate never rejects (it returns a reason), but the
+      // .catch keeps that guarantee from turning into an unhandled rejection
+      // if that ever drifts; the try/catch covers a synchronous throw.
+      if (result.success && validation.data.startNow) {
+        const warnCaptureFailure = (error: unknown): void => {
+          console.warn(
+            '[job-routes] Stored-file Spoolman estimate capture failed:',
+            error instanceof Error ? error.message : error
+          );
+        };
+        try {
+          void captureStoredFileEstimate(
+            contextResult.contextId,
+            validation.data.filename
+          ).catch(warnCaptureFailure);
+        } catch (error) {
+          warnCaptureFailure(error);
+        }
+      }
 
       const response: StandardAPIResponse = {
         success: result.success,

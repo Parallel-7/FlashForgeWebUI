@@ -67,6 +67,9 @@ const SLOT_2_SPOOL = 2;
 /** Emulator-reported filament weight at 100% (see PrinterStateStore default). */
 const EMULATOR_FULL_WEIGHT_G = 96;
 
+/** Printer-reported weight for the seeded stored single-material file (distinct from every default). */
+const STORED_SINGLE_G = 130;
+
 /** The 5M regression pins 50% progress, so the cached weight is half. */
 const EMULATOR_HALF_WEIGHT_G = EMULATOR_FULL_WEIGHT_G * 0.5;
 
@@ -461,6 +464,187 @@ test.describe('Spoolman station tracking (Creator 5 Pro + AD5X)', () => {
       await clearPlatform(printer);
     });
   }
+});
+
+// ============================================================================
+// AD5X stored files — printer-metadata estimate capture (no app upload)
+// ============================================================================
+
+test.describe('Spoolman printer-metadata tracking (AD5X stored files)', () => {
+  test.skip(!sidecarAvailable, SPOOLMAN_SIDECAR_SKIP_MESSAGE);
+  test.describe.configure({ mode: 'serial' });
+
+  const printer: StandalonePrinter = PRINTER_BY_MACHINE_NAME['Matrix-AD5X'];
+  let sidecar: SpoolmanSidecar;
+  let webui: StandaloneWebUI;
+  let token = '';
+  let contextId = '';
+
+  test.beforeAll(async () => {
+    sidecar = await startSpoolmanSidecar();
+    webui = await startStandaloneWebUI({
+      printers: [printer],
+      configOverrides: {
+        SpoolmanEnabled: true,
+        SpoolmanServerUrl: sidecar.baseUrl,
+        SpoolmanUpdateMode: 'weight',
+      },
+      emulatorSimulationMode: 'auto',
+    });
+    token = await fetchApiToken(webui);
+    contextId = await resolveContextId(webui, token, printer.machineName);
+  });
+
+  test.afterAll(async () => {
+    await webui?.stop();
+    await sidecar?.stop();
+  });
+
+  const assignSlotSpool = async (slotId: number, spoolId: number | null): Promise<void> => {
+    const { payload } = await postJson<{ success?: boolean; error?: string }>(
+      webui,
+      token,
+      '/api/spoolman/slot-spool',
+      { contextId, slotId, spoolId }
+    );
+    expect(payload.error).toBeUndefined();
+  };
+
+  /** Start a stored (printer-resident) file through the app's job-start route. */
+  const startStoredJobViaApp = async (fileName: string): Promise<void> => {
+    const { payload } = await postJson<{ success?: boolean; error?: string }>(
+      webui,
+      token,
+      `/api/jobs/start?contextId=${contextId}`,
+      { filename: fileName, startNow: true, leveling: false }
+    );
+    expect(payload.error).toBeUndefined();
+    expect(payload.success).toBe(true);
+  };
+
+  /**
+   * Seed a printer-resident file exactly like the emulator would report it in
+   * gcodeListDetail (GcodeFileEntry metadata), without any app upload.
+   */
+  const seedStoredFile = async (
+    fileName: string,
+    metadata: { gcodeToolCnt: number; totalFilamentWeight: number; useMatlStation: boolean }
+  ): Promise<void> => {
+    const response = await fetch(`http://127.0.0.1:${printer.httpPort}/__scenario`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        scenario: {
+          machineStatus: 'idle',
+          fileName,
+          currentFileMetadata: metadata,
+        },
+      }),
+    });
+    expect(response.ok).toBe(true);
+  };
+
+  /** Drive a running print to completion and let the WebUI observe it. */
+  const driveToPrinting = async (): Promise<void> => {
+    // Re-arm auto simulation so the emulator can finish heating and reach
+    // 'printing', then freeze progress for deterministic jumps.
+    await emulatorSimulate(printer, { action: 'resume' });
+    await expect.poll(async () => emulatorStatus(printer), { timeout: 60_000 }).toBe('printing');
+    await emulatorSimulate(printer, { action: 'pause' });
+  };
+
+  const completePrint = async (): Promise<void> => {
+    await emulatorSimulate(printer, { action: 'jump', percent: 100 });
+    await expect
+      .poll(async () => emulatorStatus(printer), { timeout: 30_000 })
+      .toBe('completed');
+    // One polling cycle of headroom so the tracker reacts to the terminal state.
+    await new Promise((resolve) => setTimeout(resolve, POLL_CYCLE_MS));
+  };
+
+  test('single-material stored file started through the app deducts the printer-reported weight exactly once', async () => {
+    await sidecar.reset();
+    await clearPlatform(printer);
+    await seedStoredFile('stored-single.3mf', {
+      gcodeToolCnt: 1,
+      totalFilamentWeight: STORED_SINGLE_G,
+      useMatlStation: false,
+    });
+    await assignSlotSpool(1, SLOT_1_SPOOL);
+
+    await startStoredJobViaApp('stored-single.3mf');
+    await driveToPrinting();
+
+    await completePrint();
+
+    await expect.poll(async () => (await sidecar.requests()).length, { timeout: 30_000 }).toBe(1);
+    const [put] = await sidecar.requests();
+    expect(put?.spoolId).toBe(SLOT_1_SPOOL);
+    expect(Math.abs((put?.useWeight ?? 0) - STORED_SINGLE_G)).toBeLessThanOrEqual(G_TOLERANCE);
+
+    await clearPlatform(printer);
+  });
+
+  test('multi-material stored file is never tracked (no deduction)', async () => {
+    await sidecar.reset();
+    await clearPlatform(printer);
+    await seedStoredFile('stored-multi.3mf', {
+      gcodeToolCnt: 2,
+      totalFilamentWeight: 110,
+      useMatlStation: true,
+    });
+    await assignSlotSpool(1, SLOT_1_SPOOL);
+
+    await startStoredJobViaApp('stored-multi.3mf');
+    await driveToPrinting();
+
+    await completePrint();
+
+    expect(await sidecar.requests()).toHaveLength(0);
+    await clearPlatform(printer);
+  });
+
+  test('no spool assigned skips the deduction', async () => {
+    await sidecar.reset();
+    await clearPlatform(printer);
+    await seedStoredFile('stored-nospool.3mf', {
+      gcodeToolCnt: 1,
+      totalFilamentWeight: 140,
+      useMatlStation: false,
+    });
+    await assignSlotSpool(1, null);
+    await assignSlotSpool(2, null);
+
+    await startStoredJobViaApp('stored-nospool.3mf');
+    await driveToPrinting();
+
+    await completePrint();
+
+    expect(await sidecar.requests()).toHaveLength(0);
+    await clearPlatform(printer);
+  });
+
+  test('two spools assigned skips the deduction (never guess)', async () => {
+    await sidecar.reset();
+    await clearPlatform(printer);
+    await seedStoredFile('stored-twospools.3mf', {
+      gcodeToolCnt: 1,
+      totalFilamentWeight: 150,
+      useMatlStation: false,
+    });
+    await assignSlotSpool(1, SLOT_1_SPOOL);
+    await assignSlotSpool(2, SLOT_2_SPOOL);
+
+    await startStoredJobViaApp('stored-twospools.3mf');
+    await driveToPrinting();
+
+    await completePrint();
+
+    expect(await sidecar.requests()).toHaveLength(0);
+    await clearPlatform(printer);
+    // Leave the store clean for any later scenario.
+    await assignSlotSpool(2, null);
+  });
 });
 
 // ============================================================================
