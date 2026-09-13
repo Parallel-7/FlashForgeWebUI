@@ -107,6 +107,8 @@ chmod +x flashforge-webui-linux-arm64
   <h3>Running from Source</h3>
 </div>
 
+All dependencies — including the `@ghosttypes` and `@parallel-7` scoped packages — are public on npm: no `.npmrc`, token, or GitHub Packages access is needed to build from source.
+
 ```bash
 # Clone the repository
 git clone https://github.com/Parallel-7/FlashForgeWebUI.git
