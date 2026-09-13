@@ -27,6 +27,8 @@ export interface EmulatorDetail {
   platTargetTemp?: number;
   rightTargetTemp?: number;
   nozzleTargetTemps?: number[];
+  /** Chamber heater target; -108 sentinel on models without a chamber. */
+  chamberTargetTemp?: number;
   lightStatus?: string;
 }
 
