@@ -19,6 +19,7 @@
  */
 
 import type { RebootStatusPayload } from '../../types/printer-power';
+import type { DeductionSummary } from '../../types/spoolman-tracking';
 
 // ============================================================================
 // AUTHENTICATION TYPES
@@ -359,6 +360,36 @@ export interface SpoolmanConfigResponse extends StandardAPIResponse {
   readonly serverUrl: string;
   readonly updateMode: 'length' | 'weight';
   readonly contextId: string | null;
+  /** Estimate-based tracking info; present only for station contexts. */
+  readonly station?: SpoolmanStationTracking | null;
+}
+
+/**
+ * Estimate-based tracking info for material-station contexts.
+ */
+export interface SpoolmanStationTracking {
+  readonly supported: boolean;
+  /** Honest copy surfaced in the panel. */
+  readonly note: string;
+  readonly slotAssignments: readonly SpoolmanSlotAssignment[];
+  readonly lastDeduction: DeductionSummary | null;
+}
+
+/**
+ * One slot→spool assignment of a station context.
+ */
+export interface SpoolmanSlotAssignment {
+  readonly slotId: number;
+  readonly spoolId: number;
+}
+
+/**
+ * Slot→spool assignment mutation response.
+ */
+export interface SlotSpoolResponse extends StandardAPIResponse {
+  readonly contextId: string;
+  readonly slotId: number;
+  readonly spoolId: number | null;
 }
 
 /**

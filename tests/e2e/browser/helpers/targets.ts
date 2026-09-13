@@ -114,3 +114,7 @@ export const MODEL_TARGETS: readonly ModelTarget[] = [
 export const MATRIX_PRINTERS: readonly StandalonePrinter[] = MODEL_TARGETS.map(
   (target) => target.printer
 );
+
+/** Machine-name lookup for picking single targets out of the matrix. */
+export const PRINTER_BY_MACHINE_NAME: Readonly<Record<string, StandalonePrinter>> =
+  Object.fromEntries(MODEL_TARGETS.map((target) => [target.printer.machineName, target.printer]));

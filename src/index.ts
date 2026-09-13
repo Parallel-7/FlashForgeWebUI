@@ -543,7 +543,7 @@ async function main(): Promise<void> {
 
         // STEP 5: Create SpoolmanTracker for this context (depends on PrintStateMonitor)
         const spoolmanTracker = getMultiContextSpoolmanTracker();
-        spoolmanTracker.createTrackerForContext(contextId, stateMonitor);
+        spoolmanTracker.createTrackerForContext(contextId, stateMonitor, pollingService);
 
         console.log(`[Events] Created SpoolmanTracker for context ${contextId}`);
         discordService.registerContext(contextId);

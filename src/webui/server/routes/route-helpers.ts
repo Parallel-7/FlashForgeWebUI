@@ -16,6 +16,7 @@ import type {
   PrinterContextManager,
 } from '../../../managers/PrinterContextManager';
 import type { BasePrinterBackend } from '../../../printer-backends/BasePrinterBackend';
+import type { MultiContextSpoolmanTracker } from '../../../services/MultiContextSpoolmanTracker';
 import type { SpoolmanIntegrationService } from '../../../services/SpoolmanIntegrationService';
 import type { AuthenticatedRequest } from '../auth-middleware';
 
@@ -28,6 +29,7 @@ export interface RouteDependencies {
   readonly contextManager: PrinterContextManager;
   readonly configManager: ConfigManager;
   readonly spoolmanService: SpoolmanIntegrationService;
+  readonly spoolmanTracker: MultiContextSpoolmanTracker;
 }
 
 /**

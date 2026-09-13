@@ -1,5 +1,6 @@
 /**
- * @fileoverview Spoolman integration routes (config, search, active spool management).
+ * @fileoverview Spoolman integration routes (config, search, active spool
+ * management, material-station slot→spool assignments).
  */
 
 import { FiveMClient } from '@ghosttypes/ff-api';
@@ -8,13 +9,16 @@ import { toAppError } from '../../../utils/error.utils';
 import {
   createValidationError,
   SlotConfigRequestSchema,
+  SlotSpoolSetRequestSchema,
   SpoolClearRequestSchema,
   SpoolSelectRequestSchema,
 } from '../../schemas/web-api.schemas';
 import type {
   ActiveSpoolResponse,
   SlotConfigResponse,
+  SlotSpoolResponse,
   SpoolmanConfigResponse,
+  SpoolmanStationTracking,
   SpoolSearchResponse,
   SpoolSelectResponse,
   SpoolSummary,
@@ -48,6 +52,7 @@ export function registerSpoolmanRoutes(router: Router, deps: RouteDependencies):
         serverUrl: deps.spoolmanService.getServerUrl(),
         updateMode: deps.spoolmanService.getUpdateMode(),
         contextId: activeContextId,
+        station: buildStationTracking(deps, activeContextId),
       };
       return res.json(response);
     } catch (error) {
@@ -125,7 +130,7 @@ export function registerSpoolmanRoutes(router: Router, deps: RouteDependencies):
         return sendErrorResponse<ActiveSpoolResponse>(
           res,
           409,
-          'Spoolman integration is disabled for this printer (AD5X with material station)',
+          'Spoolman integration is not available for this printer',
           { spool: null }
         );
       }
@@ -165,7 +170,7 @@ export function registerSpoolmanRoutes(router: Router, deps: RouteDependencies):
         return sendErrorResponse<StandardAPIResponse>(
           res,
           409,
-          'Spoolman integration is disabled for this printer (AD5X with material station)'
+          'Spoolman integration is not available for this printer'
         );
       }
 
@@ -206,7 +211,7 @@ export function registerSpoolmanRoutes(router: Router, deps: RouteDependencies):
         return sendErrorResponse<StandardAPIResponse>(
           res,
           409,
-          'Spoolman integration is disabled for this printer (AD5X with material station)'
+          'Spoolman integration is not available for this printer'
         );
       }
 
@@ -286,4 +291,81 @@ export function registerSpoolmanRoutes(router: Router, deps: RouteDependencies):
       return sendErrorResponse<SlotConfigResponse>(res, 500, appError.message);
     }
   });
+
+  // Stage 2 (Spoolman estimate tracking): slot→spool assignment CRUD for
+  // material-station contexts. The Material Station UI's "Set from Spoolman"
+  // flow populates this map; terminal-state deductions resolve
+  // tool → slot → spool through it.
+  router.post('/spoolman/slot-spool', async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const validation = SlotSpoolSetRequestSchema.safeParse(req.body);
+      if (!validation.success) {
+        const validationError = createValidationError(validation.error);
+        return sendErrorResponse<SlotSpoolResponse>(res, 400, validationError.error);
+      }
+
+      const { contextId, slotId, spoolId } = validation.data;
+      const contextResult = resolveContext(req, deps, { overrideContextId: contextId || null });
+      if (!contextResult.success) {
+        return sendErrorResponse<SlotSpoolResponse>(
+          res,
+          contextResult.statusCode,
+          contextResult.error
+        );
+      }
+
+      if (!deps.spoolmanService.isStationContext(contextResult.contextId)) {
+        return sendErrorResponse<SlotSpoolResponse>(
+          res,
+          409,
+          'Slot spool assignment requires a printer with a material station'
+        );
+      }
+
+      if (spoolId !== null) {
+        // Validate the spool exists so typos surface immediately.
+        await deps.spoolmanService.getSpoolById(spoolId);
+      }
+
+      deps.spoolmanService.setSpoolForSlot(contextResult.contextId, slotId, spoolId);
+
+      const response: SlotSpoolResponse = {
+        success: true,
+        contextId: contextResult.contextId,
+        slotId,
+        spoolId,
+      };
+      return res.json(response);
+    } catch (error) {
+      const appError = toAppError(error);
+      return sendErrorResponse<SlotSpoolResponse>(res, 500, appError.message);
+    }
+  });
+}
+
+/** Copy shown in the Spoolman panel for station contexts. */
+const STATION_TRACKING_NOTE =
+  'Consumption is estimated from files uploaded through this app. ' +
+  'Prints started on the printer itself are not tracked.';
+
+/**
+ * Assemble estimate-based tracking info for a context, or null when the
+ * context has no material station.
+ */
+function buildStationTracking(
+  deps: RouteDependencies,
+  contextId: string
+): SpoolmanStationTracking | null {
+  if (!deps.spoolmanService.isStationContext(contextId)) {
+    return null;
+  }
+  const slotAssignments = [...deps.spoolmanService.getSlotSpoolMap(contextId).entries()]
+    .map(([slotId, spoolId]) => ({ slotId, spoolId }))
+    .sort((a, b) => a.slotId - b.slotId);
+  return {
+    supported: true,
+    note: STATION_TRACKING_NOTE,
+    slotAssignments,
+    lastDeduction: deps.spoolmanTracker.getLastDeduction(contextId),
+  };
 }

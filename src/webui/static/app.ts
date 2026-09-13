@@ -393,6 +393,40 @@ export interface SpoolmanConfigResponse extends ApiResponse {
   serverUrl: string;
   updateMode: 'length' | 'weight';
   contextId: string | null;
+  station?: SpoolmanStationTracking | null;
+}
+
+/** Estimate-based tracking info for material-station contexts. */
+export interface SpoolmanStationTracking {
+  supported: boolean;
+  note: string;
+  slotAssignments: SpoolmanSlotAssignment[];
+  lastDeduction: DeductionSummary | null;
+}
+
+export interface SpoolmanSlotAssignment {
+  slotId: number;
+  spoolId: number;
+}
+
+export interface DeductionSummary {
+  fileName: string;
+  terminal: 'completed' | 'cancelled' | 'error';
+  fraction: number;
+  tools: ToolDeduction[];
+  deductedCount: number;
+  skippedCount: number;
+  at: string;
+}
+
+export interface ToolDeduction {
+  toolId: number;
+  slotId: number;
+  spoolId: number | null;
+  amount: number | null;
+  mode: 'weight' | 'length';
+  status: 'deducted' | 'skipped';
+  reason?: string;
 }
 
 export interface ActiveSpoolResponse extends ApiResponse {
@@ -411,6 +445,12 @@ export interface SlotConfigResponse extends ApiResponse {
   slot: number;
   material: string;
   colorHex: string;
+}
+
+export interface SlotSpoolResponse extends ApiResponse {
+  contextId: string;
+  slotId: number;
+  spoolId: number | null;
 }
 
 // ============================================================================

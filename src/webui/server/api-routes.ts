@@ -11,6 +11,7 @@ import { getConfigManager } from '../../managers/ConfigManager';
 import { getPrinterConnectionManager } from '../../managers/ConnectionFlowManager';
 import { getPrinterBackendManager } from '../../managers/PrinterBackendManager';
 import { getPrinterContextManager } from '../../managers/PrinterContextManager';
+import { getMultiContextSpoolmanTracker } from '../../services/MultiContextSpoolmanTracker';
 import { getSpoolmanIntegrationService } from '../../services/SpoolmanIntegrationService';
 import { createAuthMiddleware } from './auth-middleware';
 import { registerCalibrationRoutes } from './routes/calibration-routes';
@@ -39,6 +40,7 @@ export function buildRouteDependencies(): RouteDependencies {
     contextManager: getPrinterContextManager(),
     configManager: getConfigManager(),
     spoolmanService: getSpoolmanIntegrationService(),
+    spoolmanTracker: getMultiContextSpoolmanTracker(),
   };
 }
 

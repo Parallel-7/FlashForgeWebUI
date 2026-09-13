@@ -310,6 +310,11 @@ const COMPONENT_TEMPLATES: Record<string, WebUIComponentTemplate> = {
           <div id="spoolman-disabled" class="spoolman-state hidden">
             <div class="spoolman-message" id="spoolman-disabled-message">Spoolman integration is disabled</div>
           </div>
+          <div id="spoolman-station" class="spoolman-state hidden">
+            <div class="spoolman-message" id="spoolman-station-note">Consumption is estimated from files uploaded through this app.</div>
+            <div class="spool-stats" id="spoolman-station-slots"></div>
+            <div class="spool-meta" id="spoolman-station-summary"></div>
+          </div>
           <div id="spoolman-no-spool" class="spoolman-state hidden">
             <div class="spoolman-message">No spool selected</div>
             <button id="btn-select-spool" class="control-btn">Select Spool</button>

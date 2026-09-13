@@ -8,7 +8,8 @@
  * Key Features:
  * - Creates Spoolman usage tracker for each printer context
  * - Connects trackers to their respective print state monitors
- * - Handles tracker cleanup when contexts are removed
+ * - Handles tracker cleanup when contexts are removed (including pruning
+ *   the serial-keyed station tracking stores)
  * - Singleton pattern with global instance management
  *
  * Architecture:
@@ -30,9 +31,19 @@
  */
 
 import { getPrinterContextManager } from '../managers/PrinterContextManager';
+import { getPrinterBackendManager } from '../managers/PrinterBackendManager';
+import { getConfigManager } from '../managers/ConfigManager';
+import type { DeductionSummary } from '../types/spoolman-tracking';
 import { EventEmitter } from '../utils/EventEmitter';
 import type { PrintStateMonitor } from './PrintStateMonitor';
+import type { PrinterPollingService } from './PrinterPollingService';
+import { SpoolmanService } from './SpoolmanService';
+import { getSpoolmanIntegrationService } from './SpoolmanIntegrationService';
+import { getJobEstimateStore } from './JobEstimateStore';
+import { getSlotSpoolStore } from './SlotSpoolStore';
 import { SpoolmanUsageTracker } from './SpoolmanUsageTracker';
+import { StationUsageTracker } from './StationUsageTracker';
+import { pruneStationStores } from './station-store-key';
 
 /**
  * Event map for MultiContextSpoolmanTracker
@@ -53,13 +64,22 @@ interface MultiContextSpoolmanTrackerEventMap extends Record<string, unknown[]> 
       error: string;
     },
   ];
+  'station-deduction': [
+    {
+      contextId: string;
+      summary: DeductionSummary;
+    },
+  ];
 }
+
+/** Either tracker flavor owned by the coordinator. */
+export type ContextUsageTracker = SpoolmanUsageTracker | StationUsageTracker;
 
 /**
  * Manages Spoolman usage trackers for all printer contexts
  */
 export class MultiContextSpoolmanTracker extends EventEmitter<MultiContextSpoolmanTrackerEventMap> {
-  private readonly trackers = new Map<string, SpoolmanUsageTracker>();
+  private readonly trackers = new Map<string, ContextUsageTracker>();
   private isInitialized = false;
 
   /**
@@ -76,6 +96,9 @@ export class MultiContextSpoolmanTracker extends EventEmitter<MultiContextSpoolm
 
     contextManager.on('context-removed', (event) => {
       this.removeTrackerForContext(event.contextId);
+      // Also prune the serial-keyed station stores (estimates + ledger and
+      // slot→spool assignments) for every key this context may have used.
+      pruneStationStores(event.contextId);
     });
 
     this.isInitialized = true;
@@ -86,12 +109,32 @@ export class MultiContextSpoolmanTracker extends EventEmitter<MultiContextSpoolm
    * Create and configure Spoolman usage tracker for a context
    * Called when print state monitor is ready for a context
    *
+   * Material-station printers (Creator 5 series, AD5X with station) get the
+   * estimate-based {@link StationUsageTracker}; every other context keeps the
+   * unchanged single-spool {@link SpoolmanUsageTracker} flow.
+   *
    * @param contextId - Context ID
    * @param printStateMonitor - Print state monitor to attach to tracker
+   * @param pollingService - Polling service feeding the monitor (station
+   *   trackers use it to sample last-known progress for cancel deductions)
    */
-  public createTrackerForContext(contextId: string, printStateMonitor: PrintStateMonitor): void {
+  public createTrackerForContext(
+    contextId: string,
+    printStateMonitor: PrintStateMonitor,
+    pollingService?: PrinterPollingService
+  ): void {
     if (this.trackers.has(contextId)) {
       console.warn(`[MultiContextSpoolmanTracker] Tracker already exists for context ${contextId}`);
+      return;
+    }
+
+    const isStationContext = getPrinterBackendManager().isFeatureAvailable(
+      contextId,
+      'material-station'
+    );
+    if (isStationContext) {
+      this.createStationTracker(contextId, printStateMonitor, pollingService ?? null);
+      this.emit('tracker-created', { contextId });
       return;
     }
 
@@ -107,6 +150,35 @@ export class MultiContextSpoolmanTracker extends EventEmitter<MultiContextSpoolm
     console.log(`[MultiContextSpoolmanTracker] Created tracker for context ${contextId}`);
 
     this.emit('tracker-created', { contextId });
+  }
+
+  /**
+   * Create the estimate-based tracker for a material-station context.
+   */
+  private createStationTracker(
+    contextId: string,
+    printStateMonitor: PrintStateMonitor,
+    pollingService: PrinterPollingService | null
+  ): void {
+    const tracker = new StationUsageTracker({
+      contextId,
+      estimates: getJobEstimateStore(),
+      slots: getSlotSpoolStore(),
+      createSpoolmanService: () => {
+        const config = getConfigManager().getConfig();
+        if (!config.SpoolmanEnabled || !config.SpoolmanServerUrl) {
+          return null;
+        }
+        return new SpoolmanService(config.SpoolmanServerUrl);
+      },
+      integrationService: getSpoolmanIntegrationService(),
+      onSummary: (summary) => {
+        this.emit('station-deduction', { contextId, summary });
+      },
+    });
+    tracker.setMonitors(printStateMonitor, pollingService);
+    this.trackers.set(contextId, tracker);
+    console.log(`[MultiContextSpoolmanTracker] Created station tracker for context ${contextId}`);
   }
 
   /**
@@ -161,8 +233,23 @@ export class MultiContextSpoolmanTracker extends EventEmitter<MultiContextSpoolm
    * @param contextId - Context ID
    * @returns Tracker instance or undefined
    */
-  public getTracker(contextId: string): SpoolmanUsageTracker | undefined {
+  public getTracker(contextId: string): ContextUsageTracker | undefined {
     return this.trackers.get(contextId);
+  }
+
+  /**
+   * Get the station tracker for a context (estimate-based deduction), if any.
+   */
+  public getStationTracker(contextId: string): StationUsageTracker | undefined {
+    const tracker = this.trackers.get(contextId);
+    return tracker instanceof StationUsageTracker ? tracker : undefined;
+  }
+
+  /**
+   * Last deduction summary produced by a context's station tracker.
+   */
+  public getLastDeduction(contextId: string): DeductionSummary | null {
+    return this.getStationTracker(contextId)?.getLastSummary() ?? null;
   }
 
   /**
@@ -170,7 +257,7 @@ export class MultiContextSpoolmanTracker extends EventEmitter<MultiContextSpoolm
    *
    * @returns Array of all tracker instances
    */
-  public getAllTrackers(): SpoolmanUsageTracker[] {
+  public getAllTrackers(): ContextUsageTracker[] {
     return Array.from(this.trackers.values());
   }
 

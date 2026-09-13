@@ -1,20 +1,24 @@
 /**
- * @fileoverview Spoolman integration service with persistence and AD5X protection
+ * @fileoverview Spoolman integration service with persistence
  *
- * Manages active spool selections across printer contexts with per-printer persistence,
- * AD5X printer detection/blocking, and event broadcasting for WebUI synchronization.
+ * Manages active spool selections across printer contexts with per-printer persistence
+ * and event broadcasting for WebUI synchronization.
  * This service acts as the single source of truth for active spool data.
  *
  * Key Features:
  * - Persistent storage of active spool selections per printer in printer_details.json
- * - AD5X printer detection and automatic disablement
+ * - Support gating per context (any existing context is supported)
  * - Event-driven updates for real-time synchronization
  * - Integration with SpoolmanService for spool search and details
  * - Spoolman configuration validation and connection testing
  *
- * AD5X Detection Logic:
- * - Material station feature flag (materialStation.available === true), OR
- * - Printer model string starts with "AD5"
+ * Material-station printers (Creator 5 series, AD5X with station) are
+ * supported through estimate-based tracking (see StationUsageTracker):
+ * consumption is estimated from per-filament slicer data captured on
+ * upload and deducted against the spool assigned to each slot at terminal
+ * print states; slot assignments are stored per printer serial so they
+ * survive restarts and reconnects. The single active-spool flow below still
+ * applies to single-extruder contexts.
  *
  * @module services/SpoolmanIntegrationService
  */
@@ -29,6 +33,8 @@ import type { ActiveSpoolData, SpoolResponse, SpoolSearchQuery } from '../types/
 import { EventEmitter } from '../utils/EventEmitter';
 import { toAppError } from '../utils/error.utils';
 import { SpoolmanService } from './SpoolmanService';
+import { getSlotSpoolStore } from './SlotSpoolStore';
+import { resolveStationStoreKey } from './station-store-key';
 
 /**
  * Event payload for spool selection changes
@@ -98,28 +104,20 @@ export class SpoolmanIntegrationService extends EventEmitter<SpoolmanIntegration
 
   /**
    * Check if a specific printer context supports Spoolman integration
-   * Returns false for AD5X printers (material station or model name)
+   *
+   * Material-station printers (Creator 5 series, AD5X with station) are
+   * supported through estimate-based tracking: consumption is estimated
+   * from per-filament slicer data captured on upload and deducted per slot
+   * when the print reaches a terminal state (see StationUsageTracker).
    *
    * @param contextId - Context ID
-   * @returns true if context supports Spoolman, false if AD5X or unsupported
+   * @returns true if context supports Spoolman
    */
   isContextSupported(contextId: string): boolean {
     try {
       const context = this.contextManager.getContext(contextId);
       if (!context) {
         return false;
-      }
-
-      if (this.backendManager) {
-        const features = this.backendManager.getFeatures(contextId);
-        if (features?.materialStation?.available === true) {
-          return false; // AD5X with material station
-        }
-      }
-
-      const printerModel = context.printerDetails?.printerModel || '';
-      if (printerModel.startsWith('AD5')) {
-        return false; // AD5X model
       }
 
       return true;
@@ -144,10 +142,53 @@ export class SpoolmanIntegrationService extends EventEmitter<SpoolmanIntegration
     }
 
     if (!this.isContextSupported(contextId)) {
-      return 'Spoolman integration is not available for AD5X printers with material stations.';
+      return 'Spoolman integration is not available for this printer.';
     }
 
     return null;
+  }
+
+  /**
+   * Whether the context is a material-station printer (Creator 5 series,
+   * AD5X with station) using estimate-based Spoolman tracking.
+   *
+   * @param contextId - Context ID
+   * @returns true when the context tracks consumption per slot
+   */
+  isStationContext(contextId: string): boolean {
+    if (!this.backendManager) {
+      return false;
+    }
+    try {
+      const features = this.backendManager.getFeatures(contextId);
+      return features?.materialStation?.available === true;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Assign (or clear, with null) the Spoolman spool bound to a material
+   * station slot for a context. Station printers deduct consumption per
+   * slot at terminal print states.
+   *
+   * @param contextId - Context ID
+   * @param slotId - Material station slot number
+   * @param spoolId - Spoolman spool id, or null to clear
+   */
+  setSpoolForSlot(contextId: string, slotId: number, spoolId: number | null): void {
+    // Keyed by printer serial so assignments survive restarts/reconnects.
+    getSlotSpoolStore().setSpoolForSlot(resolveStationStoreKey(contextId), slotId, spoolId);
+  }
+
+  /**
+   * Slot→spool assignments for a station context.
+   *
+   * @param contextId - Context ID
+   * @returns Map of slot id to spool id
+   */
+  getSlotSpoolMap(contextId: string): ReadonlyMap<number, number> {
+    return getSlotSpoolStore().getSlotMap(resolveStationStoreKey(contextId));
   }
 
   /**
@@ -172,7 +213,7 @@ export class SpoolmanIntegrationService extends EventEmitter<SpoolmanIntegration
    *
    * @param contextId - Context ID (defaults to active context)
    * @param spoolData - Spool data to set
-   * @throws Error if context is unsupported (AD5X)
+   * @throws Error if context is unsupported
    */
   async setActiveSpool(contextId: string | undefined, spoolData: ActiveSpoolData): Promise<void> {
     const targetContextId = contextId || this.contextManager.getActiveContextId();
@@ -181,9 +222,7 @@ export class SpoolmanIntegrationService extends EventEmitter<SpoolmanIntegration
     }
 
     if (!this.isContextSupported(targetContextId)) {
-      throw new Error(
-        'Spoolman integration is disabled for this printer (AD5X with material station)'
-      );
+      throw new Error('Spoolman integration is not available for this printer');
     }
 
     const context = this.contextManager.getContext(targetContextId);
@@ -204,7 +243,7 @@ export class SpoolmanIntegrationService extends EventEmitter<SpoolmanIntegration
    * Removes from printer details and emits 'spoolman-changed' event
    *
    * @param contextId - Context ID (defaults to active context)
-   * @throws Error if context is unsupported (AD5X)
+   * @throws Error if context is unsupported
    */
   async clearActiveSpool(contextId?: string): Promise<void> {
     const targetContextId = contextId || this.contextManager.getActiveContextId();
@@ -212,11 +251,9 @@ export class SpoolmanIntegrationService extends EventEmitter<SpoolmanIntegration
       throw new Error('No active printer context');
     }
 
-    // Validate context support (AD5X stays blocked from clearing)
+    // Validate context support
     if (!this.isContextSupported(targetContextId)) {
-      throw new Error(
-        'Spoolman integration is disabled for this printer (AD5X with material station)'
-      );
+      throw new Error('Spoolman integration is not available for this printer');
     }
 
     const context = this.contextManager.getContext(targetContextId);

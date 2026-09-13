@@ -95,6 +95,18 @@ export interface StartStandaloneWebUIOptions {
   password?: string;
   /** Number of printers the server must have connected before tests start. */
   requireConnectedPrinters?: number;
+  /**
+   * Extra config.json keys merged into the seeded config (e.g. Spoolman
+   * settings). Values here win over the deterministic defaults.
+   */
+  configOverrides?: Record<string, unknown>;
+  /**
+   * Emulator print simulation mode for every spawned instance. Defaults to
+   * 'manual' (progress moves only via /__simulate jumps). 'auto' lets the
+   * emulator heat up and transition heating → printing on its own, which
+   * specs can still freeze with /__simulate {action:'pause'} + jump.
+   */
+  emulatorSimulationMode?: 'auto' | 'manual';
 }
 
 const sleep = async (ms: number): Promise<void> =>
@@ -147,7 +159,8 @@ const seedDataDir = async (
   printers: readonly StandalonePrinter[],
   ip: string,
   port: number,
-  password: string
+  password: string,
+  configOverrides?: Record<string, unknown>
 ): Promise<void> => {
   await mkdir(dataDir, { recursive: true });
 
@@ -185,6 +198,7 @@ const seedDataDir = async (
         WebUIPort: port,
         WebUIPassword: password,
         WebUIPasswordRequired: true,
+        ...configOverrides,
       },
       null,
       2
@@ -377,7 +391,7 @@ export const startStandaloneWebUI = async (
           tcpPort: printer.tcpPort,
           httpPort: printer.httpPort,
           discoveryEnabled: true,
-          simulationMode: 'manual',
+          simulationMode: options?.emulatorSimulationMode ?? 'manual',
           simulationSpeed: 100,
         },
       });
@@ -396,7 +410,7 @@ export const startStandaloneWebUI = async (
     const port = await findFreePort();
     const baseUrl = `http://127.0.0.1:${port}`;
 
-    await seedDataDir(dataDir, seedPrinters, printerIp, port, password);
+    await seedDataDir(dataDir, seedPrinters, printerIp, port, password, options?.configOverrides);
 
     server = spawnServer({ dataDir, port, password });
     await waitForServer(baseUrl, server, SERVER_READY_TIMEOUT_MS);

@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Estimate-based Spoolman tracking for material-station printers (Creator 5, Creator 5 Pro, AD5X with a material station).** Filament consumption for these printers cannot be read live from the firmware, so it is now estimated instead: when a print file is uploaded through the WebUI, the per-filament usage data from the slicer file is captured alongside the tool→slot material mappings, and when that print reaches a terminal state the estimated usage of each tool is deducted from the Spoolman spool assigned to its slot. A cancelled print deducts only the fraction the progress readouts say was actually consumed. Prints started from the printer's own screen (not uploaded through the WebUI) carry no slicer usage data, so they are deliberately left untracked rather than guessed at. Slot→spool assignments are remembered per printer serial, so they survive app restarts and printer reconnects.
+- **AD5X without a material station now gets single-spool Spoolman tracking.** Previously the AD5X was excluded from Spoolman integration outright; without a station it reports one extruder, so it now uses the same active-spool flow as the Adventurer 5M series.
+- **GitHub Actions CI (`ci.yml`).** Pushes and pull requests on `main` and `alpha` now run two jobs: `verify` (type-check, lint, build, unit tests on Node 20) and `e2e-emulator` (the browser E2E suite against the `flashforge-emulator-v2` printer emulator, so no real printer is needed). The emulator is pinned to `v0.2.0`. A manual-run input can point the E2E job at a different emulator release. A failed E2E run uploads the Playwright report as an artifact.
+
+### Fixed
+
+- **Bundled go2rtc camera-streaming binaries are now executable.** The five non-Windows binaries shipped with file mode `100644` instead of `100755`, so a fresh Linux or macOS checkout could not start the server — it exited with `EACCES` when it tried to launch go2rtc.
+
+### Testing
+
+- **Browser E2E suite expanded from 14 to 38 tests**, mirroring the desktop app's per-model emulator track:
+  - A shared four-model emulator matrix (Adventurer 5M Pro, AD5X, Creator 5, Creator 5 Pro) with per-model capability flags; every functional spec now loops all four models
+  - New connect-flow specs: auto-connect, manual connect for each model, rejection of a wrong check code, and UDP discovery
+  - New per-model specs for LED control and job upload
+  - Upload checks mirror the desktop app: the material-matching dialog must appear for a `.3mf` on material-station printers (AD5X, Creator 5, Creator 5 Pro) and never on the 5M series; the uploaded file must land on the printer; with **Start Now** unchecked, the upload must not start a print
+  - Gating and heater specs refactored onto the shared matrix — gating now covers the AD5X, and heaters cover all four models, including per-tool temperature readings on the Creator 5 series
+  - Specs open remembered-token pages, which keeps every suite inside the login rate limit (5 logins per 15 minutes per IP)
+
 ## [1.2.0-alpha.7] - 2026-08-21
 
 ### Added
