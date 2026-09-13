@@ -82,19 +82,8 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-pkg-
 
-      - name: Configure GitHub Packages
-        shell: bash
-        run: |
-          echo "@ghosttypes:registry=https://npm.pkg.github.com" >> .npmrc
-          echo "@parallel-7:registry=https://npm.pkg.github.com" >> .npmrc
-          echo "//npm.pkg.github.com/:_authToken=${{ secrets.GITHUB_TOKEN }}" >> .npmrc
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Pre-download ARMv7 Node.js Binary
         if: matrix.arch == 'armv7'

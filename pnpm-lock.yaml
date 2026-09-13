@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       '@ghosttypes/ff-api':
-        specifier: ^2.0.1
-        version: 2.0.1
+        specifier: ^2.0.3
+        version: 2.0.3
       '@parallel-7/slicer-meta':
         specifier: 1.5.0
         version: 1.5.0
@@ -647,8 +647,8 @@ packages:
     cpu: [x64]
     os: [win32]
 
-  '@ghosttypes/ff-api@2.0.1':
-    resolution: {integrity: sha512-8vVpvgMQZEoRGfzwZci56IbSxWifUDqM0CWCHilMXBeiCxGScFg4xjJ/tr3EYG4fVkMI3j59IL84OyAocUx4Mw==, tarball: https://npm.pkg.github.com/download/@ghosttypes/ff-api/2.0.1/c74bbb2a74c76656e7c5d8caab2d6c73bd09f13e}
+  '@ghosttypes/ff-api@2.0.3':
+    resolution: {integrity: sha512-IFUU/89DZjcWUFFvj+AkSL+xHMRAno7E4knGXbuWz8Vvwudwg0rlBmHxKqEoJw3NMAZzM5GUzf4m1evwEazalw==}
 
   '@isaacs/cliui@8.0.2':
     resolution: {integrity: sha512-O8jcjabXaleOG9DQ0+ARXWZBTfnP4WNAqzuiJK7ll44AmxGKv/J2M4TPjxjY3znBCfvBXFzucm1twdyFybFqEA==}
@@ -771,7 +771,7 @@ packages:
     resolution: {integrity: sha512-8L9xFeTYKhm49xfIypoe2W5wV1m/3Z58kT+7kR9A8OyFxcPduI4VmxaUMQyKYrRjUoLLSXv6EKKID5Tvj9cUVw==}
 
   '@parallel-7/slicer-meta@1.5.0':
-    resolution: {integrity: sha512-BMtQbY6RTXb9V1rlR5lGxpW7ps9gguQP7d8K/lp/3i0PsCvVoKWmx1UCaYoFeZtnJt4DmOKyfNGez6h4r8DfYg==, tarball: https://npm.pkg.github.com/download/@parallel-7/slicer-meta/1.5.0/e6b3aa0f46b60b1f5ad5869975ec906855fa373f}
+    resolution: {integrity: sha512-2+vkKyGpJpzh8T9etXi5XYGVPNmcWnUZZ95fM2j4VQ2m1vXChCJ8uInk3QbAPXPBuIE/y7IE5avhBP/UULm7Hg==}
 
   '@paralleldrive/cuid2@2.3.1':
     resolution: {integrity: sha512-XO7cAxhnTZl0Yggq6jOgjiOHhbgcO4NqFqwSmQpjK3b6TEE6Uj/jfSk6wzYyemh3+I0sHirKSetjQwn5cZktFw==}
@@ -3039,7 +3039,7 @@ snapshots:
   '@esbuild/win32-x64@0.27.3':
     optional: true
 
-  '@ghosttypes/ff-api@2.0.1':
+  '@ghosttypes/ff-api@2.0.3':
     dependencies:
       axios: 1.13.6
       form-data: 4.0.5
