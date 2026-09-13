@@ -110,4 +110,107 @@ test.describe('WebUI bed/extruder heater routes', () => {
       expect(detail.nozzleTargetTemps?.slice(1)).toEqual([0, 0, 0]);
     });
   }
+
+  // ---------------------------------------------------------------------------
+  // Creator 5 series per-tool heater routes
+  // ---------------------------------------------------------------------------
+  // The /tool/:index routes exist specifically for the C5 wire format (fixed
+  // 4-entry nozzles array, no G-code passthrough). Pin that only the addressed
+  // entry moves and the rest of the array is untouched — a legacy-scalar
+  // payload would silently no-op here, which is exactly the bug class the
+  // HTTP fallback fix closed.
+
+  for (const target of MODEL_TARGETS.filter((candidate) => candidate.isCreator5Series)) {
+    const printer = target.printer;
+
+    test(`sets and cancels a secondary tool target on ${printer.machineName}`, async () => {
+      const contextId = await resolveContextId(webui, token, printer.machineName);
+
+      // Baseline captured first: tests share one emulator instance, so this
+      // must be order-independent (earlier tests may leave T0 at a target).
+      const before = await readEmulatorDetail(printer);
+      const baseline = before.nozzleTargetTemps ?? [0, 0, 0, 0];
+
+      const toolResult = await postHeaterCommand(webui, token, contextId, 'tool/1', {
+        temperature: 210,
+      });
+      expect(toolResult.status, `tool 1 set failed: ${toolResult.payload.error}`).toBe(200);
+      expect(toolResult.payload.success).toBe(true);
+      await expect
+        .poll(async () => (await readEmulatorDetail(printer)).nozzleTargetTemps?.[1])
+        .toBe(210);
+
+      // Only the addressed slot changed; every other entry keeps its prior target.
+      const during = await readEmulatorDetail(printer);
+      expect(during.nozzleTargetTemps?.[0]).toBe(baseline[0]);
+      expect(during.nozzleTargetTemps?.slice(2)).toEqual(baseline.slice(2));
+
+      const offResult = await postHeaterCommand(webui, token, contextId, 'tool/1/off');
+      expect(offResult.status, `tool 1 off failed: ${offResult.payload.error}`).toBe(200);
+      await expect
+        .poll(async () => (await readEmulatorDetail(printer)).nozzleTargetTemps?.[1])
+        .toBe(0);
+    });
+  }
+
+  // ---------------------------------------------------------------------------
+  // Creator 5 Pro chamber heater (only model with a chamber)
+  // ---------------------------------------------------------------------------
+
+  for (const target of MODEL_TARGETS.filter((c) => c.printer.machineName === 'Matrix-Creator5Pro')) {
+    const printer = target.printer;
+
+    test(`sets, clamps, and cancels the chamber target on ${printer.machineName}`, async () => {
+      const contextId = await resolveContextId(webui, token, printer.machineName);
+
+      const setResult = await postHeaterCommand(webui, token, contextId, 'chamber', {
+        temperature: 60,
+      });
+      expect(setResult.status, `chamber set failed: ${setResult.payload.error}`).toBe(200);
+      await expect
+        .poll(async () => (await readEmulatorDetail(printer)).chamberTargetTemp)
+        .toBe(60);
+
+      // 100 °C must clamp to the firmware ceiling (80) — asserted at the
+      // emulator's own state, so both the WebUI clamp and the wire behavior
+      // are pinned.
+      const clampResult = await postHeaterCommand(webui, token, contextId, 'chamber', {
+        temperature: 100,
+      });
+      expect(clampResult.status, `chamber clamp failed: ${clampResult.payload.error}`).toBe(200);
+      await expect
+        .poll(async () => (await readEmulatorDetail(printer)).chamberTargetTemp)
+        .toBe(80);
+
+      const offResult = await postHeaterCommand(webui, token, contextId, 'chamber/off');
+      expect(offResult.status, `chamber off failed: ${offResult.payload.error}`).toBe(200);
+      await expect
+        .poll(async () => (await readEmulatorDetail(printer)).chamberTargetTemp)
+        .toBe(0);
+    });
+  }
+
+  // ---------------------------------------------------------------------------
+  // Base Creator 5: chamber command must be a documented silent no-op
+  // ---------------------------------------------------------------------------
+
+  for (const target of MODEL_TARGETS.filter((c) => c.printer.machineName === 'Matrix-Creator5')) {
+    const printer = target.printer;
+
+    test(`chamber command is silently ACKed and does nothing on ${printer.machineName}`, async () => {
+      const contextId = await resolveContextId(webui, token, printer.machineName);
+
+      // Firmware silently ACKs {code:0} for the chamber on the base C5 (no
+      // chamber heater). The API must therefore succeed — but /detail must
+      // keep reporting the no-chamber sentinel (-108 per the endpoint docs).
+      const result = await postHeaterCommand(webui, token, contextId, 'chamber', {
+        temperature: 60,
+      });
+      expect(result.status).toBe(200);
+      expect(result.payload.success).toBe(true);
+
+      const after = await readEmulatorDetail(printer);
+      expect(after.chamberTargetTemp).toBe(-108);
+    });
+  }
 });
