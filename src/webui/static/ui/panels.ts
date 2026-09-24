@@ -338,7 +338,7 @@ export function updateSpoolmanPanelState(): void {
     return;
   }
 
-  // Material-station contexts: estimate-based tracking view instead of the
+  // Material-station contexts: per-job tracking view instead of the
   // single active-spool view.
   if (station && state.spoolmanConfig?.station) {
     hideElement('spoolman-disabled');

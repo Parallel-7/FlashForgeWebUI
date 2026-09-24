@@ -109,7 +109,7 @@ export class MultiContextSpoolmanTracker extends EventEmitter<MultiContextSpoolm
    * Called when print state monitor is ready for a context
    *
    * Material-station printers (Creator 5 series, AD5X with station) get the
-   * estimate-based {@link StationUsageTracker}; every other context keeps the
+   * per-job {@link StationUsageTracker}; every other context keeps the
    * unchanged single-spool {@link SpoolmanUsageTracker} flow.
    *
    * @param contextId - Context ID
@@ -152,7 +152,7 @@ export class MultiContextSpoolmanTracker extends EventEmitter<MultiContextSpoolm
   }
 
   /**
-   * Create the estimate-based tracker for a material-station context.
+   * Create the per-job tracker for a material-station context.
    */
   private createStationTracker(
     contextId: string,
@@ -236,7 +236,7 @@ export class MultiContextSpoolmanTracker extends EventEmitter<MultiContextSpoolm
   }
 
   /**
-   * Get the station tracker for a context (estimate-based deduction), if any.
+   * Get the station tracker for a context (per-job deduction), if any.
    */
   public getStationTracker(contextId: string): StationUsageTracker | undefined {
     const tracker = this.trackers.get(contextId);

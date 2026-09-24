@@ -147,7 +147,7 @@ export class SpoolmanIntegrationService extends EventEmitter<SpoolmanIntegration
 
   /**
    * Whether the context is a material-station printer (Creator 5 series,
-   * AD5X with station) using estimate-based Spoolman tracking.
+   * AD5X with station) using per-job Spoolman tracking.
    *
    * @param contextId - Context ID
    * @returns true when the context tracks consumption per slot
