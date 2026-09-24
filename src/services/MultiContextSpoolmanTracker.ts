@@ -33,17 +33,16 @@
 import { getPrinterContextManager } from '../managers/PrinterContextManager';
 import { getPrinterBackendManager } from '../managers/PrinterBackendManager';
 import { getConfigManager } from '../managers/ConfigManager';
-import type { DeductionSummary } from '../types/spoolman-tracking';
+import type { DeductionSummary, TrackedJob } from '../types/spoolman-tracking';
 import { EventEmitter } from '../utils/EventEmitter';
 import type { PrintStateMonitor } from './PrintStateMonitor';
 import type { PrinterPollingService } from './PrinterPollingService';
 import { SpoolmanService } from './SpoolmanService';
 import { getSpoolmanIntegrationService } from './SpoolmanIntegrationService';
-import { getJobEstimateStore } from './JobEstimateStore';
-import { getSlotSpoolStore } from './SlotSpoolStore';
 import { SpoolmanUsageTracker } from './SpoolmanUsageTracker';
 import { StationUsageTracker } from './StationUsageTracker';
-import { pruneStationStores } from './station-store-key';
+import { forgetStationContext } from './station-store-key';
+import { getTrackedJobStore } from './TrackedJobStore';
 
 /**
  * Event map for MultiContextSpoolmanTracker
@@ -96,9 +95,9 @@ export class MultiContextSpoolmanTracker extends EventEmitter<MultiContextSpoolm
 
     contextManager.on('context-removed', (event) => {
       this.removeTrackerForContext(event.contextId);
-      // Also prune the serial-keyed station stores (estimates + ledger and
-      // slot→spool assignments) for every key this context may have used.
-      pruneStationStores(event.contextId);
+      // The tracked job itself stays in the store: a printer that reconnects
+      // mid-print is still tracked under its serial.
+      forgetStationContext(event.contextId);
     });
 
     this.isInitialized = true;
@@ -162,8 +161,7 @@ export class MultiContextSpoolmanTracker extends EventEmitter<MultiContextSpoolm
   ): void {
     const tracker = new StationUsageTracker({
       contextId,
-      estimates: getJobEstimateStore(),
-      slots: getSlotSpoolStore(),
+      jobs: getTrackedJobStore(),
       createSpoolmanService: () => {
         const config = getConfigManager().getConfig();
         if (!config.SpoolmanEnabled || !config.SpoolmanServerUrl) {
@@ -250,6 +248,13 @@ export class MultiContextSpoolmanTracker extends EventEmitter<MultiContextSpoolm
    */
   public getLastDeduction(contextId: string): DeductionSummary | null {
     return this.getStationTracker(contextId)?.getLastSummary() ?? null;
+  }
+
+  /**
+   * The job a context's station tracker tracks now, if any.
+   */
+  public getTrackedJob(contextId: string): TrackedJob | null {
+    return this.getStationTracker(contextId)?.getTrackedJob() ?? null;
   }
 
   /**

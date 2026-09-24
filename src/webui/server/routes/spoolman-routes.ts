@@ -1,6 +1,6 @@
 /**
  * @fileoverview Spoolman integration routes (config, search, active spool
- * management, material-station slot→spool assignments).
+ * management, per-job tracking view for material-station printers).
  */
 
 import { FiveMClient } from '@ghosttypes/ff-api';
@@ -9,14 +9,12 @@ import { toAppError } from '../../../utils/error.utils';
 import {
   createValidationError,
   SlotConfigRequestSchema,
-  SlotSpoolSetRequestSchema,
   SpoolClearRequestSchema,
   SpoolSelectRequestSchema,
 } from '../../schemas/web-api.schemas';
 import type {
   ActiveSpoolResponse,
   SlotConfigResponse,
-  SlotSpoolResponse,
   SpoolmanConfigResponse,
   SpoolmanStationTracking,
   SpoolSearchResponse,
@@ -291,67 +289,18 @@ export function registerSpoolmanRoutes(router: Router, deps: RouteDependencies):
       return sendErrorResponse<SlotConfigResponse>(res, 500, appError.message);
     }
   });
-
-  // Stage 2 (Spoolman estimate tracking): slot→spool assignment CRUD for
-  // material-station contexts. The Material Station UI's "Set from Spoolman"
-  // flow populates this map; terminal-state deductions resolve
-  // tool → slot → spool through it.
-  router.post('/spoolman/slot-spool', async (req: AuthenticatedRequest, res: Response) => {
-    try {
-      const validation = SlotSpoolSetRequestSchema.safeParse(req.body);
-      if (!validation.success) {
-        const validationError = createValidationError(validation.error);
-        return sendErrorResponse<SlotSpoolResponse>(res, 400, validationError.error);
-      }
-
-      const { contextId, slotId, spoolId } = validation.data;
-      const contextResult = resolveContext(req, deps, { overrideContextId: contextId || null });
-      if (!contextResult.success) {
-        return sendErrorResponse<SlotSpoolResponse>(
-          res,
-          contextResult.statusCode,
-          contextResult.error
-        );
-      }
-
-      if (!deps.spoolmanService.isStationContext(contextResult.contextId)) {
-        return sendErrorResponse<SlotSpoolResponse>(
-          res,
-          409,
-          'Slot spool assignment requires a printer with a material station'
-        );
-      }
-
-      if (spoolId !== null) {
-        // Validate the spool exists so typos surface immediately.
-        await deps.spoolmanService.getSpoolById(spoolId);
-      }
-
-      deps.spoolmanService.setSpoolForSlot(contextResult.contextId, slotId, spoolId);
-
-      const response: SlotSpoolResponse = {
-        success: true,
-        contextId: contextResult.contextId,
-        slotId,
-        spoolId,
-      };
-      return res.json(response);
-    } catch (error) {
-      const appError = toAppError(error);
-      return sendErrorResponse<SlotSpoolResponse>(res, 500, appError.message);
-    }
-  });
 }
 
 /** Copy shown in the Spoolman panel for station contexts. */
 const STATION_TRACKING_NOTE =
-  'Consumption is estimated from files uploaded through this app, and from ' +
-  'single-material files started through this app when exactly one slot has a ' +
-  'spool assigned. Prints started on the printer itself are not tracked.';
+  'Choose a spool for each tool when you match materials for an upload. ' +
+  'The slicer estimate is charged to those spools when the print ends. ' +
+  'Each spool choice applies to that one print only. ' +
+  'Prints started on the printer, or files sent without Start Now, are not tracked.';
 
 /**
- * Assemble estimate-based tracking info for a context, or null when the
- * context has no material station.
+ * Assemble per-job tracking info for a context, or null when the context has
+ * no material station.
  */
 function buildStationTracking(
   deps: RouteDependencies,
@@ -360,13 +309,25 @@ function buildStationTracking(
   if (!deps.spoolmanService.isStationContext(contextId)) {
     return null;
   }
-  const slotAssignments = [...deps.spoolmanService.getSlotSpoolMap(contextId).entries()]
-    .map(([slotId, spoolId]) => ({ slotId, spoolId }))
-    .sort((a, b) => a.slotId - b.slotId);
+  const job = deps.spoolmanTracker.getTrackedJob(contextId);
   return {
     supported: true,
     note: STATION_TRACKING_NOTE,
-    slotAssignments,
+    activeJob: job
+      ? {
+          fileName: job.fileName,
+          started: job.startedAt !== null,
+          lastProgress: job.lastProgress,
+          hasUsageProfile: job.usageProfile !== null,
+          tools: job.tools.map((tool) => ({
+            toolId: tool.toolId,
+            slotId: tool.slotId,
+            spoolId: tool.spoolId,
+            usedG: tool.usedG,
+            usedM: tool.usedM,
+          })),
+        }
+      : null,
     lastDeduction: deps.spoolmanTracker.getLastDeduction(contextId),
   };
 }

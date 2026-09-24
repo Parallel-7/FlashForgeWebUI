@@ -4,7 +4,11 @@
 
 import type { Response, Router } from 'express';
 import { isAD5XJobInfo } from '../../../printer-backends/ad5x/ad5x-utils';
-import { captureStoredFileEstimate } from '../../../services/stored-file-estimate';
+import {
+  clearTrackedJob,
+  commitStoredFileJob,
+  prepareStoredFileJob,
+} from '../../../services/job-tracking';
 import { getThumbnailCacheService } from '../../../services/ThumbnailCacheService';
 import type { AD5XJobInfo, BasicJobInfo } from '../../../types/printer-backend/backend-operations';
 import { toAppError } from '../../../utils/error.utils';
@@ -75,6 +79,29 @@ export function registerJobRoutes(router: Router, deps: RouteDependencies): void
         }
       }
 
+      // Spoolman per-job tracking for a file already on the printer: read the
+      // printer's per-tool data before the start, while the file list is
+      // stable. Only jobs with spool choices from the matching dialog qualify.
+      const contextId = contextResult.contextId;
+      const isStation = deps.backendManager.isFeatureAvailable(contextId, 'material-station');
+      const { spoolAssignments, startNow, filename } = validation.data;
+      let trackedTools: Awaited<ReturnType<typeof prepareStoredFileJob>> | null = null;
+      if (isStation && startNow && materialMappings?.length && spoolAssignments?.length) {
+        try {
+          trackedTools = await prepareStoredFileJob(
+            contextId,
+            filename,
+            materialMappings,
+            spoolAssignments
+          );
+        } catch (error) {
+          console.warn(
+            '[job-routes] Spoolman job tracking lookup failed (start continues):',
+            error instanceof Error ? error.message : error
+          );
+        }
+      }
+
       const result = await deps.backendManager.startJob(contextResult.contextId, {
         operation: 'start',
         fileName: validation.data.filename,
@@ -84,31 +111,19 @@ export function registerJobRoutes(router: Router, deps: RouteDependencies): void
           materialMappings && materialMappings.length > 0 ? { materialMappings } : undefined,
       });
 
-      // Stored-file start (file already on the printer): best-effort capture of
-      // a printer-metadata estimate so single-material jobs started from the
-      // file list are Spoolman-tracked without an app upload. Deliberately
-      // fire-and-forget: never blocks the start response on the printer's
-      // gcodeList round-trip and never fails the start. A one-shot retry for
-      // recent-list propagation lag lives inside that promise, so it adds no
-      // waiting here. The record is only consumed at print completion, so
-      // nobody needs it in this response.
-      // captureStoredFileEstimate never rejects (it returns a reason), but the
-      // .catch keeps that guarantee from turning into an unhandled rejection
-      // if that ever drifts; the try/catch covers a synchronous throw.
-      if (result.success && validation.data.startNow) {
-        const warnCaptureFailure = (error: unknown): void => {
+      if (isStation && result.success && startNow) {
+        try {
+          clearTrackedJob(contextId);
+          if (trackedTools && 'tools' in trackedTools) {
+            commitStoredFileJob(contextId, filename, trackedTools.tools);
+          } else if (trackedTools) {
+            console.log(`[job-routes] ${filename} is not Spoolman-tracked (${trackedTools.reason}).`);
+          }
+        } catch (error) {
           console.warn(
-            '[job-routes] Stored-file Spoolman estimate capture failed:',
+            '[job-routes] Spoolman job tracking failed (start continues):',
             error instanceof Error ? error.message : error
           );
-        };
-        try {
-          void captureStoredFileEstimate(
-            contextResult.contextId,
-            validation.data.filename
-          ).catch(warnCaptureFailure);
-        } catch (error) {
-          warnCaptureFailure(error);
         }
       }
 

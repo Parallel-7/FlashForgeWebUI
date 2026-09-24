@@ -309,6 +309,8 @@ export interface UploadSliceWarning {
 
 /** Per-tool filament entry parsed out of a staged upload. */
 export interface UploadFilamentInfo {
+  /** Gcode tool index (0-based) this filament prints with. */
+  toolId: number;
   type: string | null;
   color: string | null;
   usedM: string | null;
@@ -400,19 +402,35 @@ export interface SpoolmanConfigResponse extends ApiResponse {
 export interface SpoolmanStationTracking {
   supported: boolean;
   note: string;
-  slotAssignments: SpoolmanSlotAssignment[];
+  activeJob: SpoolmanTrackedJobView | null;
   lastDeduction: DeductionSummary | null;
 }
 
-export interface SpoolmanSlotAssignment {
-  slotId: number;
-  spoolId: number;
+export interface SpoolmanTrackedJobView {
+  fileName: string;
+  started: boolean;
+  lastProgress: number | null;
+  hasUsageProfile: boolean;
+  tools: Array<{
+    toolId: number;
+    slotId: number;
+    spoolId: number;
+    usedG: number | null;
+    usedM: number | null;
+  }>;
+}
+
+/** Spool chosen for one tool in the matching dialog (null = do not track). */
+export interface SpoolAssignment {
+  toolId: number;
+  spoolId: number | null;
 }
 
 export interface DeductionSummary {
   fileName: string;
-  terminal: 'completed' | 'cancelled' | 'error';
-  fraction: number;
+  terminal: 'completed' | 'cancelled' | 'error' | 'interrupted';
+  progress: number;
+  approximate: boolean;
   tools: ToolDeduction[];
   deductedCount: number;
   skippedCount: number;
@@ -425,6 +443,7 @@ export interface ToolDeduction {
   spoolId: number | null;
   amount: number | null;
   mode: 'weight' | 'length';
+  fraction: number;
   status: 'deducted' | 'skipped';
   reason?: string;
 }
@@ -445,12 +464,6 @@ export interface SlotConfigResponse extends ApiResponse {
   slot: number;
   material: string;
   colorHex: string;
-}
-
-export interface SlotSpoolResponse extends ApiResponse {
-  contextId: string;
-  slotId: number;
-  spoolId: number | null;
 }
 
 // ============================================================================

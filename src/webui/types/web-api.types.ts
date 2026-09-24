@@ -365,31 +365,32 @@ export interface SpoolmanConfigResponse extends StandardAPIResponse {
 }
 
 /**
- * Estimate-based tracking info for material-station contexts.
+ * Per-job tracking info for material-station contexts.
  */
 export interface SpoolmanStationTracking {
   readonly supported: boolean;
-  /** Honest copy surfaced in the panel. */
+  /** Plain explanation surfaced in the panel. */
   readonly note: string;
-  readonly slotAssignments: readonly SpoolmanSlotAssignment[];
+  /** The job tracked now, or null. */
+  readonly activeJob: SpoolmanTrackedJobView | null;
   readonly lastDeduction: DeductionSummary | null;
 }
 
 /**
- * One slot→spool assignment of a station context.
+ * Panel view of the job tracked now.
  */
-export interface SpoolmanSlotAssignment {
-  readonly slotId: number;
-  readonly spoolId: number;
-}
-
-/**
- * Slot→spool assignment mutation response.
- */
-export interface SlotSpoolResponse extends StandardAPIResponse {
-  readonly contextId: string;
-  readonly slotId: number;
-  readonly spoolId: number | null;
+export interface SpoolmanTrackedJobView {
+  readonly fileName: string;
+  readonly started: boolean;
+  readonly lastProgress: number | null;
+  readonly hasUsageProfile: boolean;
+  readonly tools: ReadonlyArray<{
+    readonly toolId: number;
+    readonly slotId: number;
+    readonly spoolId: number;
+    readonly usedG: number | null;
+    readonly usedM: number | null;
+  }>;
 }
 
 /**
@@ -501,6 +502,8 @@ export interface UploadSliceWarning {
  * matching modal on material-station printers (AD5X, Creator 5 / 5 Pro).
  */
 export interface UploadFilamentInfo {
+  /** Gcode tool index (0-based) this filament prints with. */
+  readonly toolId: number;
   readonly type: string | null;
   readonly color: string | null;
   readonly usedM: string | null;

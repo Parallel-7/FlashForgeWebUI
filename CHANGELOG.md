@@ -9,13 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Estimate-based Spoolman tracking for material-station printers (Creator 5, Creator 5 Pro, AD5X with a material station).** Filament consumption for these printers cannot be read live from the firmware, so it is now estimated instead: when a print file is uploaded through the WebUI, the per-filament usage data from the slicer file is captured alongside the tool→slot material mappings, and when that print reaches a terminal state the estimated usage of each tool is deducted from the Spoolman spool assigned to its slot. A cancelled print deducts only the fraction the progress readouts say was actually consumed. Prints started from the printer's own screen (not uploaded through the WebUI) carry no slicer usage data, so they are deliberately left untracked rather than guessed at. Slot→spool assignments are remembered per printer serial, so they survive app restarts and printer reconnects.
+- **Per-job Spoolman tracking for material-station printers (Creator 5, Creator 5 Pro, AD5X with a material station).** These printers do not report filament use per tool, so the app estimates it. When you match materials for an upload, the matching dialog now also asks for the Spoolman spool in each slot, or "Do not track". The choice applies to that one print only. When the print ends, the slicer's estimate for each tool is charged to its spool, and the choice is deleted. The app never remembers a spool per slot or per printer, because the spools on the printer can change at any time.
+  - A completed print charges each spool its full estimate.
+  - A cancelled or failed print charges each tool for what it printed up to the last progress value. The app reads the gcode inside the 3MF when you upload it and finds how much of each tool's filament is used at each point of the file. The printer's progress is the position in that same file, so a tool that only prints the top half of a model is charged nothing if the print stops at 40%.
+  - Pause and resume charge nothing.
+  - If the app was not running when the print ended, it charges the last saved progress on the next status update and marks the result "approximate". A completed print is charged in full.
+  - Only prints the app starts are tracked. A file sent without **Start Now**, a print started on the printer, and a reprint of the same file from the printer's screen are not tracked.
+  - On the AD5X, a multi-material file already on the printer is tracked when you start it through the matching dialog. The estimate comes from the printer's file list, and a cancel is charged by progress, because the app has no gcode for that file.
+  - The Spoolman panel shows the tracked print, its spool per tool, and the result of the last charge.
 - **AD5X without a material station now gets single-spool Spoolman tracking.** Previously the AD5X was excluded from Spoolman integration outright; without a station it reports one extruder, so it now uses the same active-spool flow as the Adventurer 5M series.
-- **Single-material prints started from the printer's own file list are now Spoolman-tracked on the AD5X with a material station.**
 - **GitHub Actions CI (`ci.yml`).** Pushes and pull requests on `main` and `alpha` now run two jobs: `verify` (type-check, lint, build, unit tests on Node 20) and `e2e-emulator` (the browser E2E suite against the `flashforge-emulator-v2` printer emulator, so no real printer is needed). The emulator is pinned to `v0.2.0`. A manual-run input can point the E2E job at a different emulator release. A failed E2E run uploads the Playwright report as an artifact.
 
 ### Fixed
 
+- **Multi-material uploads now send the correct tool numbers.** A 3MF lists only the filaments a plate uses, each with its slicer number. A plate that uses filaments 1 and 3 prints with tools T0 and T2, but the upload dialog numbered the tools by their position in the list (T0 and T1). The printer then fed the second tool from the wrong slot. The dialog now takes the tool number from the filament number, and shows "Tool 1" and "Tool 3" for that plate.
+- **The matching dialog waits for the material station.** Right after a connect or a printer switch, the station status can take several seconds to arrive. The dialog read it once and showed "Material station not connected" with no slots. It now keeps asking for about 15 seconds.
 - **Bundled go2rtc camera-streaming binaries are now executable.** The five non-Windows binaries shipped with file mode `100644` instead of `100755`, so a fresh Linux or macOS checkout could not start the server — it exited with `EACCES` when it tried to launch go2rtc.
 
 ### Testing

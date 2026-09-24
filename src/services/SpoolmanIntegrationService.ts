@@ -13,12 +13,11 @@
  * - Spoolman configuration validation and connection testing
  *
  * Material-station printers (Creator 5 series, AD5X with station) are
- * supported through estimate-based tracking (see StationUsageTracker):
- * consumption is estimated from per-filament slicer data captured on
- * upload and deducted against the spool assigned to each slot at terminal
- * print states; slot assignments are stored per printer serial so they
- * survive restarts and reconnects. The single active-spool flow below still
- * applies to single-extruder contexts.
+ * supported through per-job tracking (see StationUsageTracker): the user
+ * picks a spool for each tool in the matching dialog when the app starts a
+ * job, and the slicer estimate is charged to that spool when the job ends.
+ * The spool choice ends with the job. The single active-spool flow below
+ * still applies to single-extruder contexts.
  *
  * @module services/SpoolmanIntegrationService
  */
@@ -33,8 +32,6 @@ import type { ActiveSpoolData, SpoolResponse, SpoolSearchQuery } from '../types/
 import { EventEmitter } from '../utils/EventEmitter';
 import { toAppError } from '../utils/error.utils';
 import { SpoolmanService } from './SpoolmanService';
-import { getSlotSpoolStore } from './SlotSpoolStore';
-import { resolveStationStoreKey } from './station-store-key';
 
 /**
  * Event payload for spool selection changes
@@ -106,9 +103,9 @@ export class SpoolmanIntegrationService extends EventEmitter<SpoolmanIntegration
    * Check if a specific printer context supports Spoolman integration
    *
    * Material-station printers (Creator 5 series, AD5X with station) are
-   * supported through estimate-based tracking: consumption is estimated
-   * from per-filament slicer data captured on upload and deducted per slot
-   * when the print reaches a terminal state (see StationUsageTracker).
+   * supported through per-job tracking: the user picks a spool for each tool
+   * when the app starts a job, and the estimate is charged when the job ends
+   * (see StationUsageTracker).
    *
    * @param contextId - Context ID
    * @returns true if context supports Spoolman
@@ -165,30 +162,6 @@ export class SpoolmanIntegrationService extends EventEmitter<SpoolmanIntegration
     } catch {
       return false;
     }
-  }
-
-  /**
-   * Assign (or clear, with null) the Spoolman spool bound to a material
-   * station slot for a context. Station printers deduct consumption per
-   * slot at terminal print states.
-   *
-   * @param contextId - Context ID
-   * @param slotId - Material station slot number
-   * @param spoolId - Spoolman spool id, or null to clear
-   */
-  setSpoolForSlot(contextId: string, slotId: number, spoolId: number | null): void {
-    // Keyed by printer serial so assignments survive restarts/reconnects.
-    getSlotSpoolStore().setSpoolForSlot(resolveStationStoreKey(contextId), slotId, spoolId);
-  }
-
-  /**
-   * Slot→spool assignments for a station context.
-   *
-   * @param contextId - Context ID
-   * @returns Map of slot id to spool id
-   */
-  getSlotSpoolMap(contextId: string): ReadonlyMap<number, number> {
-    return getSlotSpoolStore().getSlotMap(resolveStationStoreKey(contextId));
   }
 
   /**
