@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.0-alpha.8] - 2026-09-26
+
 ### Added
 
 - **Per-job Spoolman tracking for material-station printers (Creator 5, Creator 5 Pro, AD5X with a material station).** These printers do not report filament use per tool, so the app estimates it. When you match materials for an upload, the matching dialog now also asks for the Spoolman spool in each slot, or "Do not track". The choice applies to that one print only. When the print ends, the slicer's estimate for each tool is charged to its spool, and the choice is deleted. The app never remembers a spool per slot or per printer, because the spools on the printer can change at any time.
@@ -17,8 +19,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Only prints the app starts are tracked. A file sent without **Start Now**, a print started on the printer, and a reprint of the same file from the printer's screen are not tracked.
   - On the AD5X, a multi-material file already on the printer is tracked when you start it through the matching dialog. The estimate comes from the printer's file list, and a cancel is charged by progress, because the app has no gcode for that file.
   - The Spoolman panel shows the tracked print, its spool per tool, and the result of the last charge.
+  - Creator 5 and Creator 5 Pro tracking is not yet tested on a real printer. If you own one, please tell us how it works in [issue #21](https://github.com/Parallel-7/FlashForgeWebUI/issues/21).
 - **AD5X without a material station now gets single-spool Spoolman tracking.** Previously the AD5X was excluded from Spoolman integration outright; without a station it reports one extruder, so it now uses the same active-spool flow as the Adventurer 5M series.
-- **GitHub Actions CI (`ci.yml`).** Pushes and pull requests on `main` and `alpha` now run two jobs: `verify` (type-check, lint, build, unit tests on Node 20) and `e2e-emulator` (the browser E2E suite against the `flashforge-emulator-v2` printer emulator, so no real printer is needed). The emulator is pinned to `v0.2.0`. A manual-run input can point the E2E job at a different emulator release. A failed E2E run uploads the Playwright report as an artifact.
+- **GitHub Actions CI (`ci.yml`).** Pushes and pull requests on `main` and `alpha` now run two jobs: `verify` (type-check, lint, build, unit tests on Node 20) and `e2e-emulator` (the browser E2E suite against the `flashforge-emulator-v2` printer emulator, so no real printer is needed). The emulator is pinned to `v0.4.0`. A manual-run input can point the E2E job at a different emulator release. A failed E2E run uploads the Playwright report as an artifact.
 
 ### Fixed
 
@@ -327,7 +330,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Optional password authentication
 - Configuration persistence in `data/config.json`
 
-[Unreleased]: https://github.com/Parallel-7/FlashForgeWebUI/compare/v1.2.0-alpha.7...HEAD
+[Unreleased]: https://github.com/Parallel-7/FlashForgeWebUI/compare/v1.2.0-alpha.8...HEAD
+[1.2.0-alpha.8]: https://github.com/Parallel-7/FlashForgeWebUI/compare/v1.2.0-alpha.7...v1.2.0-alpha.8
 [1.2.0-alpha.7]: https://github.com/Parallel-7/FlashForgeWebUI/compare/v1.2.0-alpha.6...v1.2.0-alpha.7
 [1.2.0-alpha.6]: https://github.com/Parallel-7/FlashForgeWebUI/compare/v1.2.0-alpha.5...v1.2.0-alpha.6
 [1.2.0-alpha.5]: https://github.com/Parallel-7/FlashForgeWebUI/compare/v1.2.0-alpha.2...v1.2.0-alpha.5
