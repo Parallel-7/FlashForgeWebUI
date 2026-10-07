@@ -87,6 +87,8 @@ export class WebUIManager extends EventEmitter {
   // Server state
   private isRunning: boolean = false;
   private isStopping: boolean = false;
+  /** In-flight start attempt, shared by concurrent start() callers */
+  private startPromise: Promise<boolean> | null = null;
   private serverIP: string = 'localhost';
   private port: number = 3000;
 
@@ -393,6 +395,22 @@ export class WebUIManager extends EventEmitter {
       return true;
     }
 
+    // Concurrent callers share one attempt. startWebUI() enables auto-start right
+    // before calling start(), so a configUpdated event during startup triggers a
+    // second start(); two independent attempts race to bind the same port and the
+    // loser's cleanupFailedStart() tears down the winner's sockets. The finally()
+    // callback always runs after the assignment, so a settled attempt can never be
+    // left behind in the field.
+    this.startPromise ??= this.startServer().finally(() => {
+      this.startPromise = null;
+    });
+    return this.startPromise;
+  }
+
+  /**
+   * Build and bind the server. Only start() calls this, so attempts never overlap.
+   */
+  private async startServer(): Promise<boolean> {
     try {
       const config = this.configManager.getConfig();
 
@@ -486,6 +504,12 @@ export class WebUIManager extends EventEmitter {
    * Stop the web UI server
    */
   public async stop(timeoutMs = 3000): Promise<boolean> {
+    // Let an in-flight start settle first, or it would mark the server running
+    // again after this stop has torn it down.
+    if (this.startPromise) {
+      await this.startPromise;
+    }
+
     // Guard against concurrent stop calls
     if (this.isStopping) {
       console.warn('[WebUI] Stop already in progress');
@@ -498,6 +522,7 @@ export class WebUIManager extends EventEmitter {
     try {
       if (this.httpServer) {
         const httpServer = this.httpServer;
+        let closeTimer: NodeJS.Timeout | undefined;
         try {
           // Race server close against timeout
           await Promise.race([
@@ -507,9 +532,9 @@ export class WebUIManager extends EventEmitter {
                 resolve();
               });
             }),
-            new Promise<void>((_, reject) =>
-              setTimeout(() => reject(new Error('Server close timeout')), timeoutMs)
-            ),
+            new Promise<void>((_, reject) => {
+              closeTimer = setTimeout(() => reject(new Error('Server close timeout')), timeoutMs);
+            }),
           ]);
         } catch (error) {
           if (error instanceof Error && error.message === 'Server close timeout') {
@@ -521,6 +546,10 @@ export class WebUIManager extends EventEmitter {
           } else {
             throw error;
           }
+        } finally {
+          // A clean close wins the race but leaves the timer armed, holding the
+          // event loop open for the rest of the timeout.
+          clearTimeout(closeTimer);
         }
 
         this.httpServer = null;

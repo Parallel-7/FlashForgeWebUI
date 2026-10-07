@@ -55,7 +55,14 @@ export class Go2rtcBinaryManager {
   /** Environment service for packaged/runtime paths. */
   private readonly environmentService = getEnvironmentService();
 
-  private constructor() {}
+  private constructor() {
+    // The startup-failure and hard-deadline paths end through process.exit(), which
+    // skips the graceful shutdown. Kill the child synchronously on exit so go2rtc is
+    // not orphaned holding its ports.
+    process.once('exit', () => {
+      this.process?.kill();
+    });
+  }
 
   /**
    * Get the singleton instance.

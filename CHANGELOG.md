@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **The WebUI server can no longer start twice at the same moment.** A settings change that arrived during startup could start a second server while the first was still starting. The second start failed because the port was already taken, and its cleanup closed the first server's connections. Both now share one start. A stop that arrives while the server is still starting now waits for the start to finish, so the server cannot come back up after it was stopped. Thanks to [@jsalmon00](https://github.com/jsalmon00) for finding this in [FlashForgeUI-Electron#80](https://github.com/Parallel-7/FlashForgeUI-Electron/pull/80).
+- **go2rtc no longer keeps running after the app exits on an error.** A failed startup and the shutdown time limit both end the app without its normal shutdown, so the go2rtc camera process kept running and holding its ports. The app now stops go2rtc whenever it exits.
+- **Shutdown no longer waits for a timer after the server has closed.** Stopping the WebUI server started a 3-second time limit and did not clear it when the server closed in time, so the process stayed open until the timer ran out.
+
 ## [1.2.0-alpha.8] - 2026-09-26
 
 ### Added
