@@ -235,8 +235,8 @@ Default config values live in `src/types/config.ts` and are loaded through `Conf
 ## Dependencies
 
 **Core**:
-- `@ghosttypes/ff-api` - FlashForge printer API clients (`FiveMClient`, `FlashForgeClient`). Pinned at `^2.0.0` since 1.2.0-alpha.6. The 2.0.0 major was one breaking change — `FFMachineInfo.CompletionTime` became `Date | null` — which this app is immune to because it never reads that field; it derives its own ETA from the remaining duration. 2.0.0 is also what brings the Creator 5 Pro `"pause"` status mapping, so a paused C5 Pro no longer reads as `Unknown`. Published to **GitHub Packages**, not public npm: `.npmrc` needs the `@ghosttypes:registry` line and a token, which CI writes from `secrets.GITHUB_TOKEN`.
-- `@parallel-7/slicer-meta` - Printer metadata and model detection
+- `@ghosttypes/ff-api` - FlashForge printer API clients (`FiveMClient`, `FlashForgeClient`). Pinned at `^2.0.3` (the 2.x line since 1.2.0-alpha.6). The 2.0.0 major was one breaking change — `FFMachineInfo.CompletionTime` became `Date | null` — which this app is immune to because it never reads that field; it derives its own ETA from the remaining duration. 2.0.0 is also what brings the Creator 5 Pro `"pause"` status mapping, so a paused C5 Pro no longer reads as `Unknown`. Resolved from **public npm** since 1.2.0-alpha.8 (as is `@parallel-7/slicer-meta`) — no `.npmrc`, token, or GitHub Packages access is needed, and CI no longer writes one.
+- `@parallel-7/slicer-meta` - Printer metadata and model detection. Pinned exactly at `1.5.0`. It pulls in `adm-zip` 0.5.x, which has open advisories fixed only in 0.6; the fix has to come from a `slicer-meta` release that widens its `adm-zip` range.
 - `express` - HTTP server
 - `ws` - WebSocket server
 - `zod` - Schema validation
