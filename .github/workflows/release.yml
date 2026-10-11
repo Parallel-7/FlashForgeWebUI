@@ -205,7 +205,15 @@ jobs:
           fi
 
           VERSION_TAG="v${VERSION}"
-          PREVIOUS_TAG=$(git tag -l 'v*' --sort=-version:refname | grep -vx "${VERSION_TAG}" | head -n 1)
+          # versionsort.suffix=- ranks a prerelease below its release (v1.2.0-alpha.8 < v1.2.0);
+          # without it git sorts the longer alpha tag higher. A stable release compares
+          # against the previous stable release, so its notes span the whole alpha cycle.
+          # `|| true` because the step runs under pipefail and grep exits 1 on no match.
+          PREVIOUS_TAG=$(git -c versionsort.suffix=- tag -l 'v*' --sort=-version:refname | grep -vx "${VERSION_TAG}" || true)
+          if [[ "$IS_PRERELEASE" != "true" ]]; then
+            PREVIOUS_TAG=$(printf '%s\n' "$PREVIOUS_TAG" | grep -v -- '-' || true)
+          fi
+          PREVIOUS_TAG=$(printf '%s\n' "$PREVIOUS_TAG" | head -n 1)
           CHANGELOG_URL="https://github.com/${{ github.repository }}/blob/${VERSION_TAG}/CHANGELOG.md"
           COMPARE_URL=""
 
