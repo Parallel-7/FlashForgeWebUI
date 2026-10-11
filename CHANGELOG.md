@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-10-10
+
+The first stable release since 1.1.0. It contains everything from 1.2.0-alpha.1 through 1.2.0-alpha.8, plus the changes listed under Added and Fixed below. Each alpha section further down this file has the full detail.
+
+### Highlights since 1.1.0
+
+- **Creator 5 and Creator 5 Pro support.** Connect, monitor, and control both models, with per-tool, bed, and chamber temperatures and a Material Station card with a slot editor. (alpha.1)
+- **Upload a print job from the browser.** Send a `.gcode`, `.gx`, or `.3mf` file from any device, see its thumbnail and slicer details, map tools to material-station slots, and start it. (alpha.7)
+- **SSH tools for the Adventurer 5M, 5M Pro, and AD5X.** A file manager, a calibration assistant, and remote reboot, for printers set up with [FlashForge-EasySSH](https://github.com/Parallel-7/FlashForge-EasySSH). (alpha.3)
+- **Better Spoolman tracking.** Material-station printers now charge filament per job, per tool. An AD5X without a material station now gets single-spool tracking. (alpha.8)
+- **Camera video runs through the WebUI port.** Video goes through the authenticated WebUI server, so the camera works remotely with only the WebUI port forwarded. (alpha.1)
+- **Faster connects.** Modern printers are identified from the network discovery broadcast, without an extra probe. (alpha.3)
+- **Thumbnail previews** in the Recent and Local file dialogs. (alpha.2)
+- **Pick the printer by URL.** `?ip=` or `?serial=` selects the active printer on load, for embedding in tools like OrcaSlicer's Device tab. (alpha.1)
+- **Fixes:** the ETA no longer moves forward while a print is paused, a paused Creator 5 Pro no longer shows `Unknown` (alpha.6), and logging out now revokes the session token (alpha.7).
+
+### Upgrade notes
+
+- **Running from source:** `data/config.json` and `data/printer_details.json` are no longer tracked in git. Copy both files somewhere safe before you `git pull`, then copy them back. Otherwise git refuses the pull, or removes the files.
+- **Building from source:** dependencies now install from public npm with pnpm (`pnpm install`). No GitHub Packages token or `.npmrc` is needed, which fixes the `401 Unauthorized` install error in [#18](https://github.com/Parallel-7/FlashForgeWebUI/issues/18).
+- **Remote camera access:** forward only the WebUI port (default `3000`). If you forwarded the go2rtc port (`1984`) for an older version, remove that rule. That port has no authentication.
+- **Adding a modern printer by hand** now requires its serial number as well as its check code.
+- **`--printers` on the command line:** a Creator 5 or Creator 5 Pro needs the `creator-5` or `creator-5-pro` type and its serial number, for example `--printers="192.168.1.50:creator-5:12345678:SERIAL"`.
+
 ### Added
 
 - **An About window shows the running version.** The new info button in the top bar opens it. It also links to the releases page, so you can check whether a newer version is out. Requested in [#22](https://github.com/Parallel-7/FlashForgeWebUI/issues/22).
@@ -345,7 +369,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Optional password authentication
 - Configuration persistence in `data/config.json`
 
-[Unreleased]: https://github.com/Parallel-7/FlashForgeWebUI/compare/v1.2.0-alpha.8...HEAD
+[Unreleased]: https://github.com/Parallel-7/FlashForgeWebUI/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/Parallel-7/FlashForgeWebUI/compare/v1.1.0...v1.2.0
 [1.2.0-alpha.8]: https://github.com/Parallel-7/FlashForgeWebUI/compare/v1.2.0-alpha.7...v1.2.0-alpha.8
 [1.2.0-alpha.7]: https://github.com/Parallel-7/FlashForgeWebUI/compare/v1.2.0-alpha.6...v1.2.0-alpha.7
 [1.2.0-alpha.6]: https://github.com/Parallel-7/FlashForgeWebUI/compare/v1.2.0-alpha.5...v1.2.0-alpha.6
