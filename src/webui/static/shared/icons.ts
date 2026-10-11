@@ -87,7 +87,7 @@ export function initializeLucideIcons(): void {
   hydrateLucideIcons(
     [
       // Header / global chrome
-      'settings', 'lock', 'package', 'search', 'circle', 'folder', 'gauge', 'power',
+      'settings', 'lock', 'package', 'search', 'circle', 'folder', 'gauge', 'power', 'info',
       // Printer discovery modal
       'wifi', 'keyboard', 'archive', 'link',
       // File manager / storage browser

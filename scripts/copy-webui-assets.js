@@ -60,9 +60,11 @@ function logError(message) {
   console.error(`  ${RED_CROSS} ${message}`);
 }
 
+const APP_VERSION = packageJson.version || 'dev';
+const APP_VERSION_PLACEHOLDER = /__APP_VERSION__/g;
+
 function createBuildId() {
-  const version = packageJson.version || 'dev';
-  return `${version}-${Date.now().toString(36)}`;
+  return `${APP_VERSION}-${Date.now().toString(36)}`;
 }
 
 function isLocalAssetPath(assetPath) {
@@ -162,7 +164,9 @@ function applyBuildStamp(rootDir) {
   const indexPath = path.join(rootDir, 'index.html');
 
   if (fs.existsSync(indexPath)) {
-    const indexContent = fs.readFileSync(indexPath, 'utf8');
+    const indexContent = fs
+      .readFileSync(indexPath, 'utf8')
+      .replace(APP_VERSION_PLACEHOLDER, APP_VERSION);
     fs.writeFileSync(indexPath, rewriteHtmlAssetUrls(indexContent, buildId), 'utf8');
   }
 

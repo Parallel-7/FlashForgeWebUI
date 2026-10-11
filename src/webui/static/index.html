@@ -81,6 +81,16 @@
             <span class="edit-text">Locked</span>
           </button>
           <button
+            id="about-button"
+            class="settings-button"
+            type="button"
+            aria-haspopup="dialog"
+            aria-controls="about-modal"
+            title="About"
+          >
+            <i data-lucide="info" aria-hidden="true"></i>
+          </button>
+          <button
             id="settings-button"
             class="settings-button"
             type="button"
@@ -945,6 +955,29 @@
       </div>
 
       <!-- Reboot Confirmation Modal -->
+      <!-- About Modal -->
+      <div id="about-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="about-modal-title">
+        <div class="modal-content small">
+          <div class="modal-header">
+            <h2 id="about-modal-title">About</h2>
+            <button type="button" id="about-close" class="close-btn" aria-label="Close about">&times;</button>
+          </div>
+          <div class="modal-body">
+            <dl class="about-details">
+              <dt>Application</dt>
+              <dd>FlashForge Web UI</dd>
+              <dt>Version</dt>
+              <dd id="about-version">__APP_VERSION__</dd>
+            </dl>
+            <div class="about-links">
+              <a href="https://github.com/Parallel-7/FlashForgeWebUI/releases" target="_blank" rel="noopener noreferrer">Releases</a>
+              <a href="https://github.com/Parallel-7/FlashForgeWebUI" target="_blank" rel="noopener noreferrer">Source</a>
+              <a href="https://github.com/Parallel-7/FlashForgeWebUI/issues" target="_blank" rel="noopener noreferrer">Report an issue</a>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div id="reboot-confirm-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="reboot-confirm-title">
         <div class="modal-content small">
           <div class="modal-header">

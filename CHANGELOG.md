@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **An About window shows the running version.** The new info button in the top bar opens it. It also links to the releases page, so you can check whether a newer version is out. Requested in [#22](https://github.com/Parallel-7/FlashForgeWebUI/issues/22).
+
 ### Fixed
 
 - **The WebUI server can no longer start twice at the same moment.** A settings change that arrived during startup could start a second server while the first was still starting. The second start failed because the port was already taken, and its cleanup closed the first server's connections. Both now share one start. A stop that arrives while the server is still starting now waits for the start to finish, so the server cannot come back up after it was stopped. Thanks to [@jsalmon00](https://github.com/jsalmon00) for finding this in [FlashForgeUI-Electron#80](https://github.com/Parallel-7/FlashForgeUI-Electron/pull/80).

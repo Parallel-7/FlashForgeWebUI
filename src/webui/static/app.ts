@@ -27,6 +27,7 @@ import {
   onSpoolmanUpdate,
   onStatusUpdate,
 } from './core/Transport.js';
+import { setupAbout } from './features/about.js';
 import {
   checkAuthStatus,
   loadAuthStatus,
@@ -526,6 +527,7 @@ async function initialize(): Promise<void> {
   setupFileManager();
   setupCalibration();
   setupReboot();
+  setupAbout();
   setupSSHSettings();
   initializeDiscovery();
 

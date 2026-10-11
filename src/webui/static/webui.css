@@ -731,6 +731,32 @@ body {
   max-width: 350px;
 }
 
+.about-details {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 8px 16px;
+  margin: 0 0 16px;
+}
+
+.about-details dt {
+  color: var(--text-color-secondary);
+}
+
+.about-details dd {
+  margin: 0;
+  user-select: all;
+}
+
+.about-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.about-links a {
+  color: var(--accent-color);
+}
+
 .modal-content.material-matching {
   max-width: 860px;
 }
