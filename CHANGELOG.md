@@ -7,46 +7,65 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [1.2.0] - 2026-10-10
+## [1.2.0] - 2026-10-17
 
-The first stable release since 1.1.0. It contains everything from 1.2.0-alpha.1 through 1.2.0-alpha.8, plus the changes listed under Added and Fixed below. Each alpha section further down this file has the full detail.
+This is the first stable release after 1.1.0. It contains all changes from 1.2.0-alpha.1 to 1.2.0-alpha.8. It also contains the changes in the Added, Security, and Fixed sections below. The CHANGELOG gives more detail about each alpha release.
 
 ### Highlights since 1.1.0
 
-- **Creator 5 and Creator 5 Pro support.** Connect, monitor, and control both models, with per-tool, bed, and chamber temperatures and a Material Station card with a slot editor. (alpha.1)
-- **Upload a print job from the browser.** Send a `.gcode`, `.gx`, or `.3mf` file from any device, see its thumbnail and slicer details, map tools to material-station slots, and start it. (alpha.7)
-- **SSH tools for the Adventurer 5M, 5M Pro, and AD5X.** A file manager, a calibration assistant, and remote reboot, for printers set up with [FlashForge-EasySSH](https://github.com/Parallel-7/FlashForge-EasySSH). (alpha.3)
-- **Better Spoolman tracking.** Material-station printers now charge filament per job, per tool. An AD5X without a material station now gets single-spool tracking. (alpha.8)
-- **Camera video runs through the WebUI port.** Video goes through the authenticated WebUI server, so the camera works remotely with only the WebUI port forwarded. (alpha.1)
-- **Faster connects.** Modern printers are identified from the network discovery broadcast, without an extra probe. (alpha.3)
+- **Support for the Creator 5 and Creator 5 Pro.** You can connect, monitor, and control the two models. The WebUI shows the temperature of each tool, the bed, and the chamber. A Material Station card has a slot editor. (alpha.1)
+- **Job upload from the browser.** You can send a `.gcode`, `.gx`, or `.3mf` file from any device. The WebUI shows the thumbnail and the slicer data. Then, you map the tools to the material station slots and start the job. (alpha.7)
+- **SSH tools for the Adventurer 5M, 5M Pro, and AD5X.** A file manager, a calibration assistant, and a remote reboot are available. These tools need a printer that has [FlashForge-EasySSH](https://github.com/Parallel-7/FlashForge-EasySSH). (alpha.3)
+- **Better Spoolman tracking.** Printers with a material station record filament for each job and each tool. An AD5X without a material station has single-spool tracking. (alpha.8)
+- **Camera video through the WebUI port.** The camera video goes through the WebUI server, which requires a login. For remote access, forward only the WebUI port. (alpha.1)
+- **Faster connection.** The WebUI identifies modern printers from the network discovery broadcast. It does not do an extra probe. (alpha.3)
 - **Thumbnail previews** in the Recent and Local file dialogs. (alpha.2)
-- **Pick the printer by URL.** `?ip=` or `?serial=` selects the active printer on load, for embedding in tools like OrcaSlicer's Device tab. (alpha.1)
-- **Fixes:** the ETA no longer moves forward while a print is paused, a paused Creator 5 Pro no longer shows `Unknown` (alpha.6), and logging out now revokes the session token (alpha.7).
+- **Printer selection by URL.** Add `?ip=` or `?serial=` to the URL to select the active printer when the page opens. Use this to show the WebUI in other tools, for example the Device tab of OrcaSlicer. (alpha.1)
+- **Fixes:**
+  - The ETA does not increase while a print is paused. (alpha.6)
+  - A paused Creator 5 Pro does not show `Unknown`. (alpha.6)
+  - When you log out, the WebUI cancels the session token. (alpha.7)
 
 ### Upgrade notes
 
-- **Running from source:** `data/config.json` and `data/printer_details.json` are no longer tracked in git. Copy both files somewhere safe before you `git pull`, then copy them back. Otherwise git refuses the pull, or removes the files.
-- **Building from source:** dependencies now install from public npm with pnpm (`pnpm install`). No GitHub Packages token or `.npmrc` is needed, which fixes the `401 Unauthorized` install error in [#18](https://github.com/Parallel-7/FlashForgeWebUI/issues/18).
-- **Remote camera access:** forward only the WebUI port (default `3000`). If you forwarded the go2rtc port (`1984`) for an older version, remove that rule. That port has no authentication.
-- **Adding a modern printer by hand** now requires its serial number as well as its check code.
-- **`--printers` on the command line:** a Creator 5 or Creator 5 Pro needs the `creator-5` or `creator-5-pro` type and its serial number, for example `--printers="192.168.1.50:creator-5:12345678:SERIAL"`.
+- **If you run from source:** git does not track `data/config.json` and `data/printer_details.json` now.
+  1. Before you do `git pull`, copy the two files to a safe location.
+  2. After the pull, copy the two files back.
+
+  If you do not do this, git stops the pull or removes the files.
+- **If you build from source:** pnpm installs the dependencies from the public npm registry (`pnpm install`). You do not need a GitHub Packages token or a `.npmrc` file. This corrects the `401 Unauthorized` install error in [#18](https://github.com/Parallel-7/FlashForgeWebUI/issues/18).
+- **Remote camera access:** Forward only the WebUI port (default `3000`). If you forwarded the go2rtc port (`1984`) for an earlier version, remove that rule. That port has no authentication.
+- **Manual printer connection:** For a modern printer, you must type the serial number and the check code.
+- **`--printers` on the command line:** For a Creator 5 or Creator 5 Pro, use the `creator-5` or `creator-5-pro` type and the serial number. Example: `--printers="192.168.1.50:creator-5:12345678:SERIAL"`.
 
 ### Added
 
-- **An About window shows the running version.** The new info button in the top bar opens it. It also links to the releases page, so you can check whether a newer version is out. Requested in [#22](https://github.com/Parallel-7/FlashForgeWebUI/issues/22).
+- **An About window shows the version.** Click the new info button in the top bar to open it. The window also has a link to the releases page. Use this link to find newer versions. Requested in [#22](https://github.com/Parallel-7/FlashForgeWebUI/issues/22).
 
 ### Security
 
-- **Updated the server's HTTP and WebSocket dependencies to clear known advisories:** `axios` 1.13.6 -> 1.20.0, `express` 5.1.0 -> 5.3.0 (with its `proxy-addr`, `path-to-regexp`, `qs`, and `body-parser` dependencies), `ws` 8.18.3 -> 8.22.0, and `form-data` 4.0.5 -> 4.0.6. These packages are built into every release binary. Several of the advisories need a configuration this app does not use. For example, the critical `proxy-addr` advisory only applies when Express's `trust proxy` setting is on, and this app never turns it on. They are updated anyway.
+- **Updated server dependencies (HTTP and WebSocket) to correct known advisories:**
+  - `axios` 1.13.6 → 1.20.0
+  - `express` 5.1.0 → 5.3.0, with its dependencies `proxy-addr`, `path-to-regexp`, `qs`, and `body-parser`
+  - `ws` 8.18.3 → 8.22.0
+  - `form-data` 4.0.5 → 4.0.6
+
+  Each release binary contains these packages. Some advisories apply only to a configuration that this app does not use. For example, the critical `proxy-addr` advisory applies only when the Express `trust proxy` setting is on. This app does not use that setting. The release updates these packages anyway.
 
 ### Fixed
 
-- **The camera service now accepts connections only from this computer.** go2rtc's API (port 1984) and its RTSP server (port 8554) used to listen on every network interface without a password, so any device on your network could watch the cameras or change go2rtc's streams. Both now listen on `127.0.0.1` only. Browsers still get the camera through the WebUI's authenticated proxy, and the WebRTC media port (8555) stays open for them.
-- **Start Local is greyed out on the AD5X.** The AD5X cannot list local files, so the button used to open a dialog that only showed an error. Start Recent still works.
-- **The WebUI server can no longer start twice at the same moment.** A settings change that arrived during startup could start a second server while the first was still starting. The second start failed because the port was already taken, and its cleanup closed the first server's connections. Both now share one start. A stop that arrives while the server is still starting now waits for the start to finish, so the server cannot come back up after it was stopped. Thanks to [@jsalmon00](https://github.com/jsalmon00) for finding this in [FlashForgeUI-Electron#80](https://github.com/Parallel-7/FlashForgeUI-Electron/pull/80).
-- **go2rtc no longer keeps running after the app exits on an error.** A failed startup and the shutdown time limit both end the app without its normal shutdown, so the go2rtc camera process kept running and holding its ports. The app now stops go2rtc whenever it exits.
-- **A stable release's notes now compare against the previous stable release.** The release workflow linked "Compare changes since" to the newest older tag, which for 1.2.0 would have been `v1.2.0-alpha.8`, a one-commit diff. Git also ranked `v1.2.0-alpha.8` above `v1.2.0`, so the next alpha would have compared against alpha.8 too. Stable releases now compare against the previous stable tag, and a prerelease ranks below its release.
-- **Shutdown no longer waits for a timer after the server has closed.** Stopping the WebUI server started a 3-second time limit and did not clear it when the server closed in time, so the process stayed open until the timer ran out.
+- **The camera service accepts connections only from this computer.** Before this fix, the go2rtc API (port 1984) and RTSP server (port 8554) accepted connections from all networks. These servers had no password. Any device on your network could show your cameras or change the go2rtc streams.
+  - Now, the two servers accept connections only from `127.0.0.1`.
+  - Browsers get the camera through the WebUI proxy, which requires a login.
+  - The WebRTC media port (8555) stays open for browsers.
+- **Start Local is disabled on the AD5X.** The AD5X cannot show a list of local files. Before this fix, the button opened a dialog with only an error message. **Start Recent** continues to operate.
+- **The WebUI server cannot start two times at the same time.** Before this fix, a settings change during startup could start a second server. The second server failed because the first server used the port. Then, the second server closed the connections of the first server.
+  - Now, the two requests use one startup.
+  - If a stop request comes during startup, the stop waits until the startup is complete. The server cannot start again after the stop.
+  - Thanks to [@jsalmon00](https://github.com/jsalmon00), who found this problem in [FlashForgeUI-Electron#80](https://github.com/Parallel-7/FlashForgeUI-Electron/pull/80).
+- **go2rtc stops when the app stops after an error.** A failed startup and the shutdown time limit stop the app without the normal shutdown procedure. Before this fix, the go2rtc camera process continued to operate and kept its ports. Now, the app stops go2rtc each time it stops.
+- **The notes of a stable release compare against the previous stable release.** Before this fix, the "Compare changes since" link used the newest earlier tag. For 1.2.0, this tag is `v1.2.0-alpha.8`, which has only one commit. Git also sorted `v1.2.0-alpha.8` above `v1.2.0`, so the next alpha also compared against alpha.8. Now, a stable release compares against the previous stable tag. A prerelease sorts below its release.
+- **Shutdown does not wait for a timer after the server closes.** Before this fix, a server stop started a 3-second time limit. The app did not cancel this time limit when the server closed in time. The process stayed open until the time limit ended.
 
 ## [1.2.0-alpha.8] - 2026-09-26
 
