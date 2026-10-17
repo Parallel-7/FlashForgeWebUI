@@ -38,10 +38,6 @@ import type { PrinterStatus } from '../types/polling';
 import { EventEmitter } from '../utils/EventEmitter';
 import { getMultiContextPrintStateMonitor } from './MultiContextPrintStateMonitor';
 
-// ============================================================================
-// TYPES
-// ============================================================================
-
 /**
  * Notification event types
  */
@@ -70,10 +66,6 @@ interface NotificationCoordinatorEventMap extends Record<string, unknown[]> {
   'print-notification': [PrintNotificationEvent];
 }
 
-// ============================================================================
-// MULTI-CONTEXT NOTIFICATION COORDINATOR
-// ============================================================================
-
 /**
  * Coordinates notification events across all printer contexts
  */
@@ -92,7 +84,6 @@ export class MultiContextNotificationCoordinator extends EventEmitter<Notificati
 
     const printStateMonitor = getMultiContextPrintStateMonitor();
 
-    // Listen to print state events and forward as notifications
     printStateMonitor.on('print-started', (event) => {
       this.forwardNotification('print-started', event);
     });
@@ -126,7 +117,6 @@ export class MultiContextNotificationCoordinator extends EventEmitter<Notificati
       completedAt?: Date;
     }
   ): void {
-    // Get printer name from context
     const contextManager = getPrinterContextManager();
     const context = contextManager.getContext(event.contextId);
     const printerName = context?.printerDetails?.Name || 'Unknown Printer';
@@ -157,10 +147,6 @@ export class MultiContextNotificationCoordinator extends EventEmitter<Notificati
     console.log('[MultiContextNotificationCoordinator] Disposed');
   }
 }
-
-// ============================================================================
-// SINGLETON INSTANCE
-// ============================================================================
 
 /**
  * Global notification coordinator instance

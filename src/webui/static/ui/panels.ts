@@ -8,14 +8,13 @@
  * actions.
  */
 
-import type { PrinterStatus } from '../app.js';
+import type { DeductionSummary, PrinterStatus, SpoolmanStationTracking } from '../app.js';
 import { state } from '../core/AppState.js';
 import { isSpoolmanAvailableForCurrentContext } from '../features/layout-theme.js';
 import { $, hideElement, setTextContent, showElement } from '../shared/dom.js';
 import {
+  formatCompletionTime,
   formatElapsedSeconds,
-  formatETA,
-  formatETAFromString,
   formatLifetimeFilament,
   formatLifetimePrintTime,
   formatTime,
@@ -98,13 +97,9 @@ export function updatePrinterStatus(status: PrinterStatus | null): void {
       setTextContent('elapsed-time', '--:--');
     }
 
-    if (status.formattedEta && status.formattedEta !== '--:--') {
-      setTextContent('time-remaining', formatETAFromString(status.formattedEta));
-    } else if (status.timeRemaining !== undefined && !Number.isNaN(status.timeRemaining)) {
-      setTextContent('time-remaining', formatETA(status.timeRemaining));
-    } else {
-      setTextContent('time-remaining', '--:--');
-    }
+    // The library sets completionTime to null while the print is not
+    // advancing, so the display falls back to '--:--' automatically.
+    setTextContent('time-remaining', formatCompletionTime(status.completionTime ?? null));
 
     if (status.estimatedWeight !== undefined && !Number.isNaN(status.estimatedWeight)) {
       setTextContent('job-weight', `${Math.round(status.estimatedWeight)}g`);
@@ -228,9 +223,11 @@ export function updateCreator5TemperatureCard(status: PrinterStatus | null): voi
 }
 
 /**
- * Show the read-only TVOC air-quality reading for the Creator 5 Pro and hide its
- * (non-functional) filtration controls. Other printers keep their filtration
- * controls and hide the TVOC block.
+ * Populate the read-only TVOC air-quality reading and gate the filtration
+ * controls. Every printer that mounts this card (filtration-capable printers and
+ * the Creator 5 Pro) shows both its filtration mode/controls and its TVOC level.
+ * The Creator 5 Pro reports TVOC but cannot switch filtration modes, so its
+ * control buttons are shown but disabled.
  */
 export function updateTvocDisplay(status: PrinterStatus | null): void {
   const tvocInfo = $('tvoc-info');
@@ -239,17 +236,25 @@ export function updateTvocDisplay(status: PrinterStatus | null): void {
     return;
   }
 
+  // The card itself is only mounted for filtration-capable printers or the
+  // Creator 5 Pro (see layout-theme component gating), so whenever it exists we
+  // show both the filtration controls and the TVOC readout together.
+  filtrationSection?.classList.remove('hidden');
+  tvocInfo?.classList.remove('hidden');
+
+  const tvoc = status?.tvocLevel;
+  setTextContent(
+    'tvoc-status',
+    tvoc !== undefined && !Number.isNaN(tvoc) ? `${Math.round(tvoc)}` : '--'
+  );
+
+  // The Creator 5 Pro exposes a TVOC sensor but no filtration-mode control.
   const isCreator5Pro = Boolean(state.printerFeatures?.isCreator5Pro);
-
-  filtrationSection?.classList.toggle('hidden', isCreator5Pro);
-  tvocInfo?.classList.toggle('hidden', !isCreator5Pro);
-
-  if (isCreator5Pro) {
-    const tvoc = status?.tvocLevel;
-    setTextContent(
-      'tvoc-status',
-      tvoc !== undefined && !Number.isNaN(tvoc) ? `${Math.round(tvoc)}` : '--'
-    );
+  for (const id of ['btn-external-filtration', 'btn-internal-filtration', 'btn-no-filtration']) {
+    const btn = $(id) as HTMLButtonElement | null;
+    if (btn) {
+      btn.disabled = isCreator5Pro;
+    }
   }
 }
 
@@ -327,10 +332,23 @@ export function updateSpoolmanPanelState(): void {
   const disabled = $('spoolman-disabled');
   const noSpool = $('spoolman-no-spool');
   const active = $('spoolman-active');
+  const station = $('spoolman-station');
 
   if (!disabled || !noSpool || !active) {
     return;
   }
+
+  // Material-station contexts: per-job tracking view instead of the
+  // single active-spool view.
+  if (station && state.spoolmanConfig?.station) {
+    hideElement('spoolman-disabled');
+    hideElement('spoolman-no-spool');
+    hideElement('spoolman-active');
+    showElement('spoolman-station');
+    renderStationTracking(state.spoolmanConfig.station);
+    return;
+  }
+  hideElement('spoolman-station');
 
   if (!isSpoolmanAvailableForCurrentContext()) {
     showElement('spoolman-disabled');
@@ -393,6 +411,82 @@ export function updateSpoolmanPanelState(): void {
   }
 }
 
+/**
+ * Render the per-job tracking view for material-station contexts: the
+ * explanation, the job tracked now with its spool per tool, and the last
+ * deduction summary.
+ */
+function renderStationTracking(station: SpoolmanStationTracking): void {
+  const note = $('spoolman-station-note');
+  if (note) {
+    note.textContent = station.note;
+  }
+
+  const jobView = $('spoolman-station-job');
+  if (jobView) {
+    jobView.textContent = '';
+    const job = station.activeJob;
+    if (!job) {
+      jobView.appendChild(createStatRow('Tracked print:', 'None'));
+    } else {
+      const progress = job.started
+        ? job.lastProgress !== null
+          ? `${Math.round(job.lastProgress)}%`
+          : 'printing'
+        : 'waiting to start';
+      jobView.appendChild(createStatRow('Tracked print:', `${job.fileName} (${progress})`));
+      for (const tool of job.tools) {
+        const estimate = tool.usedG !== null ? ` · ${tool.usedG.toFixed(1)} g` : '';
+        jobView.appendChild(
+          createStatRow(`Tool ${tool.toolId + 1} (slot ${tool.slotId}):`, `Spool #${tool.spoolId}${estimate}`)
+        );
+      }
+    }
+  }
+
+  const summary = $('spoolman-station-summary');
+  if (summary) {
+    summary.textContent = describeDeduction(station.lastDeduction);
+  }
+}
+
+function createStatRow(label: string, value: string): HTMLDivElement {
+  const row = document.createElement('div');
+  row.className = 'stat-row';
+  const labelEl = document.createElement('span');
+  labelEl.textContent = label;
+  const valueEl = document.createElement('span');
+  valueEl.textContent = value;
+  row.append(labelEl, valueEl);
+  return row;
+}
+
+function describeDeduction(deduction: DeductionSummary | null): string {
+  if (!deduction) {
+    return 'No deduction recorded this session.';
+  }
+  const ending: Record<DeductionSummary['terminal'], string> = {
+    completed: 'completed',
+    cancelled: 'was cancelled',
+    error: 'stopped with an error',
+    interrupted: 'ended while the app was not watching',
+  };
+  const approximate = deduction.approximate ? ' (approximate)' : '';
+  const charged = deduction.tools
+    .filter((tool) => tool.status === 'deducted' && tool.amount !== null)
+    .map(
+      (tool) =>
+        `#${tool.spoolId} ${tool.amount}${tool.mode === 'weight' ? ' g' : ' mm'}`
+    )
+    .join(', ');
+  return (
+    `${deduction.fileName} ${ending[deduction.terminal]} at ${Math.round(deduction.progress)}%${approximate}: ` +
+    `${deduction.deductedCount} spool(s) charged` +
+    (charged ? ` (${charged})` : '') +
+    (deduction.skippedCount > 0 ? `, ${deduction.skippedCount} skipped` : '')
+  );
+}
+
 function updateButtonStates(printerState: string): void {
   const isPrintingActive =
     printerState === 'Printing' ||
@@ -424,9 +518,35 @@ function updateButtonStates(printerState: string): void {
   const localBtn = $('btn-start-local') as HTMLButtonElement | null;
   const homeAxesBtn = $('btn-home-axes') as HTMLButtonElement | null;
 
-  if (recentBtn) recentBtn.disabled = !isReadyForNewJob;
-  if (localBtn) localBtn.disabled = !isReadyForNewJob;
-  if (homeAxesBtn) homeAxesBtn.disabled = isPrintingActive;
+  // Creator 5 series firmware neither sends nor accepts material mappings
+  // over the local API, so starting a previously-uploaded local/recent job
+  // dead-ends. Disable the resident-file entry points on those printers; a
+  // fresh 3mf upload + start still works and is left untouched.
+  const isCreator5Series = Boolean(state.printerFeatures?.hasMultiTool);
+  // Material-station printers (AD5X and the Creator 5 series) have no local
+  // file listing, so Start Local is unavailable on all of them.
+  const noLocalJobs = isCreator5Series || Boolean(state.printerFeatures?.hasMaterialStation);
+  const LOCAL_JOB_UNAVAILABLE_MSG = 'Local job management is not available on this printer.';
+  if (recentBtn) {
+    recentBtn.disabled = !isReadyForNewJob || isCreator5Series;
+    recentBtn.title = isCreator5Series ? LOCAL_JOB_UNAVAILABLE_MSG : '';
+  }
+  if (localBtn) {
+    localBtn.disabled = !isReadyForNewJob || noLocalJobs;
+    localBtn.title = noLocalJobs ? LOCAL_JOB_UNAVAILABLE_MSG : '';
+  }
+  // Uploading a fresh file works on every model, Creator 5 series included -
+  // the 3mf is parsed here, so material mappings are available on upload even
+  // where the resident-job lists are not.
+  const uploadJobBtn = $('btn-upload-job') as HTMLButtonElement | null;
+  if (uploadJobBtn) {
+    uploadJobBtn.disabled = !isReadyForNewJob;
+  }
+  // Home Axes (~G28) is a raw G-code command. HTTP-only printers (Creator 5
+  // series) expose no TCP/G-code passthrough, so disable the button while printing
+  // OR when the active printer explicitly reports G-code commands unavailable.
+  const gcodeUnavailable = state.printerFeatures?.gcodeCommands?.available === false;
+  if (homeAxesBtn) homeAxesBtn.disabled = isPrintingActive || gcodeUnavailable;
   const clearStatusBtn = $('btn-clear-status') as HTMLButtonElement | null;
   if (clearStatusBtn) clearStatusBtn.disabled = isPrintingActive;
 

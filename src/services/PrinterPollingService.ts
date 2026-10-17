@@ -261,13 +261,11 @@ export class PrinterPollingService extends EventEmitter<PollingServiceEventMap> 
     try {
       this.logDebug('Polling printer data...');
 
-      // Fetch all data in parallel
       const [printerStatus, materialStation] = await Promise.allSettled([
         this.fetchPrinterStatus(),
         this.fetchMaterialStation(),
       ]);
 
-      // Process results
       let hasChanges = false;
       const newData: PollingData = {
         ...this.currentData,
@@ -275,13 +273,11 @@ export class PrinterPollingService extends EventEmitter<PollingServiceEventMap> 
         lastPolled: new Date(),
       };
 
-      // Process printer status
       if (printerStatus.status === 'fulfilled' && printerStatus.value) {
         newData.printerStatus = printerStatus.value;
         newData.isConnected = true;
         hasChanges = true;
 
-        // Handle job changes and thumbnails
         await this.handleJobChange(printerStatus.value, newData);
 
         this.emit(POLLING_EVENTS.STATUS_UPDATED, printerStatus.value);
@@ -298,25 +294,21 @@ export class PrinterPollingService extends EventEmitter<PollingServiceEventMap> 
           hasChanges = true;
           this.emit(POLLING_EVENTS.CONNECTION_CHANGED, { connected: false });
 
-          // Clear thumbnail on disconnect and clean cache
           this.clearThumbnailState();
         }
       }
 
-      // Process material station
       if (materialStation.status === 'fulfilled' && materialStation.value) {
         newData.materialStation = materialStation.value;
         hasChanges = true;
         this.emit(POLLING_EVENTS.MATERIAL_STATION_UPDATED, materialStation.value);
       }
 
-      // Update current data and emit if changed
       if (hasChanges) {
         this.currentData = newData;
         this.emit(POLLING_EVENTS.DATA_UPDATED, newData);
       }
 
-      // Reset retry count on success
       this.retryCount = 0;
       this.lastSuccessfulPoll = new Date();
     } catch (error) {
@@ -377,10 +369,9 @@ export class PrinterPollingService extends EventEmitter<PollingServiceEventMap> 
         this.logDebug(`New job detected: ${fileName}`);
         this.lastJobName = fileName;
 
-        // Check cache first
         if (this.thumbnailCache.has(fileName)) {
           const cachedThumbnail = this.thumbnailCache.get(fileName);
-          this.currentThumbnail = cachedThumbnail ?? null; // Handle undefined case
+          this.currentThumbnail = cachedThumbnail ?? null;
           this.logDebug(
             `Using cached thumbnail for ${fileName}: ${this.currentThumbnail ? 'Available' : 'Failed (cached)'}`
           );
@@ -528,7 +519,7 @@ export class PrinterPollingService extends EventEmitter<PollingServiceEventMap> 
    */
   public dispose(): void {
     this.stop();
-    this.clearThumbnailState(); // Clean up thumbnail cache
+    this.clearThumbnailState();
     this.removeAllListeners();
     this.backendManager = null;
   }

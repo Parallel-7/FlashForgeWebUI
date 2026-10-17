@@ -77,7 +77,7 @@ export class AD5XBackend extends DualAPIBackend {
         localJobs: false, // AD5X doesn't support local file listing
         recentJobs: true,
         uploadJobs: true,
-        startJobs: true, // AD5X now supports job starting with new ff-api
+        startJobs: true, // AD5X supports job starting via ff-api
         pauseResume: true,
         cancelJobs: true,
         usesNewAPI: true,
@@ -95,13 +95,11 @@ export class AD5XBackend extends DualAPIBackend {
    * Perform AD5X-specific initialization
    */
   protected async initializeBackend(): Promise<void> {
-    // Call parent initialization
     await super.initializeBackend();
 
     console.log('- Material station: Available with 4 slots');
     console.log('- Job starting: Enabled with material station support');
 
-    // Initialize material station monitoring
     this.initializeMaterialStationMonitoring();
   }
 
@@ -110,7 +108,6 @@ export class AD5XBackend extends DualAPIBackend {
    */
   private initializeMaterialStationMonitoring(): void {
     try {
-      // Get initial material station status
       const status = this.getMaterialStationStatus();
       if (status) {
         console.log(`Material station initialized with ${status.slots.length} slots`);
@@ -127,7 +124,6 @@ export class AD5XBackend extends DualAPIBackend {
   protected async processMachineInfo(_machineInfo: unknown): Promise<void> {
     await super.processMachineInfo(_machineInfo);
 
-    // Store machine info for material station data extraction with type validation
     if (isAD5XMachineInfo(_machineInfo)) {
       this.lastMachineInfo = _machineInfo;
     } else {
@@ -205,7 +201,6 @@ export class AD5XBackend extends DualAPIBackend {
    */
   public async startJob(params: JobOperationParams): Promise<JobStartResult> {
     try {
-      // Handle file upload case
       if (params.filePath) {
         const success = await this.fiveMClient.jobControl.uploadFile(
           params.filePath,
@@ -225,7 +220,6 @@ export class AD5XBackend extends DualAPIBackend {
         };
       }
 
-      // Handle local file printing case
       if (!params.fileName) {
         throw new Error('fileName or filePath is required');
       }
@@ -240,7 +234,6 @@ export class AD5XBackend extends DualAPIBackend {
         };
       }
 
-      // Check if material mappings are provided for multi-color job
       const materialMappings = params.additionalParams?.materialMappings as
         | AD5XMaterialMapping[]
         | undefined;
@@ -357,7 +350,7 @@ export class AD5XBackend extends DualAPIBackend {
   }
 
   protected supportsStartJobs(): boolean {
-    return true; // AD5X now supports job starting with new ff-api
+    return true; // AD5X supports job starting via ff-api
   }
 
   protected getMaterialStationSlotCount(): number {

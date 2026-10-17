@@ -24,7 +24,6 @@ describe('EnvironmentService', () => {
   let service: EnvironmentService;
 
   beforeEach(() => {
-    // Reset environment
     process.env = { ...mockEnv };
     service = new EnvironmentService();
   });
@@ -68,12 +67,10 @@ describe('EnvironmentService', () => {
       const packagedService = new EnvironmentService();
       expect(packagedService.isPackaged()).toBe(true);
 
-      // Cleanup
       processWithPkg.pkg = undefined;
     });
 
     it('should not detect packaged environment when no indicators present', () => {
-      // Ensure no pkg indicators
       delete process.env.PKG_EXECPATH;
       processWithPkg.pkg = undefined;
 
@@ -169,7 +166,6 @@ describe('EnvironmentService', () => {
       const mockCwd = '/mock/app';
       jest.spyOn(process, 'cwd').mockReturnValue(mockCwd);
 
-      // This test verifies the warning logic exists
       // In real scenarios, fs.existsSync would check the path
       const devService = new EnvironmentService();
       const staticPath = devService.getWebUIStaticPath();

@@ -63,11 +63,16 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.23.0
+
       - name: Setup Node.js 20
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: 'npm'
+          cache: 'pnpm'
 
       - name: Cache pkg fetch
         uses: actions/cache@v4
@@ -77,19 +82,8 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-pkg-
 
-      - name: Configure GitHub Packages
-        shell: bash
-        run: |
-          echo "@ghosttypes:registry=https://npm.pkg.github.com" >> .npmrc
-          echo "@parallel-7:registry=https://npm.pkg.github.com" >> .npmrc
-          echo "//npm.pkg.github.com/:_authToken=${{ secrets.GITHUB_TOKEN }}" >> .npmrc
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Install dependencies
-        run: npm ci
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: pnpm install --frozen-lockfile
 
       - name: Pre-download ARMv7 Node.js Binary
         if: matrix.arch == 'armv7'
@@ -102,15 +96,15 @@ jobs:
       - name: Build application
         shell: bash
         run: |
-          npm run build
+          pnpm run build
           if [[ "${{ matrix.platform }}" == "win" ]]; then
-            npx @yao-pkg/pkg . --targets node20-win-${{ matrix.arch }} --output dist/${{ matrix.output }}
+            pnpm exec pkg . --targets node20-win-${{ matrix.arch }} --output dist/${{ matrix.output }}
           elif [[ "${{ matrix.platform }}" == "mac" ]]; then
-            npx @yao-pkg/pkg . --targets node20-macos-${{ matrix.arch }} --output dist/${{ matrix.output }}
+            pnpm exec pkg . --targets node20-macos-${{ matrix.arch }} --output dist/${{ matrix.output }}
           elif [[ "${{ matrix.arch }}" == "armv7" ]]; then
-            npx @yao-pkg/pkg . --targets node20-linuxstatic-armv7 --output dist/${{ matrix.output }}
+            pnpm exec pkg . --targets node20-linuxstatic-armv7 --output dist/${{ matrix.output }}
           else
-            npx @yao-pkg/pkg . --targets node20-linux-${{ matrix.arch }} --output dist/${{ matrix.output }}
+            pnpm exec pkg . --targets node20-linux-${{ matrix.arch }} --output dist/${{ matrix.output }}
           fi
 
       - name: Verify binary size
@@ -129,6 +123,25 @@ jobs:
             exit 1
           fi
           echo "✓ Binary size: $size bytes"
+
+      # Write a deterministic config so the E2E auth assertions do not depend on the
+      # current DEFAULT_CONFIG values. Auth is explicitly enabled with the password
+      # the login step posts below ("changeme"). ConfigManager merges any omitted
+      # keys from DEFAULT_CONFIG at load time, so only auth-relevant keys are pinned.
+      - name: Write deterministic test config
+        if: matrix.can_execute == true
+        shell: bash
+        run: |
+          mkdir -p data
+          cat > data/config.json <<'EOF'
+          {
+            "WebUIEnabled": true,
+            "WebUIPort": 3000,
+            "WebUIPassword": "changeme",
+            "WebUIPasswordRequired": true
+          }
+          EOF
+          echo "✓ Wrote deterministic data/config.json"
 
       # Windows: use cmd wrapper to redirect output while keeping process detached
       - name: Start binary (Windows)
@@ -204,7 +217,7 @@ jobs:
           fi
 
           # Test index.html contains expected content
-          if ! curl -sf http://127.0.0.1:3000/ | grep -q "FlashForge Web UI"; then
+          if ! curl -sf http://127.0.0.1:3000/ | grep "FlashForge Web UI" > /dev/null; then
             echo "::error::GET / did not contain 'FlashForge Web UI'"
             curl -s http://127.0.0.1:3000/ | head -20
             exit 1
@@ -296,7 +309,7 @@ jobs:
         shell: bash
         run: |
           if [[ "${{ runner.os }}" == "Windows" ]]; then
-            if tasklist /FI "IMAGENAME eq ${{ matrix.output }}" 2>/dev/null | grep -q "${{ matrix.output }}"; then
+            if tasklist /FI "IMAGENAME eq ${{ matrix.output }}" 2>/dev/null | grep "${{ matrix.output }}" > /dev/null; then
               echo "::error::Binary left zombie processes"
               exit 1
             fi

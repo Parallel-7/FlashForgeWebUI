@@ -13,6 +13,7 @@
  * - WebSocket schemas: WebSocketCommandSchema, WebSocketCommandTypeSchema
  * - Command validation: PrinterCommandSchema, CommandDataValidators
  * - Temperature/Job schemas: TemperatureSetRequestSchema, JobStartRequestSchema, GCodeCommandRequestSchema
+ * - Job upload schemas: JobUploadStartRequestSchema, JobUploadCancelRequestSchema
  * - Helper functions: validateWebSocketCommand, extractBearerToken, createValidationError
  * - Type exports: ValidatedLoginRequest, ValidatedWebSocketCommand, ValidatedPrinterCommand
  */
@@ -105,6 +106,21 @@ const MaterialMappingSchema = z.object({
   slotMaterialColor: z.string().min(1, 'slotMaterialColor is required'),
 });
 
+/**
+ * Spoolman spool chosen for one tool in the matching dialog. A null spoolId
+ * means the user chose not to track that tool.
+ */
+const SpoolAssignmentSchema = z.object({
+  toolId: z.number().int('toolId must be an integer').min(0, 'toolId must be non-negative'),
+  spoolId: z
+    .number()
+    .int('spoolId must be an integer')
+    .positive('spoolId must be a positive integer')
+    .nullable(),
+});
+
+const SpoolAssignmentsSchema = z.array(SpoolAssignmentSchema).max(16).optional();
+
 export const JobStartRequestSchema = z.object({
   filename: z.string().min(1, 'Filename is required'),
   leveling: z.boolean().optional().default(false),
@@ -113,6 +129,31 @@ export const JobStartRequestSchema = z.object({
     .array(MaterialMappingSchema)
     .min(1, 'materialMappings must contain at least one mapping')
     .optional(),
+  spoolAssignments: SpoolAssignmentsSchema,
+});
+
+/**
+ * Job upload start request validation.
+ *
+ * `uploadId` refers to a file already staged via POST /api/jobs/upload/stage, so
+ * no filename is accepted here - the server only ever prints the name it wrote.
+ */
+export const JobUploadStartRequestSchema = z.object({
+  uploadId: z.string().uuid('uploadId must be a valid upload handle'),
+  startNow: z.boolean().optional().default(true),
+  autoLevel: z.boolean().optional().default(false),
+  materialMappings: z
+    .array(MaterialMappingSchema)
+    .min(1, 'materialMappings must contain at least one mapping')
+    .optional(),
+  spoolAssignments: SpoolAssignmentsSchema,
+});
+
+/**
+ * Job upload cancel/discard request validation.
+ */
+export const JobUploadCancelRequestSchema = z.object({
+  uploadId: z.string().uuid('uploadId must be a valid upload handle'),
 });
 
 /**
@@ -199,6 +240,13 @@ export const PrinterFeaturesSchema = z.object({
   canPause: z.boolean(),
   canResume: z.boolean(),
   canCancel: z.boolean(),
+  gcodeCommands: z
+    .object({
+      available: z.boolean(),
+      usesLegacyAPI: z.boolean(),
+      supportedCommands: z.array(z.string()),
+    })
+    .optional(),
 });
 
 // ============================================================================
@@ -218,7 +266,6 @@ export function validateWebSocketCommand(
 
   const command = commandResult.data;
 
-  // Validate command-specific data if needed
   if (command.command in CommandDataValidators) {
     const validator = CommandDataValidators[command.command as keyof typeof CommandDataValidators];
     const dataResult = validator.safeParse(command.data);
@@ -295,13 +342,13 @@ export const SpoolClearRequestSchema = z.object({
 });
 
 /**
- * Slot-config request validation (configure an AD5X material-station slot).
+ * Slot-config request validation (configure a material-station slot).
  *
  * The client snaps a Spoolman spool's material/color to the printer's fixed
- * 14-material / 24-color palette and sends the already-snapped values here. Slot
- * is 1-based (1-4); `materialName` is null when the spool's material did not
- * resolve, in which case the slot keeps its current material. `colorHex` is a
- * 3/6/8-digit hex (with or without leading '#').
+ * palette (AD5X vs Creator 5) and sends the already-snapped values here. Slot is
+ * 1-based (1-4); `materialName` is required (the slot editor always resolves a
+ * material from the model's fixed palette), and `colorHex` must be a 6-digit hex
+ * with an optional leading '#'. Both string fields are trimmed before validation.
  */
 export const SlotConfigRequestSchema = z.object({
   contextId: z.string().optional(),
@@ -310,12 +357,11 @@ export const SlotConfigRequestSchema = z.object({
     .int('slot must be an integer')
     .min(1, 'slot must be at least 1')
     .max(4, 'slot must be at most 4'),
-  materialName: z.string().min(1).nullable(),
+  materialName: z.string().trim().min(1, 'Material name is required'),
   colorHex: z
     .string()
-    .regex(/^#?[0-9a-fA-F]{3}(?:[0-9a-fA-F]{3}(?:[0-9a-fA-F]{2})?)?$/, 'Invalid hex color'),
-  /** Optional fallback material to keep when `materialName` is null. */
-  currentMaterial: z.string().min(1).nullable().optional(),
+    .trim()
+    .regex(/^#?[0-9a-fA-F]{6}$/, 'A valid 6-digit hex color is required'),
 });
 
 // ============================================================================

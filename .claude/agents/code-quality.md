@@ -26,11 +26,11 @@ When invoked, you will:
 
 1. **Identify Changed Files**: Determine which files have been modified or created in the current work session.
 
-2. **Run Linter**: Execute `npm run lint` (Biome) on changed files. Capture all errors and warnings.
+2. **Run Linter**: Execute `pnpm run lint` (Biome) on changed files. Capture all errors and warnings.
 
-3. **Run Formatter**: Apply `npm run format:fix` to all changed files using project-configured Biome formatter.
+3. **Run Formatter**: Apply `pnpm run format:fix` to all changed files using project-configured Biome formatter.
 
-4. **Type Check**: Run `npm run type-check` (tsc --noEmit) to catch type errors.
+4. **Type Check**: Run `pnpm run type-check` (tsc --noEmit) to catch type errors.
 
 5. **Analyze Project Patterns**: Review code against established FlashForgeWebUI patterns (see checklist below).
 
@@ -144,7 +144,7 @@ Verify Biome configuration is respected:
 - **Semicolons**: As configured
 - **Line width**: Respect configured limit
 
-Run with `npm run lint` and `npm run format` to apply project settings.
+Run with `pnpm run lint` and `pnpm run format` to apply project settings.
 
 ## Behavioral Boundaries
 

@@ -63,7 +63,7 @@ export class ConnectionStateManager extends EventEmitter {
   /**
    * Set state to connecting for a specific context
    *
-   * @param contextId - Context ID for this connection
+   * @param contextId - Context ID
    * @param printer - Printer info
    */
   public setConnecting(contextId: string, printer: { name: string; ipAddress: string }): void {
@@ -79,7 +79,6 @@ export class ConnectionStateManager extends EventEmitter {
 
     this.contextStates.set(contextId, state);
 
-    // Update context manager
     this.contextManager.updateConnectionState(contextId, 'connecting');
 
     this.emit('state-changed', { contextId, state: 'connecting', printer });
@@ -88,7 +87,7 @@ export class ConnectionStateManager extends EventEmitter {
   /**
    * Set state to connected with client instances and printer details
    *
-   * @param contextId - Context ID for this connection
+   * @param contextId - Context ID
    * @param details - Printer details
    * @param primaryClient - Primary API client
    * @param secondaryClient - Optional secondary API client
@@ -111,7 +110,6 @@ export class ConnectionStateManager extends EventEmitter {
 
     this.contextStates.set(contextId, state);
 
-    // Update context manager
     this.contextManager.updateConnectionState(contextId, 'connected');
 
     this.emit('state-changed', { contextId, state: 'connected', details });
@@ -120,16 +118,14 @@ export class ConnectionStateManager extends EventEmitter {
   /**
    * Set state to disconnected and clear client references
    *
-   * @param contextId - Context ID for this disconnection
+   * @param contextId - Context ID
    */
   public setDisconnected(contextId: string): void {
     const existingState = this.contextStates.get(contextId);
     const previousDetails = existingState?.details;
 
-    // Update context manager
     this.contextManager.updateConnectionState(contextId, 'disconnected');
 
-    // Remove from map
     this.contextStates.delete(contextId);
 
     this.emit('state-changed', { contextId, state: 'disconnected', previousDetails });
@@ -292,7 +288,7 @@ export class ConnectionStateManager extends EventEmitter {
   /**
    * Dispose client connections for a specific context
    *
-   * @param contextId - Context ID to dispose clients for
+   * @param contextId - Context ID
    */
   public async disposeClientsForContext(contextId: string): Promise<void> {
     const state = this.contextStates.get(contextId);
@@ -324,7 +320,7 @@ export class ConnectionStateManager extends EventEmitter {
   /**
    * Clear state and dispose resources for a specific context
    *
-   * @param contextId - Context ID to clear
+   * @param contextId - Context ID
    */
   public async clearContext(contextId: string): Promise<void> {
     await this.disposeClientsForContext(contextId);
@@ -345,7 +341,6 @@ export class ConnectionStateManager extends EventEmitter {
   }
 }
 
-// Export singleton getter function
 export const getConnectionStateManager = (): ConnectionStateManager => {
   return ConnectionStateManager.getInstance();
 };

@@ -151,7 +151,6 @@ export class PrinterContextManager extends EventEmitter {
 
     this.contexts.set(contextId, context);
 
-    // Emit creation event
     const event: ContextCreatedEvent = {
       contextId,
       contextInfo: this.contextToInfo(context),
@@ -168,7 +167,7 @@ export class PrinterContextManager extends EventEmitter {
   /**
    * Remove a context and clean up its resources
    *
-   * @param contextId - ID of context to remove
+   * @param contextId - Context ID
    *
    * @fires context-removed
    * @throws Error if context doesn't exist
@@ -189,7 +188,6 @@ export class PrinterContextManager extends EventEmitter {
     // Remove from map (cleanup of backend/services is handled externally)
     this.contexts.delete(contextId);
 
-    // Emit removal event
     const event: ContextRemovedEvent = {
       contextId,
       wasActive,
@@ -202,7 +200,7 @@ export class PrinterContextManager extends EventEmitter {
   /**
    * Switch to a different context
    *
-   * @param contextId - ID of context to switch to
+   * @param contextId - Context ID
    *
    * @fires context-switched
    * @throws Error if context doesn't exist
@@ -228,7 +226,6 @@ export class PrinterContextManager extends EventEmitter {
     context.lastActivity = new Date();
     this.activeContextId = contextId;
 
-    // Emit switch event
     const event: ContextSwitchEvent = {
       contextId,
       previousContextId,
@@ -265,7 +262,7 @@ export class PrinterContextManager extends EventEmitter {
   /**
    * Get a specific context by ID
    *
-   * @param contextId - Context ID to retrieve
+   * @param contextId - Context ID
    * @returns Context or undefined if not found
    */
   public getContext(contextId: string): PrinterContext | undefined {
@@ -293,7 +290,7 @@ export class PrinterContextManager extends EventEmitter {
   /**
    * Check if a context exists
    *
-   * @param contextId - Context ID to check
+   * @param contextId - Context ID
    * @returns True if context exists
    */
   public hasContext(contextId: string): boolean {
@@ -312,7 +309,7 @@ export class PrinterContextManager extends EventEmitter {
   /**
    * Update context connection state
    *
-   * @param contextId - Context to update
+   * @param contextId - Context ID
    * @param state - New connection state
    */
   public updateConnectionState(contextId: string, state: ContextConnectionState): void {
@@ -326,7 +323,7 @@ export class PrinterContextManager extends EventEmitter {
   /**
    * Update context backend reference
    *
-   * @param contextId - Context to update
+   * @param contextId - Context ID
    * @param backend - Backend instance or null
    */
   public updateBackend(contextId: string, backend: BasePrinterBackend | null): void {
@@ -340,7 +337,7 @@ export class PrinterContextManager extends EventEmitter {
   /**
    * Update context printer details (for settings changes)
    *
-   * @param contextId - Context to update
+   * @param contextId - Context ID
    * @param printerDetails - Updated printer details
    */
   public updatePrinterDetails(contextId: string, printerDetails: PrinterDetails): void {
@@ -358,7 +355,7 @@ export class PrinterContextManager extends EventEmitter {
   /**
    * Update context polling service reference
    *
-   * @param contextId - Context to update
+   * @param contextId - Context ID
    * @param pollingService - Polling service instance or null
    */
   public updatePollingService(
@@ -375,7 +372,7 @@ export class PrinterContextManager extends EventEmitter {
   /**
    * Update context notification coordinator reference
    *
-   * @param contextId - Context to update
+   * @param contextId - Context ID
    * @param notificationCoordinator - Notification coordinator instance or null
    */
   public updateNotificationCoordinator(
@@ -429,7 +426,7 @@ export class PrinterContextManager extends EventEmitter {
 
   /**
    * Set active spool for a context
-   * Will be implemented once SpoolmanIntegrationService is ported
+   * Stores the spool data and spool ID on the in-memory context
    *
    * @param contextId - Context ID (defaults to active context if not provided)
    * @param spoolData - Active spool data (null to clear)
@@ -438,10 +435,6 @@ export class PrinterContextManager extends EventEmitter {
     contextId: string | undefined,
     spoolData: ActiveSpoolData | null
   ): Promise<void> {
-    // TODO: Implement once SpoolmanIntegrationService is ported
-    console.warn(
-      '[PrinterContextManager] setActiveSpool not yet implemented - SpoolmanIntegrationService pending'
-    );
     const targetContextId = contextId || this.activeContextId;
     if (targetContextId) {
       const context = this.contexts.get(targetContextId);

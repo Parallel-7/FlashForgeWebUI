@@ -91,7 +91,6 @@ export class SpoolmanUsageTracker extends EventEmitter<SpoolmanUsageTrackerEvent
    * Set the print state monitor to listen to
    */
   public setPrintStateMonitor(monitor: PrintStateMonitor): void {
-    // Remove listeners from old monitor
     if (this.printStateMonitor) {
       this.removePrintStateMonitorListeners();
     }
@@ -108,14 +107,12 @@ export class SpoolmanUsageTracker extends EventEmitter<SpoolmanUsageTrackerEvent
   private setupPrintStateMonitorListeners(): void {
     if (!this.printStateMonitor) return;
 
-    // Trigger Spoolman deduction immediately when print completes
     this.printStateMonitor.on('print-completed', (event) => {
       if (event.contextId === this.contextId) {
         void this.handlePrintCompleted(event);
       }
     });
 
-    // Reset tracking when new print starts
     this.printStateMonitor.on('print-started', (event) => {
       if (event.contextId === this.contextId) {
         this.resetTracking();
@@ -148,22 +145,18 @@ export class SpoolmanUsageTracker extends EventEmitter<SpoolmanUsageTrackerEvent
   }): Promise<void> {
     console.log(`[SpoolmanTracker] Print completed: ${event.jobName}`);
 
-    // Validate context
     if (event.contextId !== this.contextId) {
       console.warn('[SpoolmanTracker] Context mismatch in print-completed event');
       return;
     }
 
-    // Check if already recorded for this print
     if (this.usageRecordedForPrint === event.jobName) {
       console.log(`[SpoolmanTracker] Usage already recorded for: ${event.jobName}`);
       return;
     }
 
-    // Update Spoolman with cached filament data from backend
     await this.updateSpoolmanUsage(event.status);
 
-    // Mark as recorded
     this.usageRecordedForPrint = event.jobName;
   }
 
@@ -262,7 +255,6 @@ export class SpoolmanUsageTracker extends EventEmitter<SpoolmanUsageTrackerEvent
         `[SpoolmanUsageTracker] Successfully updated spool usage for context ${this.contextId}`
       );
 
-      // Emit success event
       this.emit('usage-updated', {
         contextId: this.contextId,
         spoolId: activeSpool.id,
@@ -272,7 +264,6 @@ export class SpoolmanUsageTracker extends EventEmitter<SpoolmanUsageTrackerEvent
       const message = error instanceof Error ? error.message : String(error);
       console.error('[SpoolmanUsageTracker] Failed to update filament usage:', message);
 
-      // Emit error event
       this.emit('usage-update-failed', {
         contextId: this.contextId,
         error: message,

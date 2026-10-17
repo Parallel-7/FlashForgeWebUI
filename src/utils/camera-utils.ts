@@ -73,7 +73,6 @@ export function validateCameraUrl(url: string | null | undefined): CameraUrlVali
   try {
     const parsedUrl = new URL(url);
 
-    // Check for supported protocols
     if (!['http:', 'https:', 'rtsp:'].includes(parsedUrl.protocol)) {
       return {
         isValid: false,
@@ -81,7 +80,6 @@ export function validateCameraUrl(url: string | null | undefined): CameraUrlVali
       };
     }
 
-    // Check for valid hostname
     if (!parsedUrl.hostname || parsedUrl.hostname === '') {
       return {
         isValid: false,
@@ -167,7 +165,7 @@ export function resolveCameraConfig(params: CameraUrlResolutionParams): Resolved
 /**
  * Get camera configuration from per-printer settings.
  *
- * @param contextId - Optional context ID to get per-printer camera settings
+ * @param contextId - Context ID
  * @returns Camera user configuration
  */
 export function getCameraUserConfig(contextId?: string): CameraUserConfig {

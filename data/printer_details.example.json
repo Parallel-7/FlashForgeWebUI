@@ -1,0 +1,22 @@
+{
+  "lastUsedPrinterSerial": "SNXXXXXXXXXXXX",
+  "printers": {
+    "SNXXXXXXXXXXXX": {
+      "Name": "Adventurer 5M Pro",
+      "IPAddress": "192.168.1.100",
+      "SerialNumber": "SNXXXXXXXXXXXX",
+      "CheckCode": "00000000",
+      "ClientType": "new",
+      "printerModel": "Flashforge Adventurer 5M Pro",
+      "modelType": "adventurer-5m-pro",
+      "commandPort": 8899,
+      "httpPort": 8898,
+      "customCameraEnabled": false,
+      "customCameraUrl": "",
+      "customLedsEnabled": false,
+      "forceLegacyMode": false,
+      "webUIEnabled": true,
+      "lastConnected": "2026-01-01T00:00:00.000Z"
+    }
+  }
+}

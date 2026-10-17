@@ -9,6 +9,7 @@
 
 import type {
   MaterialMapping,
+  SpoolAssignment,
   PendingJobStart,
   PrinterCommandResponse,
   PrinterFeaturesResponse,
@@ -19,6 +20,7 @@ import { apiRequest, sendCommand } from '../core/Transport.js';
 import { $, hideElement, showToast } from '../shared/dom.js';
 import { isAD5XJobFile, isMultiColorJobFile } from '../shared/formatting.js';
 import { loadFileList, showTemperatureDialog, type TemperatureTarget } from '../ui/dialogs.js';
+import { openJobUploadModal } from './job-upload.js';
 import { applySettings, refreshSettingsUI } from './layout-theme.js';
 import { openMaterialMatchingModal } from './material-matching.js';
 
@@ -97,6 +99,7 @@ interface JobStartOptions {
   leveling: boolean;
   startNow: boolean;
   materialMappings?: MaterialMapping[];
+  spoolAssignments?: SpoolAssignment[];
 }
 
 export async function startPrintJob(): Promise<void> {
@@ -160,6 +163,10 @@ export async function sendJobStartRequest(options: JobStartOptions): Promise<boo
         leveling: options.leveling,
         startNow: options.startNow,
         materialMappings: options.materialMappings,
+        spoolAssignments:
+          options.spoolAssignments && options.spoolAssignments.length > 0
+            ? options.spoolAssignments
+            : undefined,
       }),
     });
 
@@ -281,6 +288,9 @@ export function setupJobControlEventHandlers(): void {
           break;
         case 'btn-start-local':
           await loadFileList('local');
+          break;
+        case 'btn-upload-job':
+          openJobUploadModal();
           break;
         case 'btn-refresh':
           sendCommand({ command: 'REQUEST_STATUS' });

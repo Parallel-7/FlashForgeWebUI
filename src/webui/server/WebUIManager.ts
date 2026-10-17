@@ -35,12 +35,12 @@ import { buildRouteDependencies, createAPIRoutes } from './api-routes';
 import { CameraStreamProxy } from './CameraStreamProxy';
 import {
   type AuthenticatedRequest,
-  createAuthMiddleware,
   createErrorMiddleware,
   createLoginRateLimiter,
   createRequestLogger,
 } from './auth-middleware';
 import { registerPublicThemeRoutes } from './routes/theme-routes';
+import { disposeUploadStaging } from './upload-staging';
 import { getWebSocketManager } from './WebSocketManager';
 
 /**
@@ -87,12 +87,13 @@ export class WebUIManager extends EventEmitter {
   // Server state
   private isRunning: boolean = false;
   private isStopping: boolean = false;
+  /** In-flight start attempt, shared by concurrent start() callers */
+  private startPromise: Promise<boolean> | null = null;
   private serverIP: string = 'localhost';
   private port: number = 3000;
 
   // Client tracking
   private connectedClients: number = 0;
-  // Track which contexts have WebUI enabled
   private readonly registeredContexts: Set<string> = new Set();
   private readonly contextSerialNumbers: Map<string, string> = new Map();
 
@@ -156,12 +157,10 @@ export class WebUIManager extends EventEmitter {
     const environmentService = getEnvironmentService();
     const webUIStaticPath = environmentService.getWebUIStaticPath();
 
-    // Log environment info for debugging
     const envInfo = environmentService.getEnvironmentInfo();
     console.log(`[WebUI] Environment: ${envInfo.isPackaged ? 'packaged binary' : 'development'}`);
     console.log(`[WebUI] Serving static files from: ${webUIStaticPath}`);
 
-    // Verify the static path exists
     if (!fs.existsSync(webUIStaticPath)) {
       console.error(`[WebUI] Static file path does not exist: ${webUIStaticPath}`);
       console.error('[WebUI] Environment details:', JSON.stringify(envInfo, null, 2));
@@ -196,7 +195,6 @@ export class WebUIManager extends EventEmitter {
       );
       console.log('[WebUI] Static file middleware configured successfully');
 
-      // Store static path for SPA fallback
       this.webUIStaticPath = webUIStaticPath;
     } catch (error) {
       console.error('[WebUI] Failed to configure static file serving:', error);
@@ -223,10 +221,11 @@ export class WebUIManager extends EventEmitter {
     // Public routes that should be available without authentication (e.g., theme defaults)
     registerPublicThemeRoutes(this.expressApp, routeDependencies);
 
-    // Protected API routes (WebUI auth required)
-    this.expressApp.use('/api', createAuthMiddleware());
-
-    // Import and use API routes
+    // Protected API routes (WebUI auth required).
+    // Auth is applied PER-ROUTE inside createAPIRoutes (not as a blanket /api
+    // middleware) so that unknown /api/* paths find no matching route and fall
+    // through to the splat 404 handler below instead of being rejected with 401.
+    // Public routes registered above (auth + theme) stay open.
     const apiRoutes = createAPIRoutes(routeDependencies);
     this.expressApp.use('/api', apiRoutes);
 
@@ -243,7 +242,6 @@ export class WebUIManager extends EventEmitter {
     // NOTE: This app does NOT use client-side routing. All UI state is managed via DOM manipulation.
     // The fallback ensures page refreshes and direct URL access work correctly.
     // Using path.extname() to detect file requests is safe since there are no client-side routes.
-    // If client-side routing is added in the future, this should use Accept header detection instead.
     this.expressApp.get('/*splat', (req, res, next) => {
       // Skip if this looks like a file request with extension (handled by static middleware)
       if (path.extname(req.path) && req.path !== '/') {
@@ -320,8 +318,14 @@ export class WebUIManager extends EventEmitter {
 
     // Logout endpoint (optional auth)
     this.expressApp.post('/api/auth/logout', (req: AuthenticatedRequest, res) => {
-      if (req.auth?.token) {
-        this.authManager.revokeToken(req.auth.token);
+      // Extract the token manually: this route deliberately runs without the
+      // auth middleware (a logged-out caller must still reach it), so req.auth
+      // is never populated here. Relying on it silently skipped revocation and
+      // tokens stayed valid after logout - caught by the browser E2E suite.
+      const token = this.authManager.extractTokenFromHeader(req.headers.authorization);
+
+      if (token) {
+        this.authManager.revokeToken(token);
       }
 
       const response: StandardAPIResponse = {
@@ -386,16 +390,30 @@ export class WebUIManager extends EventEmitter {
    * Initialize and start the web UI server
    */
   public async start(): Promise<boolean> {
-    // Prevent concurrent calls
     if (this.isRunning) {
       console.log('WebUI server is already running');
       return true;
     }
 
+    // Concurrent callers share one attempt. startWebUI() enables auto-start right
+    // before calling start(), so a configUpdated event during startup triggers a
+    // second start(); two independent attempts race to bind the same port and the
+    // loser's cleanupFailedStart() tears down the winner's sockets. The finally()
+    // callback always runs after the assignment, so a settled attempt can never be
+    // left behind in the field.
+    this.startPromise ??= this.startServer().finally(() => {
+      this.startPromise = null;
+    });
+    return this.startPromise;
+  }
+
+  /**
+   * Build and bind the server. Only start() calls this, so attempts never overlap.
+   */
+  private async startServer(): Promise<boolean> {
     try {
       const config = this.configManager.getConfig();
 
-      // Check if WebUI is enabled
       if (!config.WebUIEnabled) {
         console.log('WebUI is disabled in configuration');
         return false;
@@ -404,19 +422,16 @@ export class WebUIManager extends EventEmitter {
       // Note: On Windows, binding to ports below 1024 may require administrator privileges
       // Users should run the application as administrator if needed
 
-      // Initialize Express application
       this.expressApp = express();
       const expressApp = this.expressApp;
       this.port = config.WebUIPort;
 
-      // Setup middleware and routes
       this.setupMiddleware();
       this.setupRoutes();
 
       // Determine server IP
       this.serverIP = await this.determineServerIP();
 
-      // Create HTTP server
       this.httpServer = http.createServer(expressApp);
       const httpServer = this.httpServer;
 
@@ -445,7 +460,6 @@ export class WebUIManager extends EventEmitter {
         }
       });
 
-      // Start listening
       await this.startListening();
 
       this.isRunning = true;
@@ -490,6 +504,12 @@ export class WebUIManager extends EventEmitter {
    * Stop the web UI server
    */
   public async stop(timeoutMs = 3000): Promise<boolean> {
+    // Let an in-flight start settle first, or it would mark the server running
+    // again after this stop has torn it down.
+    if (this.startPromise) {
+      await this.startPromise;
+    }
+
     // Guard against concurrent stop calls
     if (this.isStopping) {
       console.warn('[WebUI] Stop already in progress');
@@ -502,6 +522,7 @@ export class WebUIManager extends EventEmitter {
     try {
       if (this.httpServer) {
         const httpServer = this.httpServer;
+        let closeTimer: NodeJS.Timeout | undefined;
         try {
           // Race server close against timeout
           await Promise.race([
@@ -511,9 +532,9 @@ export class WebUIManager extends EventEmitter {
                 resolve();
               });
             }),
-            new Promise<void>((_, reject) =>
-              setTimeout(() => reject(new Error('Server close timeout')), timeoutMs)
-            ),
+            new Promise<void>((_, reject) => {
+              closeTimer = setTimeout(() => reject(new Error('Server close timeout')), timeoutMs);
+            }),
           ]);
         } catch (error) {
           if (error instanceof Error && error.message === 'Server close timeout') {
@@ -525,6 +546,10 @@ export class WebUIManager extends EventEmitter {
           } else {
             throw error;
           }
+        } finally {
+          // A clean close wins the race but leaves the timer armed, holding the
+          // event loop open for the rest of the timeout.
+          clearTimeout(closeTimer);
         }
 
         this.httpServer = null;
@@ -534,6 +559,10 @@ export class WebUIManager extends EventEmitter {
       this.webSocketManager.shutdown();
       this.cameraStreamProxy?.shutdown();
       this.cameraStreamProxy = null;
+
+      // Scratch files for staged job uploads are worthless once the server that
+      // handed out their handles is gone.
+      await disposeUploadStaging();
 
       this.expressApp = null;
       this.isRunning = false;
@@ -618,7 +647,6 @@ export class WebUIManager extends EventEmitter {
               // Home network, preferred
               return iface.address;
             } else if (bestIP === 'localhost') {
-              // Use any non-internal IPv4 as fallback
               bestIP = iface.address;
             }
           }
@@ -814,13 +842,11 @@ export class WebUIManager extends EventEmitter {
    * Handle WebUI startup errors
    */
   private async handleStartupError(error: unknown): Promise<void> {
-    // Convert to AppError for consistent handling
     const appError =
       error instanceof AppError
         ? error
         : new AppError(error instanceof Error ? error.message : String(error), ErrorCode.NETWORK);
 
-    // Log error where users can see it
     this.logToUI(`WebUI startup failed: ${appError.message}`);
     console.error('[WebUI] Startup error:', appError);
 

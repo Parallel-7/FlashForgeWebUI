@@ -144,5 +144,5 @@ export function createColorDifferenceWarning(
   slotId: number,
   slotColor: string
 ): string {
-  return `Color difference detected: ${getToolDisplayName(toolId)} expects ${toolColor} but ${getSlotDisplayName(slotId - 1)} has ${slotColor}. This is allowed but may affect print appearance.`;
+  return `${getToolDisplayName(toolId)} expects ${toolColor} but ${getSlotDisplayName(slotId - 1)} has ${slotColor}.`;
 }

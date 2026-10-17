@@ -30,10 +30,11 @@ export function registerPrinterDetectionRoutes(router: Router, _deps: RouteDepen
         ipAddress?: string;
         commandPort?: number;
         httpPort?: number;
+        productId?: number;
+        serialNumber?: string;
       };
       const ipAddress = body.ipAddress;
 
-      // Validate IP address
       if (!ipAddress || typeof ipAddress !== 'string') {
         return sendErrorResponse(res, 400, 'IP address is required');
       }
@@ -47,17 +48,21 @@ export function registerPrinterDetectionRoutes(router: Router, _deps: RouteDepen
 
       console.log(`[Detection] Probing printer at ${ipAddress}...`);
 
-      // Create mock discovered printer for temporary connection
+      // Create mock discovered printer for temporary connection. The optional
+      // productId (from UDP discovery or the manual "Creator 5" selection) lets
+      // createTemporaryConnection short-circuit the legacy TCP probe for
+      // HTTP-only models — the Creator 5 series has no TCP server on 8899, so
+      // probing it would only time out.
       const mockPrinter: DiscoveredPrinter = {
         name: `Printer at ${ipAddress}`,
         ipAddress,
-        serialNumber: '', // Will be determined during connection
+        serialNumber: typeof body.serialNumber === 'string' ? body.serialNumber.trim() : '',
         model: undefined,
         commandPort: typeof body.commandPort === 'number' ? body.commandPort : undefined,
         eventPort: typeof body.httpPort === 'number' ? body.httpPort : undefined,
+        productId: typeof body.productId === 'number' ? body.productId : undefined,
       };
 
-      // Create temporary connection to probe the printer
       const tempResult = await connectionService.createTemporaryConnection(mockPrinter);
 
       if (!tempResult.success || !tempResult.typeName) {
@@ -65,7 +70,6 @@ export function registerPrinterDetectionRoutes(router: Router, _deps: RouteDepen
         return sendErrorResponse(res, 500, tempResult.error || 'Failed to detect printer type');
       }
 
-      // Extract printer information
       const typeName = tempResult.typeName;
       const serialNumber =
         tempResult.printerInfo?.SerialNumber &&
@@ -77,7 +81,6 @@ export function registerPrinterDetectionRoutes(router: Router, _deps: RouteDepen
           ? tempResult.printerInfo.Name
           : `Printer at ${ipAddress}`;
 
-      // Detect printer family and determine requirements
       const familyInfo = detectPrinterFamily(typeName);
       const clientType = determineClientType(familyInfo.is5MFamily);
 

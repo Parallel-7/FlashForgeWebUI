@@ -28,11 +28,9 @@ export {
   MatlStationInfo,
   SlotInfo,
 } from '@ghosttypes/ff-api';
-// Keep our UI-specific types that transform the data structure
 // AD5X job info extends the base job info with material station data
 export { AD5XJobInfo, MaterialSlotInfo, MaterialStationStatus } from '../../types/printer-backend';
 
-// Import MatlStationInfo for type definitions
 import type { MatlStationInfo as MatlStationInfoType } from '@ghosttypes/ff-api';
 
 // Type for the raw machine info structure from AD5X API responses

@@ -103,7 +103,6 @@ export class PrintStateMonitor extends EventEmitter<PrintStateEventMap> {
    * Set the printer polling service to monitor
    */
   public setPollingService(pollingService: PrinterPollingService): void {
-    // Remove listeners from old service
     if (this.pollingService) {
       this.removePollingServiceListeners();
     }
@@ -120,12 +119,10 @@ export class PrintStateMonitor extends EventEmitter<PrintStateEventMap> {
   private setupPollingServiceListeners(): void {
     if (!this.pollingService) return;
 
-    // Listen for data updates
     this.pollingService.on('data-updated', (data: PollingData) => {
       void this.handlePollingDataUpdate(data);
     });
 
-    // Listen for status updates
     this.pollingService.on('status-updated', (status: PrinterStatus) => {
       void this.handlePrinterStatusUpdate(status);
     });
@@ -161,19 +158,15 @@ export class PrintStateMonitor extends EventEmitter<PrintStateEventMap> {
     const previousState = this.state.currentState;
     const currentState = status.state;
 
-    // Update current state
     this.state.currentState = currentState;
 
-    // Update job name tracking
     const currentJobName = status.currentJob?.fileName || null;
     this.state.currentJobName = currentJobName;
 
-    // Check for state transitions
     if (previousState !== currentState && previousState !== null) {
       await this.handleStateTransition(previousState, currentState, status);
     }
 
-    // Update previous state for next iteration
     this.state.previousState = currentState;
   }
 
@@ -192,7 +185,6 @@ export class PrintStateMonitor extends EventEmitter<PrintStateEventMap> {
       `[PrintStateMonitor] State change for ${this.contextId}: ${previousState} → ${currentState}`
     );
 
-    // Emit generic state-changed event
     this.emit('state-changed', {
       contextId: this.contextId,
       previousState,
@@ -201,7 +193,6 @@ export class PrintStateMonitor extends EventEmitter<PrintStateEventMap> {
       timestamp,
     });
 
-    // Emit specialized lifecycle events
     await this.detectPrintLifecycleEvents(previousState, currentState, status, timestamp);
   }
 
@@ -214,7 +205,6 @@ export class PrintStateMonitor extends EventEmitter<PrintStateEventMap> {
     status: PrinterStatus,
     timestamp: Date
   ): Promise<void> {
-    // Print started: Transition TO an active printing state
     if (this.isActivePrintingState(currentState) && !this.isActivePrintingState(previousState)) {
       if (this.state.currentJobName) {
         this.emit('print-started', {
@@ -227,7 +217,6 @@ export class PrintStateMonitor extends EventEmitter<PrintStateEventMap> {
       }
     }
 
-    // Print completed: Transition TO "Completed" state
     if (currentState === 'Completed' && previousState !== 'Completed') {
       const jobName = this.state.currentJobName || 'Unknown';
       this.emit('print-completed', {
@@ -239,7 +228,6 @@ export class PrintStateMonitor extends EventEmitter<PrintStateEventMap> {
       console.log(`[PrintStateMonitor] Print completed: ${jobName}`);
     }
 
-    // Print cancelled: Transition TO "Cancelled" state
     if (currentState === 'Cancelled' && previousState !== 'Cancelled') {
       this.emit('print-cancelled', {
         contextId: this.contextId,
@@ -250,7 +238,6 @@ export class PrintStateMonitor extends EventEmitter<PrintStateEventMap> {
       console.log(`[PrintStateMonitor] Print cancelled: ${this.state.currentJobName || 'Unknown'}`);
     }
 
-    // Print error: Transition TO "Error" state
     if (currentState === 'Error' && previousState !== 'Error') {
       this.emit('print-error', {
         contextId: this.contextId,

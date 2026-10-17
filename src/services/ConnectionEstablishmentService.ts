@@ -33,6 +33,7 @@ import {
   getConnectionErrorMessage,
   getModelDisplayName,
   isHttpOnlyModel,
+  NEW_API_PRODUCT_IDS,
 } from '../utils/PrinterUtils';
 
 interface PortMutableFlashForgeClient {
@@ -133,13 +134,18 @@ export class ConnectionEstablishmentService extends EventEmitter {
   ): Promise<TemporaryConnectionResult> {
     this.emit('temporary-connection-started', printer);
 
-    // HTTP-only models (Creator 5 / 5 Pro) run no legacy TCP server, so the usual
-    // TCP probe can't work. When discovery's USB product ID identifies such a model,
-    // synthesize the type info from the discovery packet and skip the TCP probe.
+    // Any printer whose discovery USB product ID is a known new-API model is typed
+    // from that ID alone. The same broadcast also carries the serial (0x92) and name
+    // (0x00), and FiveMClient.initialize() later supplies the authoritative capability
+    // flags plus reachability — so the legacy TCP probe contributes nothing here and is
+    // skipped for ALL modern printers (5M / 5M Pro / AD5X / Creator 5 / 5 Pro). It is
+    // also impossible for the HTTP-only Creator 5 series, which runs no TCP server.
+    // Printers with no product ID (genuine legacy, or manual/headless connects that
+    // supplied no model hint) fall through to the TCP probe below.
     const idModelType = detectPrinterModelTypeFromId(printer.productId, '');
-    if (isHttpOnlyModel(idModelType)) {
+    if (printer.productId !== undefined && printer.productId in NEW_API_PRODUCT_IDS) {
       const typeName = getModelDisplayName(idModelType);
-      console.log(`[Connection] HTTP-only model detected via product ID: ${typeName}`);
+      console.log(`[Connection] Modern model detected via product ID: ${typeName}`);
       this.emit('printer-type-detected', { typeName, familyInfo: detectPrinterFamily(typeName) });
       return {
         success: true,
@@ -161,7 +167,6 @@ export class ConnectionEstablishmentService extends EventEmitter {
         // Always use legacy API for type detection
         tempClient = this.createLegacyClient(printer);
 
-        // Wrap initControl in timeout
         console.log(`[Connection] Initializing control connection (timeout: ${timeout}ms)...`);
         const connected = await Promise.race([
           tempClient.initControl(),
@@ -184,7 +189,7 @@ export class ConnectionEstablishmentService extends EventEmitter {
           }
 
           if (attempt < retries) {
-            await this.delay(1000 * attempt); // Exponential backoff
+            await this.delay(1000 * attempt); // Linear backoff: delay grows by 1s per attempt
             continue;
           }
 
@@ -199,7 +204,6 @@ export class ConnectionEstablishmentService extends EventEmitter {
           `[Connection] Control initialized, fetching printer info (timeout: ${timeout}ms)...`
         );
 
-        // Get printer info with timeout
         const printerInfo = await Promise.race([
           tempClient.getPrinterInfo(),
           new Promise<never>((_, reject) =>
@@ -273,7 +277,6 @@ export class ConnectionEstablishmentService extends EventEmitter {
       } catch (error) {
         console.error(`[Connection] Attempt ${attempt} failed:`, error);
 
-        // Clean up temp client on error
         if (tempClient) {
           try {
             void tempClient.dispose();
@@ -308,7 +311,7 @@ export class ConnectionEstablishmentService extends EventEmitter {
   }
 
   /**
-   * Delay helper for exponential backoff
+   * Delay helper for linear backoff
    */
   private async delay(ms: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, ms));
@@ -379,7 +382,6 @@ export class ConnectionEstablishmentService extends EventEmitter {
       httpOnly,
     });
 
-    // Validate that we have a valid serial number for FiveMClient
     if (!printer.serialNumber || printer.serialNumber.trim() === '') {
       console.error('Cannot create FiveMClient without valid serial number');
       throw new Error('Serial number is required for dual API connection but was not provided');
@@ -452,7 +454,6 @@ export class ConnectionEstablishmentService extends EventEmitter {
       };
     } catch (error) {
       console.error('Error in establishDualAPIConnection:', error);
-      // Clean up on failure
       try {
         await primaryClient.dispose();
       } catch (disposeError) {
@@ -483,7 +484,6 @@ export class ConnectionEstablishmentService extends EventEmitter {
         primaryClient: tempInfo.printerInfo._reuseableClient as FlashForgeClient,
       };
     } else {
-      // Create new legacy connection
       const primaryClient = this.createLegacyClient(printer);
       const connected = await primaryClient.initControl();
 
@@ -519,7 +519,6 @@ export class ConnectionEstablishmentService extends EventEmitter {
     secondaryClient: FlashForgeClient | null,
     clientType?: string
   ): Promise<void> {
-    // Send logout to legacy clients before disposal
     if (clientType === 'legacy' && primaryClient) {
       await this.sendLogoutCommand(primaryClient as FlashForgeClient);
       await new Promise((resolve) => setTimeout(resolve, 200)); // Give time to process
@@ -530,7 +529,6 @@ export class ConnectionEstablishmentService extends EventEmitter {
       await new Promise((resolve) => setTimeout(resolve, 200));
     }
 
-    // Dispose clients
     if (primaryClient) {
       try {
         void primaryClient.dispose();
@@ -551,7 +549,6 @@ export class ConnectionEstablishmentService extends EventEmitter {
   }
 }
 
-// Export singleton getter function
 export const getConnectionEstablishmentService = (): ConnectionEstablishmentService => {
   return ConnectionEstablishmentService.getInstance();
 };

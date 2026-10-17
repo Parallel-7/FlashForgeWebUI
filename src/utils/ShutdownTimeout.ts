@@ -61,14 +61,12 @@ export async function withTimeout<T>(
   try {
     const result = await Promise.race([promise, timeoutPromise]);
 
-    // Clear timeout if promise won the race
     if (timeoutHandle) {
       clearTimeout(timeoutHandle);
     }
 
     return result;
   } catch (error) {
-    // Ensure timeout is cleared even on error
     if (timeoutHandle) {
       clearTimeout(timeoutHandle);
     }

@@ -150,7 +150,6 @@ export function isValidConfig(config: unknown): config is AppConfig {
 
   const obj = config as Record<string, unknown>;
 
-  // Check all required keys exist and have correct types
   for (const [key, defaultValue] of Object.entries(DEFAULT_CONFIG)) {
     if (!(key in obj)) {
       return false;
@@ -228,11 +227,9 @@ export function sanitizeConfig(config: Partial<AppConfig>): AppConfig {
 
       if (typeof value === expectedType) {
         if (expectedType === 'number' && isNumberConfigKey(key)) {
-          // Ensure numbers are valid and within reasonable bounds
           const numValue = value as number;
           if (Number.isFinite(numValue) && numValue >= 0) {
             if (key === 'WebUIPort') {
-              // Validate port numbers
               if (numValue >= 1 && numValue <= 65535) {
                 assignConfigValue(sanitized, key, numValue);
               }

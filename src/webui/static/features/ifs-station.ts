@@ -194,7 +194,6 @@ export function setupIfsStationCard(): void {
 function openSlotEditor(slot: MaterialSlotInfo): void {
   const displaySlotId = slot.slotId + 1;
 
-  // Resolve the fixed palette for this printer model (AD5X vs Creator 5).
   const palette = getPaletteForModel(latestStation?.printerModelType);
   const paletteMaterials = palette.materials;
   const paletteColors = palette.colors;
@@ -318,7 +317,9 @@ function openSlotEditor(slot: MaterialSlotInfo): void {
 
   applyBtn.addEventListener('click', () => {
     if (selectedHex) {
-      void applyManualSlot(slot, displaySlotId, selectedMaterial, selectedHex, close);
+      void applyManualSlot(displaySlotId, selectedMaterial, selectedHex, () => {
+        close();
+      });
     }
   });
 
@@ -330,7 +331,6 @@ function openSlotEditor(slot: MaterialSlotInfo): void {
  * slot-config route, then refresh the card.
  */
 async function applyManualSlot(
-  slot: MaterialSlotInfo,
   displaySlotId: number,
   material: string,
   colorHex: string,
@@ -345,7 +345,6 @@ async function applyManualSlot(
         slot: displaySlotId,
         materialName: material,
         colorHex,
-        currentMaterial: slot.materialType,
       }),
     });
 

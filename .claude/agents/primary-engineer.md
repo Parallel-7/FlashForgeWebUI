@@ -39,7 +39,7 @@ When invoked, you will:
    - Use EventEmitter with typed event maps
    - Follow existing backend structure for printer integrations
 
-5. **Verify and Refine**: Review your implementation for type safety, correctness, and adherence to patterns. Run `npm run type-check` and `npm run lint` to verify.
+5. **Verify and Refine**: Review your implementation for type safety, correctness, and adherence to patterns. Run `pnpm run type-check` and `pnpm run lint` to verify.
 
 ## Decision Framework
 

@@ -560,24 +560,12 @@ export class DiscordNotificationService extends EventEmitter {
     };
   }
 
+  /**
+   * Returns the library-sourced completion time, or null when the print is not
+   * advancing (the library sets completionTime to null in that case).
+   */
   private resolveEtaDate(status: PrinterStatus): Date | null {
-    const progress = status.currentJob?.progress;
-    if (!progress) {
-      return null;
-    }
-
-    if (progress.formattedEta && progress.formattedEta !== '--:--') {
-      const [hours, minutes] = progress.formattedEta.split(':').map(Number);
-      if (Number.isFinite(hours) && Number.isFinite(minutes)) {
-        return new Date(Date.now() + (hours * 60 + minutes) * 60_000);
-      }
-    }
-
-    if (progress.timeRemaining != null) {
-      return new Date(Date.now() + progress.timeRemaining * 60_000);
-    }
-
-    return null;
+    return status.currentJob?.progress?.completionTime ?? null;
   }
 
   private getStatusColor(state: PrinterState): number {

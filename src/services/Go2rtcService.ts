@@ -266,7 +266,7 @@ export class Go2rtcService extends EventEmitter<Go2rtcServiceEvents> {
     }
 
     const apiPort = this.binaryManager.getApiPort();
-    const wsUrl = `ws://localhost:${apiPort}/api/ws?src=${encodeURIComponent(stream.streamName)}`;
+    const wsUrl = `ws://127.0.0.1:${apiPort}/api/ws?src=${encodeURIComponent(stream.streamName)}`;
     const mode = stream.streamType === 'mjpeg' ? 'mjpeg' : 'webrtc,mse,mjpeg';
 
     return {

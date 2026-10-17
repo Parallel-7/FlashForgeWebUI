@@ -58,7 +58,6 @@ export class AuthManager {
   private cleanupInterval: NodeJS.Timeout | null = null;
 
   constructor() {
-    // Start periodic cleanup of expired sessions
     this.startSessionCleanup();
   }
 
@@ -76,7 +75,6 @@ export class AuthManager {
     const config = this.configManager.getConfig();
     const serverPassword = config.WebUIPassword;
 
-    // Check if password matches
     if (request.password !== serverPassword) {
       return {
         success: false,
@@ -84,7 +82,6 @@ export class AuthManager {
       };
     }
 
-    // Generate session token
     const token = this.generateToken(request.rememberMe || false);
 
     return {
@@ -103,7 +100,6 @@ export class AuthManager {
     const timeout = persistent ? this.sessionTimeout : this.tempSessionTimeout;
     const expiresAt = now + timeout;
 
-    // Create token payload
     const payload: TokenPayload = {
       sessionId,
       createdAt: now,
@@ -111,17 +107,13 @@ export class AuthManager {
       persistent,
     };
 
-    // Encode payload as base64
     const tokenData = Buffer.from(JSON.stringify(payload)).toString('base64');
 
-    // Create signature using config as secret
     const secret = this.getTokenSecret();
     const signature = crypto.createHmac('sha256', secret).update(tokenData).digest('hex');
 
-    // Combine token data and signature
     const token = `${tokenData}.${signature}`;
 
-    // Store session info
     const sessionInfo: SessionInfo = {
       token,
       createdAt: new Date(now),
@@ -144,13 +136,11 @@ export class AuthManager {
     }
 
     try {
-      // Validate token format
       const validatedToken = validateAuthToken(token);
       if (!validatedToken) {
         return { isValid: false };
       }
 
-      // Split token and signature
       const parts = token.split('.');
       if (parts.length !== 2) {
         return { isValid: false };
@@ -158,7 +148,6 @@ export class AuthManager {
 
       const [tokenData, signature] = parts;
 
-      // Verify signature
       const secret = this.getTokenSecret();
       const expectedSignature = crypto.createHmac('sha256', secret).update(tokenData).digest('hex');
 
@@ -166,22 +155,18 @@ export class AuthManager {
         return { isValid: false };
       }
 
-      // Decode payload
       const payload = JSON.parse(Buffer.from(tokenData, 'base64').toString()) as TokenPayload;
 
-      // Check expiration
       if (payload.expiresAt < Date.now()) {
         this.sessions.delete(payload.sessionId);
         return { isValid: false };
       }
 
-      // Check if session exists
       const session = this.sessions.get(payload.sessionId);
       if (!session) {
         return { isValid: false };
       }
 
-      // Update last activity
       session.lastActivity = new Date();
 
       return { isValid: true, sessionId: payload.sessionId };
@@ -200,13 +185,11 @@ export class AuthManager {
     }
 
     try {
-      // Validate token format
       const validatedToken = validateAuthToken(token);
       if (!validatedToken) {
         return false;
       }
 
-      // Split token and signature
       const parts = token.split('.');
       if (parts.length !== 2) {
         return false;
@@ -214,7 +197,6 @@ export class AuthManager {
 
       const [tokenData, signature] = parts;
 
-      // Verify signature
       const secret = this.getTokenSecret();
       const expectedSignature = crypto.createHmac('sha256', secret).update(tokenData).digest('hex');
 
@@ -222,22 +204,18 @@ export class AuthManager {
         return false;
       }
 
-      // Decode payload
       const payload = JSON.parse(Buffer.from(tokenData, 'base64').toString()) as TokenPayload;
 
-      // Check expiration
       if (payload.expiresAt < Date.now()) {
         this.sessions.delete(payload.sessionId);
         return false;
       }
 
-      // Check if session exists
       const session = this.sessions.get(payload.sessionId);
       if (!session) {
         return false;
       }
 
-      // Update last activity
       session.lastActivity = new Date();
 
       return true;
@@ -307,7 +285,6 @@ export class AuthManager {
    */
   private getTokenSecret(): string {
     const config = this.configManager.getConfig();
-    // Use a combination of password and a fixed salt for the secret
     return crypto
       .createHash('sha256')
       .update(config.WebUIPassword)
@@ -327,7 +304,6 @@ export class AuthManager {
    * Start periodic cleanup of expired sessions
    */
   private startSessionCleanup(): void {
-    // Clean up every 5 minutes
     this.cleanupInterval = setInterval(
       () => {
         const now = Date.now();
@@ -354,7 +330,6 @@ export class AuthManager {
   }
 }
 
-// Export singleton instance
 let authManager: AuthManager | null = null;
 
 export function getAuthManager(): AuthManager {

@@ -92,7 +92,6 @@ export abstract class BasePrinterBackend extends EventEmitter {
     this.serialNumber = options.printerDetails.serialNumber;
     this.typeName = options.printerDetails.typeName;
 
-    // Store per-printer settings from printer details
     this.customCameraEnabled = options.printerDetails.customCameraEnabled ?? false;
     this.customCameraUrl = options.printerDetails.customCameraUrl ?? '';
     this.customLedsEnabled = options.printerDetails.customLedsEnabled ?? false;
@@ -203,15 +202,12 @@ export abstract class BasePrinterBackend extends EventEmitter {
     }
 
     try {
-      // Validate primary client connection
       await this.validatePrimaryClient();
 
-      // Initialize secondary client if available
       if (this.secondaryClient) {
         await this.validateSecondaryClient();
       }
 
-      // Build feature set
       this.rebuildFeatureSet();
 
       // Perform backend-specific initialization
@@ -286,23 +282,27 @@ export abstract class BasePrinterBackend extends EventEmitter {
         reason: baseFeatures.filtration.reason,
       },
       gcodeCommands: {
-        available: true, // Always available
-        usesLegacyAPI: true, // G-code always uses legacy API
-        supportedCommands: this.getSupportedGCodeCommands(),
+        // Honor the backend's own declaration: HTTP-only models (Creator 5
+        // series) expose no G-code passthrough and set available=false in
+        // getChildBaseFeatures(). Default to true for backends that don't care.
+        available: baseFeatures.gcodeCommands?.available ?? true,
+        usesLegacyAPI: baseFeatures.gcodeCommands?.usesLegacyAPI ?? true,
+        supportedCommands:
+          baseFeatures.gcodeCommands?.supportedCommands ?? this.getSupportedGCodeCommands(),
       },
       statusMonitoring: {
-        available: true, // Always available
-        usesNewAPI: this.supportsNewAPI(),
-        usesLegacyAPI: true, // Always available as fallback
-        realTimeUpdates: this.supportsNewAPI(),
+        available: baseFeatures.statusMonitoring?.available ?? true,
+        usesNewAPI: baseFeatures.statusMonitoring?.usesNewAPI ?? this.supportsNewAPI(),
+        usesLegacyAPI: baseFeatures.statusMonitoring?.usesLegacyAPI ?? true,
+        realTimeUpdates: baseFeatures.statusMonitoring?.realTimeUpdates ?? this.supportsNewAPI(),
       },
       jobManagement: {
         localJobs: this.supportsLocalJobs(),
         recentJobs: this.supportsRecentJobs(),
         uploadJobs: this.supportsUploadJobs(),
         startJobs: this.supportsStartJobs(),
-        pauseResume: true, // Always available
-        cancelJobs: true, // Always available
+        pauseResume: true,
+        cancelJobs: true,
         usesNewAPI: this.supportsNewAPI(),
       },
       materialStation: {
@@ -471,7 +471,6 @@ export abstract class BasePrinterBackend extends EventEmitter {
    */
   public async dispose(): Promise<void> {
     try {
-      // Dispose of clients
       if (this.primaryClient) {
         await this.primaryClient.dispose();
       }
@@ -480,12 +479,10 @@ export abstract class BasePrinterBackend extends EventEmitter {
         await this.secondaryClient.dispose();
       }
 
-      // Clean up state
       this.initialized = false;
       this.connected = false;
       this.features = null;
 
-      // Remove event listeners
       this.removeAllListeners();
 
       this.emitEvent('disconnected');
@@ -571,6 +568,61 @@ export abstract class BasePrinterBackend extends EventEmitter {
    * @returns Command result with success/failure
    */
   public abstract setLedEnabled(enabled: boolean): Promise<CommandResult>;
+
+  /**
+   * Set the print bed target temperature
+   * @param temperature - Target temperature in Celsius
+   * @returns Command result with success/failure
+   */
+  public abstract setBedTemperature(temperature: number): Promise<CommandResult>;
+
+  /**
+   * Cancel print bed heating (target back to 0)
+   * @returns Command result with success/failure
+   */
+  public abstract cancelBedTemperature(): Promise<CommandResult>;
+
+  /**
+   * Set the extruder target temperature
+   * @param temperature - Target temperature in Celsius
+   * @returns Command result with success/failure
+   */
+  public abstract setExtruderTemperature(temperature: number): Promise<CommandResult>;
+
+  /**
+   * Cancel extruder heating (target back to 0)
+   * @returns Command result with success/failure
+   */
+  public abstract cancelExtruderTemperature(): Promise<CommandResult>;
+
+  /**
+   * Wrap a boolean temperature-control action into a CommandResult.
+   *
+   * Shared by the backend heater implementations so the only backend-specific
+   * logic is the client routing (legacy TCP vs HTTP temperature control).
+   *
+   * @param action - Heater action resolving to the transport's success flag
+   * @returns Command result with success/failure
+   */
+  protected async runTemperatureControlCommand(
+    action: () => Promise<boolean>
+  ): Promise<CommandResult> {
+    try {
+      const success = await action();
+
+      return {
+        success,
+        error: success ? undefined : 'Temperature command failed',
+        timestamp: new Date(),
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+        timestamp: new Date(),
+      };
+    }
+  }
 
   // Helper methods for feature detection
 

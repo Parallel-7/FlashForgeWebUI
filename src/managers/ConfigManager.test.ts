@@ -20,7 +20,6 @@ describe('ConfigManager', () => {
   let configManager: ConfigManager;
 
   beforeEach(() => {
-    // Setup mocks
 
     // Mock fs.existsSync to return true for config directory
     jest.spyOn(fs, 'existsSync').mockReturnValue(true);
@@ -46,7 +45,6 @@ describe('ConfigManager', () => {
     // Mock fs.writeFileSync
     jest.spyOn(fs, 'writeFileSync').mockImplementation(() => {});
 
-    // Reset singleton
     resetConfigManagerSingleton();
     configManager = getConfigManager();
   });

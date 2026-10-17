@@ -137,6 +137,9 @@ const COMPONENT_TEMPLATES: Record<string, WebUIComponentTemplate> = {
             <button id="btn-start-local" class="control-btn">Local Files</button>
             <button id="btn-refresh" class="control-btn">Refresh Status</button>
           </div>
+          <div class="btn-row">
+            <button id="btn-upload-job" class="control-btn">Upload Job</button>
+          </div>
         </div>
       </div>
     `,
@@ -306,6 +309,11 @@ const COMPONENT_TEMPLATES: Record<string, WebUIComponentTemplate> = {
         <div class="panel-content">
           <div id="spoolman-disabled" class="spoolman-state hidden">
             <div class="spoolman-message" id="spoolman-disabled-message">Spoolman integration is disabled</div>
+          </div>
+          <div id="spoolman-station" class="spoolman-state hidden">
+            <div class="spoolman-message" id="spoolman-station-note">Choose a spool for each tool when you match materials for an upload.</div>
+            <div class="spool-stats" id="spoolman-station-job"></div>
+            <div class="spool-meta" id="spoolman-station-summary"></div>
           </div>
           <div id="spoolman-no-spool" class="spoolman-state hidden">
             <div class="spoolman-message">No spool selected</div>

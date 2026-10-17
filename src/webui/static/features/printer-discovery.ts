@@ -13,6 +13,49 @@ interface DiscoveredPrinter {
   model?: string;
   commandPort?: number;
   eventPort?: number;
+  productId?: number;
+}
+
+/**
+ * Internal USB product IDs sent for manual connections so the server types the
+ * model from the product ID and skips the legacy TCP probe entirely. Every modern
+ * (new-API) model is included: the product ID is authoritative for model typing,
+ * the user also supplies the serial, and `FiveMClient.initialize()` provides the
+ * real capability flags — leaving the probe with nothing to contribute (and it is
+ * impossible for the HTTP-only Creator 5 series). Legacy selections carry no
+ * product ID and fall through to the TCP probe on the server.
+ *
+ * Keys must match the `<option value>` entries of the printer-type dropdown in
+ * `index.html`.
+ */
+const MANUAL_PRODUCT_ID_HINTS: Readonly<Record<string, number>> = {
+  'adventurer-5m': 35,
+  'adventurer-5m-pro': 36,
+  ad5x: 38,
+  'creator-5': 40,
+  'creator-5-pro': 41,
+};
+
+/**
+ * Parse a manual host entry that may carry an optional `:port` suffix
+ * (e.g. `192.168.1.184:80`). Returns null when the IPv4 part is invalid.
+ */
+function parseHostInput(raw: string): { ipAddress: string; port?: number } | null {
+  const match = raw.match(/^([0-9.]+)(?::(\d{1,5}))?$/);
+  if (!match) return null;
+
+  const ipAddress = match[1];
+  const ipv4Regex =
+    /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
+  if (!ipv4Regex.test(ipAddress)) return null;
+
+  if (match[2] !== undefined) {
+    const port = Number(match[2]);
+    if (port < 1 || port > 65535) return null;
+    return { ipAddress, port };
+  }
+
+  return { ipAddress };
 }
 
 interface SavedPrinterMatch {
@@ -45,7 +88,6 @@ function setupDiscoveryButton(): void {
     return;
   }
 
-  // Create button
   const addButton = document.createElement('button');
   addButton.id = 'add-printer-btn';
   addButton.className = 'add-printer-btn';
@@ -56,7 +98,6 @@ function setupDiscoveryButton(): void {
     loadSavedPrinters();
   });
 
-  // Insert before settings button
   const settingsBtn = header.querySelector('#settings-button');
   if (settingsBtn) {
     header.insertBefore(addButton, settingsBtn);
@@ -82,13 +123,11 @@ function setupDiscoveryModal(): void {
       const tabName = btn.getAttribute('data-tab');
       if (!tabName) return;
 
-      // Update active tab button
       tabBtns.forEach((b) => {
         b.classList.remove('active');
       });
       btn.classList.add('active');
 
-      // Update active tab pane
       const panes = document.querySelectorAll('.discovery-tab-pane');
       panes.forEach((pane) => {
         if (pane.id === `discovery-tab-${tabName}`) {
@@ -108,18 +147,22 @@ function setupDiscoveryModal(): void {
   const manualBtn = $('discovery-manual-connect');
   manualBtn?.addEventListener('click', () => void connectManually());
 
-  // Printer type change handler
+  // Printer type change handler. All modern printers (5M family and Creator 5
+  // series) authenticate with a check code + serial number; only legacy
+  // printers connect without them.
   const typeSelect = $('discovery-printer-type') as HTMLSelectElement | null;
   typeSelect?.addEventListener('change', () => {
     const checkCodeGroup = $('discovery-check-code-group');
-    if (typeSelect.value === 'new') {
-      checkCodeGroup?.classList.remove('hidden');
-    } else {
+    const serialGroup = $('discovery-serial-group');
+    if (typeSelect.value === 'legacy') {
       checkCodeGroup?.classList.add('hidden');
+      serialGroup?.classList.add('hidden');
+    } else {
+      checkCodeGroup?.classList.remove('hidden');
+      serialGroup?.classList.remove('hidden');
     }
   });
 
-  // Close button
   const closeBtn = $('close-discovery');
   closeBtn?.addEventListener('click', () => hideElement('discovery-modal'));
 }
@@ -212,7 +255,8 @@ function displayDiscoveredPrinters(matches: SavedPrinterMatch[]): void {
                   data-name="${printer.name}"
                   data-model="${printer.model || ''}"
                   data-command-port="${printer.commandPort ?? ''}"
-                  data-event-port="${printer.eventPort ?? ''}">
+                  data-event-port="${printer.eventPort ?? ''}"
+                  data-product-id="${printer.productId ?? ''}">
             Connect
           </button>
         </div>
@@ -221,7 +265,6 @@ function displayDiscoveredPrinters(matches: SavedPrinterMatch[]): void {
     })
     .join('');
 
-  // Setup connect buttons
   const connectBtns = printerList.querySelectorAll('.connect-printer-btn');
   connectBtns.forEach((btn) => {
     btn.addEventListener('click', () => {
@@ -231,6 +274,7 @@ function displayDiscoveredPrinters(matches: SavedPrinterMatch[]): void {
       const model = btn.getAttribute('data-model');
       const commandPort = btn.getAttribute('data-command-port');
       const eventPort = btn.getAttribute('data-event-port');
+      const productId = btn.getAttribute('data-product-id');
 
       if (ip) {
         void connectToDiscoveredPrinter(
@@ -239,7 +283,8 @@ function displayDiscoveredPrinters(matches: SavedPrinterMatch[]): void {
           name || '',
           model || '',
           commandPort ? Number(commandPort) : undefined,
-          eventPort ? Number(eventPort) : undefined
+          eventPort ? Number(eventPort) : undefined,
+          productId ? Number(productId) : undefined
         );
       }
     });
@@ -295,7 +340,8 @@ async function connectToDiscoveredPrinter(
   name: string,
   _model: string,
   commandPort?: number,
-  httpPort?: number
+  httpPort?: number,
+  productId?: number
 ): Promise<void> {
   try {
     showToast('Detecting printer type...', 'info');
@@ -317,6 +363,7 @@ async function connectToDiscoveredPrinter(
         ipAddress: ip,
         commandPort,
         httpPort,
+        productId,
       }),
     });
 
@@ -334,11 +381,9 @@ async function connectToDiscoveredPrinter(
     // STEP 2: Get check code if needed
     let checkCode: string | undefined;
     if (requiresCheckCode && is5MFamily) {
-      // Check if printer is already saved with a check code
       const savedPrinter = await getSavedPrinterBySerial(detectedSerial);
 
       if (savedPrinter?.CheckCode && savedPrinter.CheckCode !== '123') {
-        // Use saved check code
         checkCode = savedPrinter.CheckCode;
         console.log('[Discovery] Using saved check code');
       } else {
@@ -370,6 +415,7 @@ async function connectToDiscoveredPrinter(
         checkCode,
         commandPort,
         httpPort,
+        productId,
       }),
     });
 
@@ -380,7 +426,6 @@ async function connectToDiscoveredPrinter(
     showToast(`Connected to ${detectedName}!`, 'success');
     hideElement('discovery-modal');
 
-    // Reload page to refresh printer list
     window.location.reload();
   } catch (error) {
     console.error('Connection failed:', error);
@@ -398,17 +443,47 @@ async function connectManually(): Promise<void> {
   const ipInput = $('discovery-manual-ip') as HTMLInputElement | null;
   const typeSelect = $('discovery-printer-type') as HTMLSelectElement | null;
   const checkCodeInput = $('discovery-check-code') as HTMLInputElement | null;
+  const serialInput = $('discovery-serial-number') as HTMLInputElement | null;
 
   if (!ipInput || !typeSelect) return;
 
-  const ip = ipInput.value.trim();
+  const rawHost = ipInput.value.trim();
   const userSelectedType = typeSelect.value;
   const userCheckCode = checkCodeInput?.value.trim();
+  const userSerialNumber = serialInput?.value.trim() ?? '';
 
-  // Validate IP
-  if (!ip) {
+  // Validate IP (an optional :port suffix is accepted, e.g. 192.168.1.184:80)
+  if (!rawHost) {
     showToast('Please enter an IP address', 'error');
     return;
+  }
+
+  const parsedHost = parseHostInput(rawHost);
+  if (!parsedHost) {
+    showToast('Invalid IP address - use e.g. 192.168.1.100 or 192.168.1.100:80', 'error');
+    return;
+  }
+
+  const ip = parsedHost.ipAddress;
+  // A :port suffix on a legacy printer overrides the TCP command port; on a
+  // modern printer it overrides the HTTP API port.
+  const commandPort = userSelectedType === 'legacy' ? parsedHost.port : undefined;
+  const httpPort = userSelectedType === 'legacy' ? undefined : parsedHost.port;
+  // The Creator 5 series is HTTP-only (no TCP server), so the server must skip
+  // the legacy TCP probe. The internal product ID triggers that short-circuit.
+  const productId = MANUAL_PRODUCT_ID_HINTS[userSelectedType];
+
+  // All modern printers authenticate with serial number + check code, so both
+  // are required up front for manual connections.
+  if (userSelectedType !== 'legacy') {
+    if (!/^[A-Za-z0-9\-_]{3,}$/.test(userSerialNumber)) {
+      showToast('Please enter the printer serial number (found in printer settings)', 'error');
+      return;
+    }
+    if (!userCheckCode || userCheckCode.length !== 8) {
+      showToast('Please enter the 8-digit check code', 'error');
+      return;
+    }
   }
 
   try {
@@ -427,7 +502,13 @@ async function connectManually(): Promise<void> {
     }>('/api/printers/detect', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ipAddress: ip }),
+      body: JSON.stringify({
+        ipAddress: ip,
+        commandPort,
+        httpPort,
+        productId,
+        serialNumber: userSerialNumber || undefined,
+      }),
     });
 
     if (!detectResponse.success || !detectResponse.typeName) {
@@ -436,16 +517,23 @@ async function connectManually(): Promise<void> {
 
     const { typeName, serialNumber, is5MFamily, requiresCheckCode, clientType } = detectResponse;
     const detectedName = detectResponse.name || `Printer at ${ip}`;
-    const detectedSerial = serialNumber || '';
+    // The TCP probe's serial (firmware-reported) wins when available; the
+    // user-entered serial covers HTTP-only models the probe cannot reach.
+    const detectedSerial = serialNumber || userSerialNumber;
     const detectedType = clientType || (is5MFamily ? 'new' : 'legacy');
 
     console.log(`[Manual] Detected: ${typeName} (${is5MFamily ? '5M family' : 'legacy'})`);
 
-    // STEP 2: Validate user selection against detection (warn if mismatch)
-    if (userSelectedType !== detectedType) {
+    // STEP 2: Validate user selection against detection (warn if mismatch).
+    // Every modern model resolves to the "new" client type on the wire, so only
+    // a modern-vs-legacy disagreement is worth warning about.
+    const userClientType = userSelectedType === 'legacy' ? 'legacy' : 'new';
+    if (userClientType !== detectedType) {
+      const selectedLabel = typeSelect.options[typeSelect.selectedIndex]?.text ?? userSelectedType;
+      const detectedLabel = detectedType === 'legacy' ? 'a legacy printer' : `a modern printer`;
       const proceed = confirm(
-        `Warning: You selected "${userSelectedType}" but the printer was detected as "${detectedType}".\n\n` +
-          `Using detected type: ${detectedType}\n\nContinue?`
+        `Warning: You selected "${selectedLabel}" but the printer reports itself as ` +
+          `${detectedLabel} (${typeName}).\n\nConnect using the detected type instead?`
       );
       if (!proceed) {
         return;
@@ -455,22 +543,24 @@ async function connectManually(): Promise<void> {
     // STEP 3: Get check code if needed
     let checkCode: string | undefined;
     if (requiresCheckCode && is5MFamily) {
-      // Check if printer is already saved with a check code
-      const savedPrinter = await getSavedPrinterBySerial(detectedSerial);
-
-      if (savedPrinter?.CheckCode && savedPrinter.CheckCode !== '123') {
-        // Use saved check code
-        checkCode = savedPrinter.CheckCode;
-        console.log('[Manual] Using saved check code');
-      } else if (userCheckCode && userCheckCode.length === 8) {
-        // Use user-provided check code from form
+      // The form's check code is required for modern printers, so it wins over
+      // any saved value — otherwise a stale saved code would silently override
+      // a freshly re-paired printer's new one.
+      if (userCheckCode && userCheckCode.length === 8) {
         checkCode = userCheckCode;
       } else {
-        // Prompt user for check code
-        checkCode = prompt(`Enter the check code for ${detectedName} (8 digits):`) || undefined;
-        if (!checkCode || checkCode.length !== 8) {
-          showToast('Invalid check code - must be 8 digits', 'error');
-          return;
+        const savedPrinter = await getSavedPrinterBySerial(detectedSerial);
+
+        if (savedPrinter?.CheckCode && savedPrinter.CheckCode !== '123') {
+          checkCode = savedPrinter.CheckCode;
+          console.log('[Manual] Using saved check code');
+        } else {
+          // Prompt user for check code
+          checkCode = prompt(`Enter the check code for ${detectedName} (8 digits):`) || undefined;
+          if (!checkCode || checkCode.length !== 8) {
+            showToast('Invalid check code - must be 8 digits', 'error');
+            return;
+          }
         }
       }
     }
@@ -492,6 +582,9 @@ async function connectManually(): Promise<void> {
         model: typeName,
         type: detectedType,
         checkCode,
+        commandPort,
+        httpPort,
+        productId,
       }),
     });
 
@@ -502,7 +595,6 @@ async function connectManually(): Promise<void> {
     showToast('Connected successfully!', 'success');
     hideElement('discovery-modal');
 
-    // Reload page to refresh printer list
     window.location.reload();
   } catch (error) {
     console.error('Manual connection failed:', error);
@@ -560,7 +652,6 @@ async function loadSavedPrinters(): Promise<void> {
       )
       .join('');
 
-    // Setup reconnect buttons
     const reconnectBtns = savedList.querySelectorAll('.reconnect-btn');
     reconnectBtns.forEach((btn) => {
       btn.addEventListener('click', () => {
@@ -571,7 +662,6 @@ async function loadSavedPrinters(): Promise<void> {
       });
     });
 
-    // Setup delete buttons
     const deleteBtns = savedList.querySelectorAll('.delete-btn');
     deleteBtns.forEach((btn) => {
       btn.addEventListener('click', () => {
@@ -611,7 +701,6 @@ async function reconnectToSavedPrinter(serialNumber: string): Promise<void> {
     showToast('Reconnected successfully!', 'success');
     hideElement('discovery-modal');
 
-    // Reload page
     window.location.reload();
   } catch (error) {
     console.error('Reconnection failed:', error);
@@ -640,7 +729,6 @@ async function deleteSavedPrinter(serialNumber: string): Promise<void> {
 
     showToast('Printer deleted', 'success');
 
-    // Reload saved printers list
     await loadSavedPrinters();
   } catch (error) {
     console.error('Delete failed:', error);

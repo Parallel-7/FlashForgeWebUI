@@ -27,6 +27,7 @@ import {
   onSpoolmanUpdate,
   onStatusUpdate,
 } from './core/Transport.js';
+import { setupAbout } from './features/about.js';
 import {
   checkAuthStatus,
   loadAuthStatus,
@@ -62,7 +63,12 @@ import {
   confirmMaterialMatching,
   setupMaterialMatchingHandlers,
 } from './features/material-matching.js';
+import { refreshCalibrationButton, setupCalibration } from './features/calibration.js';
+import { refreshFileManagerButton, setupFileManager } from './features/file-manager.js';
 import { refreshIfsStationCard, setupIfsStationCard } from './features/ifs-station.js';
+import { setupJobUpload } from './features/job-upload.js';
+import { refreshRebootButton, setupReboot } from './features/reboot.js';
+import { refreshSSHSettings, setupSSHSettings } from './features/ssh.js';
 import { initializeDiscovery } from './features/printer-discovery.js';
 import { loadSpoolmanConfig, setupSpoolmanHandlers } from './features/spoolman.js';
 import { $, hideElement, showElement } from './shared/dom.js';
@@ -92,7 +98,7 @@ export interface AuthStatusResponse {
 }
 
 export interface WebSocketMessage {
-  type: 'AUTH_SUCCESS' | 'STATUS_UPDATE' | 'ERROR' | 'COMMAND_RESULT' | 'PONG' | 'SPOOLMAN_UPDATE';
+  type: 'AUTH_SUCCESS' | 'STATUS_UPDATE' | 'ERROR' | 'COMMAND_RESULT' | 'PONG' | 'SPOOLMAN_UPDATE' | 'REBOOT_STATUS';
   timestamp: string;
   status?: PrinterStatus;
   error?: string;
@@ -101,6 +107,23 @@ export interface WebSocketMessage {
   success?: boolean;
   contextId?: string;
   spool?: ActiveSpoolData | null;
+  reboot?: RebootStatusPayload;
+}
+
+/** Lifecycle phase of an in-flight printer reboot (see printer-power routes). */
+export type RebootPhase =
+  | 'rebooting'
+  | 'reconnecting'
+  | 'reconnecting-services'
+  | 'success'
+  | 'timeout'
+  | 'failed';
+
+/** Payload carried by REBOOT_STATUS WebSocket broadcasts. */
+export interface RebootStatusPayload {
+  readonly phase: RebootPhase;
+  readonly message?: string;
+  readonly printerName?: string;
 }
 
 export interface WebSocketCommand {
@@ -137,6 +160,7 @@ export interface PrinterStatus {
   cumulativeFilament?: number; // Total lifetime filament usage in meters
   cumulativePrintTime?: number; // Total lifetime print time in minutes
   formattedEta?: string; // Firmware ETA string (e.g. "04:48" = 4h48m remaining)
+  completionTime?: Date | string | null; // Library completion timestamp, null when not advancing
   elapsedTimeSeconds?: number; // Precise elapsed seconds for HH:MM:SS display
   // Creator 5 series (multi-tool) fields. Undefined/empty on single-nozzle printers.
   toolTemps?: ToolTemperature[];
@@ -160,6 +184,12 @@ export interface PrinterFeatures {
   hasMultiTool?: boolean;
   /** Creator 5 Pro — gates the read-only TVOC air-quality display. */
   isCreator5Pro?: boolean;
+  /** Raw G-code passthrough availability; gates the Home Axes (~G28) button. */
+  gcodeCommands?: {
+    available: boolean;
+    usesLegacyAPI: boolean;
+    supportedCommands: readonly string[];
+  };
 }
 
 export interface AD5XToolData {
@@ -270,6 +300,62 @@ export interface MaterialMapping {
   slotMaterialColor: string;
 }
 
+// Job upload types (mirror src/webui/types/web-api.types.ts)
+
+/** A single slicer warning extracted from a 3MF. */
+export interface UploadSliceWarning {
+  level: number;
+  message: string;
+}
+
+/** Per-tool filament entry parsed out of a staged upload. */
+export interface UploadFilamentInfo {
+  /** Gcode tool index (0-based) this filament prints with. */
+  toolId: number;
+  type: string | null;
+  color: string | null;
+  usedM: string | null;
+  usedG: string | null;
+}
+
+/**
+ * Slicer metadata for a staged upload, already resolved by the server through
+ * the same fallback chains the desktop job uploader applies while rendering.
+ */
+export interface UploadJobMetadata {
+  printerModel: string | null;
+  filamentType: string | null;
+  filamentLengthM: number | null;
+  filamentWeightG: number | null;
+  supportUsed: boolean | null;
+  slicerName: string | null;
+  slicerVersion: string | null;
+  sliceDate: string | null;
+  sliceTime: string | null;
+  printEta: string | null;
+  layerHeight: number | null;
+  infillDensity: number | null;
+  layerCount: number | null;
+  firstLayerTime: number | null;
+  warnings: UploadSliceWarning[];
+  /** Base64 PNG without a data URL prefix. */
+  thumbnail: string | null;
+  filaments: UploadFilamentInfo[];
+}
+
+export interface JobUploadStageResponse extends ApiResponse {
+  uploadId?: string;
+  fileName?: string;
+  metadata?: UploadJobMetadata;
+  /** True when the printer has a material station and the file is a 3MF. */
+  requiresMaterialMatching?: boolean;
+}
+
+export interface JobUploadStartResponse extends ApiResponse {
+  fileName?: string;
+  started?: boolean;
+}
+
 export interface PendingJobStart {
   filename: string;
   leveling: boolean;
@@ -310,6 +396,57 @@ export interface SpoolmanConfigResponse extends ApiResponse {
   serverUrl: string;
   updateMode: 'length' | 'weight';
   contextId: string | null;
+  station?: SpoolmanStationTracking | null;
+}
+
+/** Estimate-based tracking info for material-station contexts. */
+export interface SpoolmanStationTracking {
+  supported: boolean;
+  note: string;
+  activeJob: SpoolmanTrackedJobView | null;
+  lastDeduction: DeductionSummary | null;
+}
+
+export interface SpoolmanTrackedJobView {
+  fileName: string;
+  started: boolean;
+  lastProgress: number | null;
+  hasUsageProfile: boolean;
+  tools: Array<{
+    toolId: number;
+    slotId: number;
+    spoolId: number;
+    usedG: number | null;
+    usedM: number | null;
+  }>;
+}
+
+/** Spool chosen for one tool in the matching dialog (null = do not track). */
+export interface SpoolAssignment {
+  toolId: number;
+  spoolId: number | null;
+}
+
+export interface DeductionSummary {
+  fileName: string;
+  terminal: 'completed' | 'cancelled' | 'error' | 'interrupted';
+  progress: number;
+  approximate: boolean;
+  tools: ToolDeduction[];
+  deductedCount: number;
+  skippedCount: number;
+  at: string;
+}
+
+export interface ToolDeduction {
+  toolId: number;
+  slotId: number;
+  spoolId: number | null;
+  amount: number | null;
+  mode: 'weight' | 'length';
+  fraction: number;
+  status: 'deducted' | 'skipped';
+  reason?: string;
 }
 
 export interface ActiveSpoolResponse extends ApiResponse {
@@ -331,10 +468,6 @@ export interface SlotConfigResponse extends ApiResponse {
 }
 
 // ============================================================================
-// GRID AND SETTINGS MANAGEMENT
-// ============================================================================
-
-// ============================================================================
 // UI UPDATES
 // ============================================================================
 
@@ -354,21 +487,6 @@ onSpoolmanUpdate((contextId, spool) => {
   }
 });
 
-// ============================================================================
-// PRINTER CONTROLS
-// ============================================================================
-
-// ============================================================================
-// SPOOLMAN INTEGRATION
-// ============================================================================
-
-// ============================================================================
-// VIEWPORT AND LAYOUT SWITCHING
-// ============================================================================
-
-/**
- * Handle viewport resize across breakpoint
- */
 // ============================================================================
 // EVENT HANDLERS
 // ============================================================================
@@ -403,15 +521,31 @@ async function initialize(): Promise<void> {
   setupDialogEventHandlers(dialogHandlers);
   setupJobControlEventHandlers();
   setupMaterialMatchingHandlers();
+  setupJobUpload();
   setupSpoolmanHandlers();
   setupIfsStationCard();
+  setupFileManager();
+  setupCalibration();
+  setupReboot();
+  setupAbout();
+  setupSSHSettings();
   initializeDiscovery();
+
+  // The SSH settings section reflects the ACTIVE printer; reload it whenever
+  // the settings modal is opened.
+  $('settings-button')?.addEventListener('click', () => {
+    void refreshSSHSettings();
+  });
 
   const contextHandlers = {
     onContextSwitched: async () => {
       await loadPrinterFeatures();
       await loadSpoolmanConfig();
       initializeCamera();
+      void refreshFileManagerButton();
+      void refreshCalibrationButton();
+      void refreshRebootButton();
+      void refreshSSHSettings();
     },
   };
 
@@ -465,12 +599,14 @@ async function handlePostLoginTasks(): Promise<void> {
     await loadSpoolmanConfig();
 
     initializeCamera();
+    void refreshFileManagerButton();
+    void refreshCalibrationButton();
+    void refreshRebootButton();
   } catch (error) {
     console.error('Failed to load features:', error);
   }
 }
 
-// Start the application when DOM is ready
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', initialize);
 } else {

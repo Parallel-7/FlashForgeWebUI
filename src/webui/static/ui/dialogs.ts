@@ -7,7 +7,7 @@
  * material matching, printer commands) through dependency callbacks.
  */
 
-import type { FileListResponse, WebUIJobFile } from '../app.js';
+import type { ApiResponse, FileListResponse, WebUIJobFile } from '../app.js';
 import { state } from '../core/AppState.js';
 import { apiRequest } from '../core/Transport.js';
 import { $, hideElement, showElement, showToast } from '../shared/dom.js';
@@ -17,6 +17,8 @@ import {
   isAD5XJobFile,
   isMultiColorJobFile,
 } from '../shared/formatting.js';
+import { describeStoredFileTracking } from '../shared/stored-file-tracking.js';
+import { loadSpoolmanConfig } from '../features/spoolman.js';
 
 /**
  * A settable heater target. Single-nozzle printers use `bed`/`extruder`; the
@@ -75,9 +77,32 @@ function currentTargetTemperature(target: TemperatureTarget): number {
 
 let dialogHandlers: DialogHandlers = {};
 
+/** Monotonic token identifying the current thumbnail-loading batch (for cancellation). */
+let thumbnailRunId = 0;
+
 export async function loadFileList(source: 'recent' | 'local'): Promise<void> {
   if (state.authRequired && !state.authToken) {
     return;
+  }
+
+  // Defensive: Creator 5 series exposes no resident-file material mappings over
+  // the local API, so local/recent jobs can't be started. The entry buttons are
+  // also disabled for these printers (see updateButtonStates in panels.ts); this
+  // guard keeps any other caller from dead-ending too.
+  // The AD5X has no local file listing either, so 'local' is refused for every
+  // material-station printer.
+  if (
+    state.printerFeatures?.hasMultiTool ||
+    (source === 'local' && state.printerFeatures?.hasMaterialStation)
+  ) {
+    showToast('Local job management is not available on this printer.', 'error');
+    return;
+  }
+
+  // The stored-file tracking indicator needs the Spoolman slot assignments;
+  // fetch them lazily if the Spoolman panel has never loaded the config.
+  if (state.spoolmanConfig === null) {
+    void loadSpoolmanConfig();
   }
 
   try {
@@ -122,6 +147,14 @@ export function showFileModal(files: WebUIJobFile[], source: 'recent' | 'local')
     item.className = 'file-item';
     item.dataset.filename = file.fileName;
 
+    const thumbnail = document.createElement('div');
+    thumbnail.className = 'file-thumbnail loading';
+    thumbnail.textContent = 'Loading…';
+    item.appendChild(thumbnail);
+
+    const body = document.createElement('div');
+    body.className = 'file-item-body';
+
     const header = document.createElement('div');
     header.className = 'file-item-header';
 
@@ -138,7 +171,7 @@ export function showFileModal(files: WebUIJobFile[], source: 'recent' | 'local')
       header.appendChild(badge);
     }
 
-    item.appendChild(header);
+    body.appendChild(header);
 
     const meta = document.createElement('div');
     meta.className = 'file-meta';
@@ -156,6 +189,22 @@ export function showFileModal(files: WebUIJobFile[], source: 'recent' | 'local')
       material.className = 'file-meta-item';
       material.textContent = `${file.totalFilamentWeight.toFixed(1)} g`;
       meta.appendChild(material);
+    }
+
+    const trackingHint = describeStoredFileTracking(file, {
+      spoolmanEnabled: Boolean(state.spoolmanConfig?.enabled),
+      hasStation: Boolean(state.printerFeatures?.hasMaterialStation),
+    });
+    if (trackingHint) {
+      const indicator = document.createElement('span');
+      indicator.className = `file-meta-item spoolman-track-hint ${
+        trackingHint.tracked ? 'spoolman-track-hint--tracked' : 'spoolman-track-hint--untracked'
+      }`;
+      indicator.textContent = trackingHint.label;
+      if (trackingHint.tooltip) {
+        indicator.title = trackingHint.tooltip;
+      }
+      meta.appendChild(indicator);
     }
 
     if (isAD5XJobFile(file) && file.toolDatas.length > 0) {
@@ -183,8 +232,10 @@ export function showFileModal(files: WebUIJobFile[], source: 'recent' | 'local')
     }
 
     if (meta.childElementCount > 0) {
-      item.appendChild(meta);
+      body.appendChild(meta);
     }
+
+    item.appendChild(body);
 
     item.addEventListener('click', () => {
       fileList.querySelectorAll('.file-item').forEach((el) => {
@@ -203,6 +254,76 @@ export function showFileModal(files: WebUIJobFile[], source: 'recent' | 'local')
   });
 
   showElement('file-modal');
+
+  // Lazily fetch preview thumbnails once the list is on screen. The run token lets an
+  // in-flight batch bail out when the modal is closed or a different list is opened.
+  void loadThumbnails(files, ++thumbnailRunId);
+}
+
+interface JobThumbnailResponse extends ApiResponse {
+  thumbnail?: string | null;
+}
+
+/**
+ * Sequentially request a preview thumbnail for each file and paint it into the matching
+ * card. Requests are serialized (one in flight at a time) to stay gentle on the printer's
+ * single connection; the server caches results per printer so re-opening the dialog is
+ * instant. Aborts as soon as `runId` no longer matches the active batch.
+ */
+async function loadThumbnails(files: WebUIJobFile[], runId: number): Promise<void> {
+  for (const file of files) {
+    if (runId !== thumbnailRunId) {
+      return;
+    }
+
+    let thumbnail: string | null = null;
+    try {
+      const result = await apiRequest<JobThumbnailResponse>(
+        `/api/jobs/thumbnail?filename=${encodeURIComponent(file.fileName)}`
+      );
+      thumbnail = result.success ? result.thumbnail ?? null : null;
+    } catch (error) {
+      console.error(`Failed to load thumbnail for ${file.fileName}:`, error);
+    }
+
+    if (runId !== thumbnailRunId) {
+      return;
+    }
+
+    applyThumbnail(file.fileName, thumbnail);
+  }
+}
+
+/** Replace a card's loading placeholder with the fetched image or a "No Preview" note. */
+function applyThumbnail(fileName: string, thumbnail: string | null): void {
+  const fileList = $('file-list');
+  if (!fileList) {
+    return;
+  }
+
+  const item = Array.from(fileList.querySelectorAll<HTMLElement>('.file-item')).find(
+    (el) => el.dataset.filename === fileName
+  );
+  const slot = item?.querySelector<HTMLElement>('.file-thumbnail');
+  if (!slot) {
+    return;
+  }
+
+  slot.classList.remove('loading');
+
+  if (thumbnail) {
+    const image = document.createElement('img');
+    image.src = thumbnail.startsWith('data:image/')
+      ? thumbnail
+      : `data:image/png;base64,${thumbnail}`;
+    image.alt = fileName;
+    slot.textContent = '';
+    slot.appendChild(image);
+    slot.classList.add('has-image');
+  } else {
+    slot.textContent = 'No Preview';
+    slot.classList.add('no-preview');
+  }
 }
 
 export function showTemperatureDialog(target: TemperatureTarget): void {
@@ -321,6 +442,8 @@ export function setupDialogEventHandlers(handlers: DialogHandlers = {}): void {
 function closeFileModal(): void {
   hideElement('file-modal');
   state.selectedFile = null;
+  // Cancel any in-flight thumbnail batch for the now-closed list.
+  thumbnailRunId++;
 
   if (isMaterialMatchingVisible()) {
     dialogHandlers.onMaterialMatchingClosed?.();

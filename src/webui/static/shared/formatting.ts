@@ -82,9 +82,38 @@ export function formatTime(minutes: number): string {
   return `${mins}:00`;
 }
 
-export function formatETA(remainingMinutes: number): string {
-  const now = new Date();
-  const completionTime = new Date(now.getTime() + remainingMinutes * 60 * 1000);
+/**
+ * Whether the print is advancing, i.e. whether the firmware is still counting
+ * `estimatedTime` down.
+ *
+ * Browser-side mirror of `isPrintAdvancing` in src/types/polling.ts - the WebUI
+ * static bundle has its own module graph and cannot import from there.
+ *
+ * Outside 'Printing' the field freezes while the wall clock keeps moving, so the
+ * `now() + remaining` conversions below walk forward a minute every minute
+ * instead of holding still. Gate them on this; the remaining *duration* stays
+ * correct in every state and needs no gate. 'Heating' is excluded for the same
+ * reason as the paused states - the warmup does not advance the job either.
+ */
+export function isPrintAdvancing(printerState: string | undefined): boolean {
+  return printerState === 'Printing';
+}
+
+/**
+ * Format the library completion time as a wall-clock string.
+ *
+ * The value is an absolute timestamp from ff-api (null when the print is not
+ * advancing). Do not re-derive it from a remaining duration.
+ */
+export function formatCompletionTime(value: Date | string | null): string {
+  if (value === null || value === undefined) {
+    return '--:--';
+  }
+
+  const completionTime = new Date(value);
+  if (Number.isNaN(completionTime.getTime())) {
+    return '--:--';
+  }
 
   return completionTime.toLocaleTimeString('en-US', {
     hour: 'numeric',
@@ -133,16 +162,4 @@ export function formatElapsedSeconds(seconds: number): string {
   return hours > 0 ? `${hours}:${mm}:${ss}` : `${mm}:${ss}`;
 }
 
-/**
- * Convert a firmware ETA string (HH:MM remaining) to a wall-clock completion time.
- */
-export function formatETAFromString(hhmm: string): string {
-  const [hours, minutes] = hhmm.split(':').map(Number);
-  const completionTime = new Date(Date.now() + (hours * 60 + minutes) * 60_000);
 
-  return completionTime.toLocaleTimeString('en-US', {
-    hour: 'numeric',
-    minute: '2-digit',
-    hour12: true,
-  });
-}

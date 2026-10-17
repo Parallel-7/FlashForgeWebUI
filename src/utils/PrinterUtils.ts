@@ -102,6 +102,28 @@ export const isHttpOnlyModel = (modelType: PrinterModelType): boolean =>
   HTTP_ONLY_MODEL_TYPES.has(modelType);
 
 /**
+ * Model types that support the remote "Reboot Printer" feature.
+ *
+ * Reboot is delivered over the flashforge-easyssh root SSH/SFTP surface, which
+ * is only provisioned on the Adventurer 5M / 5M Pro / AD5X. Creator 5 / 5 Pro
+ * use a different (Klipper) SSH method that is not yet wired up, and legacy
+ * printers have no SSH surface at all.
+ */
+const REBOOT_SUPPORTED_MODEL_TYPES: ReadonlySet<PrinterModelType> = new Set([
+  'adventurer-5m',
+  'adventurer-5m-pro',
+  'ad5x',
+]);
+
+/**
+ * Whether a printer model supports the remote reboot command. Defense-in-depth:
+ * the WebUI hides the button for unsupported models, but the printer-power
+ * route re-checks this before dispatching the SSH command.
+ */
+export const isRebootSupportedModel = (modelType: PrinterModelType | undefined): boolean =>
+  !!modelType && REBOOT_SUPPORTED_MODEL_TYPES.has(modelType);
+
+/**
  * USB product IDs for new-API (HTTP + check-code) printers. The firmware-set
  * product ID is authoritative for model selection; typeName is the fallback.
  * Keys are decimal (the discovery packet is read via `readUInt16BE`); the hex
@@ -231,10 +253,12 @@ export const getPrinterModelInfo = (typeName: string): EnhancedPrinterFamilyInfo
 
 /**
  * Check if printer supports dual API usage
- * Modern printers (5M family) can use both new and legacy APIs
+ * 5M / 5M Pro / AD5X can use both the new HTTP API and the legacy TCP API.
+ * HTTP-only models (Creator 5 series) have no legacy TCP server, so they are
+ * modern but NOT dual-API.
  */
 export const supportsDualAPI = (modelType: PrinterModelType): boolean => {
-  return modelType !== 'generic-legacy';
+  return modelType !== 'generic-legacy' && !isHttpOnlyModel(modelType);
 };
 
 /**
@@ -413,7 +437,6 @@ export const isValidCheckCode = (checkCode: string): boolean => {
     return false;
   }
 
-  // Check codes should be at least 1 character
   const trimmed = checkCode.trim();
   return trimmed.length >= 1 && trimmed.length <= 20;
 };
@@ -462,7 +485,6 @@ export const getConnectionErrorMessage = (error: unknown): string => {
       return errorObj.message;
     }
 
-    // Handle specific error types
     if (errorObj.code === 'ECONNREFUSED') {
       return 'Connection refused - printer may be offline or unreachable';
     }
@@ -484,7 +506,6 @@ export const getConnectionErrorMessage = (error: unknown): string => {
  * 5M family printers may need longer timeouts for pairing
  */
 export const getConnectionTimeout = (is5MFamily: boolean): number => {
-  // Return timeout in milliseconds
   return is5MFamily ? 15000 : 10000; // 15s for 5M, 10s for legacy
 };
 

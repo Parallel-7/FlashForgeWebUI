@@ -68,12 +68,10 @@ export abstract class DualAPIBackend extends BasePrinterBackend {
    * Common initialization logic for all dual-API backends
    */
   protected initializeClients(): void {
-    // Validate primary client is FiveMClient
     if (!(this.primaryClient instanceof FiveMClient)) {
       throw new Error(`${this.constructor.name} requires FiveMClient as primary client`);
     }
 
-    // Validate secondary client is FlashForgeClient
     if (!this.secondaryClient || !(this.secondaryClient instanceof FlashForgeClient)) {
       throw new Error(`${this.constructor.name} requires FlashForgeClient as secondary client`);
     }
@@ -92,10 +90,8 @@ export abstract class DualAPIBackend extends BasePrinterBackend {
     }
 
     try {
-      // Validate primary client connection
       await this.validatePrimaryClient();
 
-      // Initialize secondary client if available
       if (this.secondaryClient) {
         await this.validateSecondaryClient();
       }
@@ -103,7 +99,7 @@ export abstract class DualAPIBackend extends BasePrinterBackend {
       // Fetch product info BEFORE building feature set
       await this.fetchProductInfo();
 
-      // Now call parent initialize which will build features using our product info
+      // Call parent initialize, which builds features using our product info
       await super.initialize();
     } catch (error) {
       this.emitEvent('error', null, error instanceof Error ? error.message : String(error));
@@ -123,12 +119,10 @@ export abstract class DualAPIBackend extends BasePrinterBackend {
    * Override in subclasses for model-specific setup
    */
   protected async initializeBackend(): Promise<void> {
-    // Log initialization with backend name
     console.log(`${this.constructor.name} initialized for ${this.printerName}`);
     console.log('- Primary client (FiveMClient): Available');
     console.log('- Secondary client (FlashForgeClient): Available');
 
-    // Log detected features if we have product info
     if (this.productInfo) {
       console.log('Auto-detected features from product endpoint:');
       console.log(
@@ -158,7 +152,6 @@ export abstract class DualAPIBackend extends BasePrinterBackend {
    */
   protected async fetchProductInfo(): Promise<void> {
     try {
-      // Call sendProductCommand to populate productInfo
       const success = await this.fiveMClient.sendProductCommand();
 
       if (!success || !this.fiveMClient.productInfo) {
@@ -166,7 +159,6 @@ export abstract class DualAPIBackend extends BasePrinterBackend {
         return;
       }
 
-      // Store product info for use in getBaseFeatures
       this.productInfo = this.fiveMClient.productInfo;
     } catch (error) {
       console.error('Error fetching product info:', error);
@@ -179,7 +171,6 @@ export abstract class DualAPIBackend extends BasePrinterBackend {
    * Uses product info to determine LED and filtration availability
    */
   protected getBaseFeatures(): PrinterFeatureSet {
-    // Get child-specific features first
     const childFeatures = this.getChildBaseFeatures();
 
     // Override LED and filtration based on product info if available
@@ -193,7 +184,6 @@ export abstract class DualAPIBackend extends BasePrinterBackend {
           ? childFeatures.ledControl.builtin
           : this.productInfo.lightCtrlState !== 0;
 
-      // Return new object with overridden values
       return {
         ...childFeatures,
         ledControl: {
@@ -226,6 +216,17 @@ export abstract class DualAPIBackend extends BasePrinterBackend {
   public async executeGCodeCommand(command: string): Promise<GCodeCommandResult> {
     const startTime = Date.now();
 
+    // HTTP-only backends (Creator 5 / 5 Pro) have no TCP channel for raw G-code.
+    if (!this.legacyClient) {
+      return {
+        success: false,
+        command,
+        error: 'Raw G-code is unavailable on this printer (HTTP-only, no TCP channel)',
+        executionTime: 0,
+        timestamp: new Date(),
+      };
+    }
+
     try {
       // G-code commands always use legacy API
       const response = await this.legacyClient.sendRawCmd(command);
@@ -252,32 +253,85 @@ export abstract class DualAPIBackend extends BasePrinterBackend {
     }
   }
 
+  // ----- Bed / extruder heater control ---------------------------------------
+
+  /**
+   * Set the bed target temperature.
+   *
+   * Dual-API printers keep preferring the legacy TCP channel (the same `~M140`
+   * wire command the raw G-code path sends); HTTP-only backends (Creator 5
+   * series, no TCP channel) route through the FiveMClient temperature-control
+   * API. The branch is on client presence, so an HTTP-only printer never
+   * attempts a TCP connection.
+   */
+  public async setBedTemperature(temperature: number): Promise<CommandResult> {
+    return this.runTemperatureControlCommand(() =>
+      this.legacyClient
+        ? this.legacyClient.setBedTemp(temperature)
+        : this.fiveMClient.tempControl.setBedTemp(temperature)
+    );
+  }
+
+  /**
+   * Cancel bed heating. Legacy channel sends `~M140 S0`; the HTTP-only path
+   * uses the temperature-control cancel command.
+   */
+  public async cancelBedTemperature(): Promise<CommandResult> {
+    return this.runTemperatureControlCommand(() =>
+      this.legacyClient
+        ? this.legacyClient.cancelBedTemp()
+        : this.fiveMClient.tempControl.cancelBedTemp()
+    );
+  }
+
+  /**
+   * Set the extruder target temperature. Legacy channel sends `~M104`; the
+   * HTTP-only path (Creator 5 series) drives the primary tool via the
+   * temperature-control API.
+   */
+  public async setExtruderTemperature(temperature: number): Promise<CommandResult> {
+    return this.runTemperatureControlCommand(() =>
+      this.legacyClient
+        ? this.legacyClient.setExtruderTemp(temperature)
+        : this.fiveMClient.tempControl.setExtruderTemp(temperature)
+    );
+  }
+
+  /**
+   * Cancel extruder heating. Legacy channel sends `~M104 S0`; the HTTP-only
+   * path (Creator 5 series) turns the primary tool off via the
+   * temperature-control API.
+   */
+  public async cancelExtruderTemperature(): Promise<CommandResult> {
+    return this.runTemperatureControlCommand(() =>
+      this.legacyClient
+        ? this.legacyClient.cancelExtruderTemp()
+        : this.fiveMClient.tempControl.cancelExtruderTemp()
+    );
+  }
+
   /**
    * Get current printer status using new API with legacy fallback
    * Common implementation with hooks for backend-specific fields
    */
   public async getPrinterStatus(): Promise<StatusResult> {
     try {
-      // Use new API for status monitoring
       const status = await this.fiveMClient.info.getStatus();
 
       if (!status) {
         throw new Error('Failed to get printer status');
       }
 
-      // Get detailed machine info for additional data
       const machineInfo = await this.fiveMClient.info.get();
 
-      // Allow subclasses to process machine info
       await this.processMachineInfo(machineInfo);
 
-      // Calculate time estimates properly
+      // estimatedTime is already a remaining countdown. Do not subtract elapsed
+      // time again (that double-counts and shrinks the remaining duration).
       const estimatedTimeSeconds = machineInfo?.EstimatedTime || 0;
       const elapsedTimeSeconds = machineInfo?.PrintDuration || 0;
-      const remainingTimeSeconds =
-        estimatedTimeSeconds > elapsedTimeSeconds ? estimatedTimeSeconds - elapsedTimeSeconds : 0;
+      const remainingTimeSeconds = estimatedTimeSeconds;
 
-      // Extract current filament usage values
       const estimatedRightLen = machineInfo?.EstLength || 0;
       const estimatedRightWeight = machineInfo?.EstWeight || 0;
       const currentJob = machineInfo?.PrintFileName;
@@ -301,7 +355,6 @@ export abstract class DualAPIBackend extends BasePrinterBackend {
       let finalEstimatedRightWeight = estimatedRightWeight;
 
       if (status === 'completed' && this.lastFilamentUsageCache) {
-        // Verify cache matches current job
         if (this.lastFilamentUsageCache.currentJob === currentJob) {
           finalEstimatedRightLen = this.lastFilamentUsageCache.estimatedRightLen;
           finalEstimatedRightWeight = this.lastFilamentUsageCache.estimatedRightWeight;
@@ -338,6 +391,7 @@ export abstract class DualAPIBackend extends BasePrinterBackend {
         estimatedRightLen: finalEstimatedRightLen,
         estimatedRightWeight: finalEstimatedRightWeight,
         printEta: machineInfo?.PrintEta || undefined,
+        completionTime: machineInfo?.CompletionTime ?? null,
         cumulativePrintTime: machineInfo?.CumulativePrintTime || 0,
         cumulativeFilament: machineInfo?.CumulativeFilament || 0,
         nozzleSize: machineInfo?.NozzleSize || '0.4mm',
@@ -347,7 +401,6 @@ export abstract class DualAPIBackend extends BasePrinterBackend {
         coolingFanSpeed: machineInfo?.CoolingFanSpeed || 0,
         chamberFanSpeed: machineInfo?.ChamberFanSpeed || 0,
         tvoc: machineInfo?.Tvoc || 0,
-        // Allow subclasses to add additional fields
         ...this.getAdditionalStatusFields(machineInfo),
       };
 
@@ -468,7 +521,6 @@ export abstract class DualAPIBackend extends BasePrinterBackend {
         printingTime: fileEntry.printingTime,
       }));
 
-      // Allow subclasses to transform job data
       const transformedJobs = this.transformJobList(jobs, 'recent');
 
       return {
@@ -495,7 +547,6 @@ export abstract class DualAPIBackend extends BasePrinterBackend {
    */
   public async startJob(params: JobOperationParams): Promise<JobStartResult> {
     try {
-      // Handle file upload case
       if (params.filePath) {
         const success = await this.fiveMClient.jobControl.uploadFile(
           params.filePath,
@@ -515,7 +566,6 @@ export abstract class DualAPIBackend extends BasePrinterBackend {
         };
       }
 
-      // Handle local file printing case
       if (!params.fileName) {
         throw new Error('fileName or filePath is required');
       }
@@ -573,7 +623,14 @@ export abstract class DualAPIBackend extends BasePrinterBackend {
         timestamp: new Date(),
       };
     } catch (error) {
-      // Fallback to legacy API
+      // Fallback to legacy API (unavailable on HTTP-only backends)
+      if (!this.legacyClient) {
+        return {
+          success: false,
+          error: error instanceof Error ? error.message : String(error),
+          timestamp: new Date(),
+        };
+      }
       try {
         await this.legacyClient.sendRawCmd('M25');
         return {
@@ -581,10 +638,10 @@ export abstract class DualAPIBackend extends BasePrinterBackend {
           data: 'Job paused (via legacy API)',
           timestamp: new Date(),
         };
-      } catch {
+      } catch (fallbackError) {
         return {
           success: false,
-          error: error instanceof Error ? error.message : String(error),
+          error: fallbackError instanceof Error ? fallbackError.message : String(fallbackError),
           timestamp: new Date(),
         };
       }
@@ -608,7 +665,14 @@ export abstract class DualAPIBackend extends BasePrinterBackend {
         timestamp: new Date(),
       };
     } catch (error) {
-      // Fallback to legacy API
+      // Fallback to legacy API (unavailable on HTTP-only backends)
+      if (!this.legacyClient) {
+        return {
+          success: false,
+          error: error instanceof Error ? error.message : String(error),
+          timestamp: new Date(),
+        };
+      }
       try {
         await this.legacyClient.sendRawCmd('M24');
         return {
@@ -616,10 +680,10 @@ export abstract class DualAPIBackend extends BasePrinterBackend {
           data: 'Job resumed (via legacy API)',
           timestamp: new Date(),
         };
-      } catch {
+      } catch (fallbackError) {
         return {
           success: false,
-          error: error instanceof Error ? error.message : String(error),
+          error: fallbackError instanceof Error ? fallbackError.message : String(fallbackError),
           timestamp: new Date(),
         };
       }
@@ -643,7 +707,14 @@ export abstract class DualAPIBackend extends BasePrinterBackend {
         timestamp: new Date(),
       };
     } catch (error) {
-      // Fallback to legacy API
+      // Fallback to legacy API (unavailable on HTTP-only backends)
+      if (!this.legacyClient) {
+        return {
+          success: false,
+          error: error instanceof Error ? error.message : String(error),
+          timestamp: new Date(),
+        };
+      }
       try {
         await this.legacyClient.sendRawCmd('M26');
         return {
@@ -651,10 +722,10 @@ export abstract class DualAPIBackend extends BasePrinterBackend {
           data: 'Job cancelled (via legacy API)',
           timestamp: new Date(),
         };
-      } catch {
+      } catch (fallbackError) {
         return {
           success: false,
-          error: error instanceof Error ? error.message : String(error),
+          error: fallbackError instanceof Error ? fallbackError.message : String(fallbackError),
           timestamp: new Date(),
         };
       }
@@ -666,7 +737,6 @@ export abstract class DualAPIBackend extends BasePrinterBackend {
    */
   public async getModelPreview(): Promise<string | null> {
     try {
-      // First check if printer is currently printing
       const machineInfo = await this.fiveMClient.info.get();
 
       if (!machineInfo || !machineInfo.PrintFileName || machineInfo.PrintFileName === '') {
@@ -674,7 +744,6 @@ export abstract class DualAPIBackend extends BasePrinterBackend {
         return null;
       }
 
-      // Use the general job thumbnail method for the current job
       return this.getJobThumbnail(machineInfo.PrintFileName);
     } catch (error) {
       console.error('Error getting model preview:', error);
@@ -692,7 +761,6 @@ export abstract class DualAPIBackend extends BasePrinterBackend {
         return null;
       }
 
-      // Get the thumbnail for the specified file
       const thumbnailBuffer = await this.fiveMClient.files.getGCodeThumbnail(fileName);
 
       if (!thumbnailBuffer || thumbnailBuffer.length === 0) {
@@ -700,7 +768,6 @@ export abstract class DualAPIBackend extends BasePrinterBackend {
         return null;
       }
 
-      // Convert buffer to base64 data URL
       const base64Data = thumbnailBuffer.toString('base64');
       return `data:image/png;base64,${base64Data}`;
     } catch (error) {
@@ -776,27 +843,27 @@ export abstract class DualAPIBackend extends BasePrinterBackend {
   // Feature detection methods - common implementations
 
   protected supportsNewAPI(): boolean {
-    return true; // All dual-API backends support new API
+    return true;
   }
 
   protected supportsCustomLEDControl(): boolean {
-    return true; // All current dual-API backends support custom LED control
+    return true;
   }
 
   protected supportsLocalJobs(): boolean {
-    return true; // All dual-API backends support local jobs
+    return true;
   }
 
   protected supportsRecentJobs(): boolean {
-    return true; // All dual-API backends support recent jobs
+    return true;
   }
 
   protected supportsUploadJobs(): boolean {
-    return true; // All dual-API backends support upload jobs
+    return true;
   }
 
   protected supportsStartJobs(): boolean {
-    return true; // All dual-API backends support starting jobs
+    return true;
   }
 
   protected getSupportedGCodeCommands(): readonly string[] {
@@ -909,11 +976,9 @@ export abstract class DualAPIBackend extends BasePrinterBackend {
    * Override to clear filament usage cache on disconnect
    */
   public async dispose(): Promise<void> {
-    // Clear filament usage cache on disconnect
     this.lastFilamentUsageCache = null;
     this.lastFallbackCameraProbeAt = 0;
 
-    // Call parent dispose to clean up clients
     await super.dispose();
   }
 }

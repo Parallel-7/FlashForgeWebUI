@@ -123,7 +123,7 @@ export class PrinterBackendManager extends EventEmitter {
    * Initialize backend based on printer details
    * Now context-aware - requires contextId
    *
-   * @param contextId - Context ID for this backend
+   * @param contextId - Context ID
    * @param options - Backend initialization options
    * @returns Promise resolving to initialization result
    */
@@ -160,10 +160,8 @@ export class PrinterBackendManager extends EventEmitter {
     options: BackendInitializationOptions
   ): Promise<BackendInitializationResult> {
     try {
-      // Check if we had an old backend before disposal
       const hadOldBackend = this.contextBackends.has(contextId);
 
-      // Dispose of existing backend for this context if any
       if (hadOldBackend) {
         await this.disposeContext(contextId);
 
@@ -172,16 +170,14 @@ export class PrinterBackendManager extends EventEmitter {
         console.log(
           `PrinterBackendManager: Waiting for old backend cleanup to complete for context ${contextId}...`
         );
-        await new Promise((resolve) => setTimeout(resolve, 500)); // 500ms delay
+        await new Promise((resolve) => setTimeout(resolve, 500));
       }
 
-      // Show loading state
       this.loadingManager.show({
         message: 'Initializing printer backend...',
         canCancel: false,
       });
 
-      // Detect printer model from details
       let modelType = detectPrinterModelType(options.printerDetails.printerModel);
 
       // Force legacy mode uses the generic legacy backend regardless of printer family.
@@ -196,23 +192,17 @@ export class PrinterBackendManager extends EventEmitter {
         `Initializing ${getModelDisplayName(modelType)} backend...`
       );
 
-      // Create backend instance
       const backend = this.createBackend(modelType, options);
 
-      // Initialize the backend
       await backend.initialize();
 
-      // Store references in context map
       this.contextBackends.set(contextId, backend);
       this.contextPrinterDetails.set(contextId, options.printerDetails);
 
-      // Update context manager with backend reference
       this.contextManager.updateBackend(contextId, backend);
 
-      // Setup backend event forwarding
       this.setupBackendEventForwarding(backend, contextId);
 
-      // Success!
       this.loadingManager.showSuccess(
         `Backend initialized for ${getModelDisplayName(modelType)}`,
         3000
@@ -309,12 +299,10 @@ export class PrinterBackendManager extends EventEmitter {
    * Now includes contextId for multi-context support
    */
   private setupBackendEventForwarding(backend: BasePrinterBackend, contextId: string): void {
-    // Forward all backend events with context ID
     backend.on('backend-event', (event) => {
       this.emit('backend-event', { ...event, contextId });
     });
 
-    // Forward specific events with context ID
     backend.on('feature-updated', (data) => {
       this.emit('feature-updated', { ...data, contextId });
     });
@@ -331,7 +319,7 @@ export class PrinterBackendManager extends EventEmitter {
   /**
    * Dispose of backend for a specific context
    *
-   * @param contextId - Context ID to dispose
+   * @param contextId - Context ID
    */
   public async disposeContext(contextId: string): Promise<void> {
     const backend = this.contextBackends.get(contextId);
@@ -342,14 +330,11 @@ export class PrinterBackendManager extends EventEmitter {
 
         console.log(`Disposing backend for context ${contextId} (${printerName})...`);
 
-        // Remove from maps first
         this.contextBackends.delete(contextId);
         this.contextPrinterDetails.delete(contextId);
 
-        // Update context manager
         this.contextManager.updateBackend(contextId, null);
 
-        // Dispose the backend (this calls client.dispose())
         await backend.dispose();
 
         // Additional cleanup delay to ensure ff-api client internal timers stop
@@ -359,7 +344,6 @@ export class PrinterBackendManager extends EventEmitter {
         this.emit('backend-disposed', { contextId });
       } catch (error) {
         console.error(`Error disposing backend for context ${contextId}:`, error);
-        // Clear references even if disposal fails
         this.contextBackends.delete(contextId);
         this.contextPrinterDetails.delete(contextId);
       }
@@ -389,7 +373,7 @@ export class PrinterBackendManager extends EventEmitter {
   /**
    * Check if backend is initialized and ready for a specific context
    *
-   * @param contextId - Context ID to check
+   * @param contextId - Context ID
    * @returns True if backend is ready
    */
   public isBackendReady(contextId: string): boolean {
@@ -466,8 +450,6 @@ export class PrinterBackendManager extends EventEmitter {
     return backend.getCapabilities();
   }
 
-  // Forward backend operations to context backend
-
   /**
    * Execute G-code command
    *
@@ -491,6 +473,90 @@ export class PrinterBackendManager extends EventEmitter {
     }
 
     return await backend.executeGCodeCommand(command);
+  }
+
+  /**
+   * Set the print bed target temperature for a context
+   *
+   * Routes through the context backend, which prefers the legacy TCP channel on
+   * dual-API printers and the HTTP temperature-control API on HTTP-only models
+   * (Creator 5 series).
+   *
+   * @param contextId - Context ID
+   * @param temperature - Target temperature in Celsius
+   * @returns Command result
+   */
+  public async setBedTemperature(contextId: string, temperature: number): Promise<CommandResult> {
+    const backend = this.contextBackends.get(contextId);
+    if (!backend) {
+      return this.noBackendTemperatureResult();
+    }
+
+    return await backend.setBedTemperature(temperature);
+  }
+
+  /**
+   * Cancel print bed heating for a context
+   *
+   * @param contextId - Context ID
+   * @returns Command result
+   */
+  public async cancelBedTemperature(contextId: string): Promise<CommandResult> {
+    const backend = this.contextBackends.get(contextId);
+    if (!backend) {
+      return this.noBackendTemperatureResult();
+    }
+
+    return await backend.cancelBedTemperature();
+  }
+
+  /**
+   * Set the extruder target temperature for a context
+   *
+   * Routes through the context backend, which prefers the legacy TCP channel on
+   * dual-API printers and the HTTP temperature-control API on HTTP-only models
+   * (Creator 5 series).
+   *
+   * @param contextId - Context ID
+   * @param temperature - Target temperature in Celsius
+   * @returns Command result
+   */
+  public async setExtruderTemperature(
+    contextId: string,
+    temperature: number
+  ): Promise<CommandResult> {
+    const backend = this.contextBackends.get(contextId);
+    if (!backend) {
+      return this.noBackendTemperatureResult();
+    }
+
+    return await backend.setExtruderTemperature(temperature);
+  }
+
+  /**
+   * Cancel extruder heating for a context
+   *
+   * @param contextId - Context ID
+   * @returns Command result
+   */
+  public async cancelExtruderTemperature(contextId: string): Promise<CommandResult> {
+    const backend = this.contextBackends.get(contextId);
+    if (!backend) {
+      return this.noBackendTemperatureResult();
+    }
+
+    return await backend.cancelExtruderTemperature();
+  }
+
+  /**
+   * Shared failure result for temperature commands with no initialized backend
+   */
+  private noBackendTemperatureResult(): CommandResult {
+    return {
+      success: false,
+      error: 'No backend initialized',
+      timestamp: new Date(),
+    };
   }
 
   /**
@@ -687,7 +753,6 @@ export class PrinterBackendManager extends EventEmitter {
       };
     }
 
-    // Check if backend supports AD5X upload
     if (!('uploadFileAD5X' in backend)) {
       return {
         success: false,
@@ -698,7 +763,6 @@ export class PrinterBackendManager extends EventEmitter {
       };
     }
 
-    // Use interface assertion for better type safety
     const ad5xBackend = backend as {
       uploadFileAD5X: (
         filePath: string,
@@ -769,7 +833,7 @@ export class PrinterBackendManager extends EventEmitter {
    * Handle connection established event
    * Now requires contextId parameter
    *
-   * @param contextId - Context ID for this connection
+   * @param contextId - Context ID
    * @param printerDetails - Printer details from connection
    * @param primaryClient - Primary API client
    * @param secondaryClient - Optional secondary API client
@@ -828,7 +892,7 @@ export class PrinterBackendManager extends EventEmitter {
    * Handle connection lost event
    * Now requires contextId parameter
    *
-   * @param contextId - Context ID for the lost connection
+   * @param contextId - Context ID
    */
   public async onConnectionLost(contextId: string): Promise<void> {
     console.log(
@@ -846,21 +910,17 @@ export class PrinterBackendManager extends EventEmitter {
   public async cleanup(): Promise<void> {
     console.log('PrinterBackendManager: Cleaning up all contexts...');
 
-    // Dispose of all context backends
     const contextIds = Array.from(this.contextBackends.keys());
     for (const contextId of contextIds) {
       await this.disposeContext(contextId);
     }
 
-    // Clear all maps
     this.contextBackends.clear();
     this.contextPrinterDetails.clear();
     this.contextInitPromises.clear();
 
-    // Remove all event listeners
     this.removeAllListeners();
 
-    // Clear singleton instance
     PrinterBackendManager.instance = null;
 
     console.log('PrinterBackendManager: Cleanup complete');

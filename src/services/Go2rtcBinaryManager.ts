@@ -46,6 +46,9 @@ export class Go2rtcBinaryManager {
   /** WebRTC port. */
   private readonly webrtcPort = 8555;
 
+  /** RTSP port (go2rtc's default, kept so the loopback bind replaces it in place). */
+  private readonly rtspPort = 8554;
+
   /** Timeout for graceful shutdown. */
   private readonly shutdownTimeoutMs = 5000;
 
@@ -55,7 +58,14 @@ export class Go2rtcBinaryManager {
   /** Environment service for packaged/runtime paths. */
   private readonly environmentService = getEnvironmentService();
 
-  private constructor() {}
+  private constructor() {
+    // The startup-failure and hard-deadline paths end through process.exit(), which
+    // skips the graceful shutdown. Kill the child synchronously on exit so go2rtc is
+    // not orphaned holding its ports.
+    process.once('exit', () => {
+      this.process?.kill();
+    });
+  }
 
   /**
    * Get the singleton instance.
@@ -496,9 +506,16 @@ export class Go2rtcBinaryManager {
    * Generate and write the go2rtc configuration file.
    */
   private async generateConfig(): Promise<string> {
+    // The API and RTSP server are unauthenticated, so they bind to loopback only.
+    // Every consumer reaches the API on 127.0.0.1, and remote viewers go through
+    // the authenticated CameraStreamProxy. WebRTC stays on all interfaces because
+    // it carries the media to remote viewers.
     const config: Go2rtcConfig = {
       api: {
-        listen: `:${this.apiPort}`,
+        listen: `127.0.0.1:${this.apiPort}`,
+      },
+      rtsp: {
+        listen: `127.0.0.1:${this.rtspPort}`,
       },
       webrtc: {
         listen: `:${this.webrtcPort}/tcp`,
@@ -535,6 +552,14 @@ export class Go2rtcBinaryManager {
         lines.push(`  listen: "${config.api.listen}"`);
       }
       lines.push('  origin: "*"');
+    }
+
+    if (config.rtsp) {
+      lines.push('');
+      lines.push('rtsp:');
+      if (config.rtsp.listen) {
+        lines.push(`  listen: "${config.rtsp.listen}"`);
+      }
     }
 
     if (config.webrtc) {

@@ -7,6 +7,196 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-10-17
+
+This is the first stable release after 1.1.0. It contains all changes from 1.2.0-alpha.1 to 1.2.0-alpha.8. It also contains the changes in the Added, Security, and Fixed sections below. The CHANGELOG gives more detail about each alpha release.
+
+### Highlights since 1.1.0
+
+- **Support for the Creator 5 and Creator 5 Pro.** You can connect, monitor, and control the two models. The WebUI shows the temperature of each tool, the bed, and the chamber. A Material Station card has a slot editor. (alpha.1)
+- **Job upload from the browser.** You can send a `.gcode`, `.gx`, or `.3mf` file from any device. The WebUI shows the thumbnail and the slicer data. Then, you map the tools to the material station slots and start the job. (alpha.7)
+- **SSH tools for the Adventurer 5M, 5M Pro, and AD5X.** A file manager, a calibration assistant, and a remote reboot are available. These tools need a printer that has [FlashForge-EasySSH](https://github.com/Parallel-7/FlashForge-EasySSH). (alpha.3)
+- **Better Spoolman tracking.** Printers with a material station record filament for each job and each tool. An AD5X without a material station has single-spool tracking. (alpha.8)
+- **Camera video through the WebUI port.** The camera video goes through the WebUI server, which requires a login. For remote access, forward only the WebUI port. (alpha.1)
+- **Faster connection.** The WebUI identifies modern printers from the network discovery broadcast. It does not do an extra probe. (alpha.3)
+- **Thumbnail previews** in the Recent and Local file dialogs. (alpha.2)
+- **Printer selection by URL.** Add `?ip=` or `?serial=` to the URL to select the active printer when the page opens. Use this to show the WebUI in other tools, for example the Device tab of OrcaSlicer. (alpha.1)
+- **Fixes:**
+  - The ETA does not increase while a print is paused. (alpha.6)
+  - A paused Creator 5 Pro does not show `Unknown`. (alpha.6)
+  - When you log out, the WebUI cancels the session token. (alpha.7)
+
+### Upgrade notes
+
+- **If you run from source:** git does not track `data/config.json` and `data/printer_details.json` now.
+  1. Before you do `git pull`, copy the two files to a safe location.
+  2. After the pull, copy the two files back.
+
+  If you do not do this, git stops the pull or removes the files.
+- **If you build from source:** pnpm installs the dependencies from the public npm registry (`pnpm install`). You do not need a GitHub Packages token or a `.npmrc` file. This corrects the `401 Unauthorized` install error in [#18](https://github.com/Parallel-7/FlashForgeWebUI/issues/18).
+- **Remote camera access:** Forward only the WebUI port (default `3000`). If you forwarded the go2rtc port (`1984`) for an earlier version, remove that rule. That port has no authentication.
+- **Manual printer connection:** For a modern printer, you must type the serial number and the check code.
+- **`--printers` on the command line:** For a Creator 5 or Creator 5 Pro, use the `creator-5` or `creator-5-pro` type and the serial number. Example: `--printers="192.168.1.50:creator-5:12345678:SERIAL"`.
+
+### Added
+
+- **An About window shows the version.** Click the new info button in the top bar to open it. The window also has a link to the releases page. Use this link to find newer versions. Requested in [#22](https://github.com/Parallel-7/FlashForgeWebUI/issues/22).
+
+### Security
+
+- **Updated server dependencies (HTTP and WebSocket) to correct known advisories:**
+  - `axios` 1.13.6 → 1.20.0
+  - `express` 5.1.0 → 5.3.0, with its dependencies `proxy-addr`, `path-to-regexp`, `qs`, and `body-parser`
+  - `ws` 8.18.3 → 8.22.0
+  - `form-data` 4.0.5 → 4.0.6
+
+  Each release binary contains these packages. Some advisories apply only to a configuration that this app does not use. For example, the critical `proxy-addr` advisory applies only when the Express `trust proxy` setting is on. This app does not use that setting. The release updates these packages anyway.
+
+### Fixed
+
+- **The camera service accepts connections only from this computer.** Before this fix, the go2rtc API (port 1984) and RTSP server (port 8554) accepted connections from all networks. These servers had no password. Any device on your network could show your cameras or change the go2rtc streams.
+  - Now, the two servers accept connections only from `127.0.0.1`.
+  - Browsers get the camera through the WebUI proxy, which requires a login.
+  - The WebRTC media port (8555) stays open for browsers.
+- **Start Local is disabled on the AD5X.** The AD5X cannot show a list of local files. Before this fix, the button opened a dialog with only an error message. **Start Recent** continues to operate.
+- **The WebUI server cannot start two times at the same time.** Before this fix, a settings change during startup could start a second server. The second server failed because the first server used the port. Then, the second server closed the connections of the first server.
+  - Now, the two requests use one startup.
+  - If a stop request comes during startup, the stop waits until the startup is complete. The server cannot start again after the stop.
+  - Thanks to [@jsalmon00](https://github.com/jsalmon00), who found this problem in [FlashForgeUI-Electron#80](https://github.com/Parallel-7/FlashForgeUI-Electron/pull/80).
+- **go2rtc stops when the app stops after an error.** A failed startup and the shutdown time limit stop the app without the normal shutdown procedure. Before this fix, the go2rtc camera process continued to operate and kept its ports. Now, the app stops go2rtc each time it stops.
+- **The notes of a stable release compare against the previous stable release.** Before this fix, the "Compare changes since" link used the newest earlier tag. For 1.2.0, this tag is `v1.2.0-alpha.8`, which has only one commit. Git also sorted `v1.2.0-alpha.8` above `v1.2.0`, so the next alpha also compared against alpha.8. Now, a stable release compares against the previous stable tag. A prerelease sorts below its release.
+- **Shutdown does not wait for a timer after the server closes.** Before this fix, a server stop started a 3-second time limit. The app did not cancel this time limit when the server closed in time. The process stayed open until the time limit ended.
+
+## [1.2.0-alpha.8] - 2026-09-26
+
+### Added
+
+- **Per-job Spoolman tracking for material-station printers (Creator 5, Creator 5 Pro, AD5X with a material station).** These printers do not report filament use per tool, so the app estimates it. When you match materials for an upload, the matching dialog now also asks for the Spoolman spool in each slot, or "Do not track". The choice applies to that one print only. When the print ends, the slicer's estimate for each tool is charged to its spool, and the choice is deleted. The app never remembers a spool per slot or per printer, because the spools on the printer can change at any time.
+  - A completed print charges each spool its full estimate.
+  - A cancelled or failed print charges each tool for what it printed up to the last progress value. The app reads the gcode inside the 3MF when you upload it and finds how much of each tool's filament is used at each point of the file. The printer's progress is the position in that same file, so a tool that only prints the top half of a model is charged nothing if the print stops at 40%.
+  - Pause and resume charge nothing.
+  - If the app was not running when the print ended, it charges the last saved progress on the next status update and marks the result "approximate". A completed print is charged in full.
+  - Only prints the app starts are tracked. A file sent without **Start Now**, a print started on the printer, and a reprint of the same file from the printer's screen are not tracked.
+  - On the AD5X, a multi-material file already on the printer is tracked when you start it through the matching dialog. The estimate comes from the printer's file list, and a cancel is charged by progress, because the app has no gcode for that file.
+  - The Spoolman panel shows the tracked print, its spool per tool, and the result of the last charge.
+  - Creator 5 and Creator 5 Pro tracking is not yet tested on a real printer. If you own one, please tell us how it works in [issue #21](https://github.com/Parallel-7/FlashForgeWebUI/issues/21).
+- **AD5X without a material station now gets single-spool Spoolman tracking.** Previously the AD5X was excluded from Spoolman integration outright; without a station it reports one extruder, so it now uses the same active-spool flow as the Adventurer 5M series.
+- **GitHub Actions CI (`ci.yml`).** Pushes and pull requests on `main` and `alpha` now run two jobs: `verify` (type-check, lint, build, unit tests on Node 20) and `e2e-emulator` (the browser E2E suite against the `flashforge-emulator-v2` printer emulator, so no real printer is needed). The emulator is pinned to `v0.4.0`. A manual-run input can point the E2E job at a different emulator release. A failed E2E run uploads the Playwright report as an artifact.
+
+### Fixed
+
+- **Multi-material uploads now send the correct tool numbers.** A 3MF lists only the filaments a plate uses, each with its slicer number. A plate that uses filaments 1 and 3 prints with tools T0 and T2, but the upload dialog numbered the tools by their position in the list (T0 and T1). The printer then fed the second tool from the wrong slot. The dialog now takes the tool number from the filament number, and shows "Tool 1" and "Tool 3" for that plate.
+- **The matching dialog waits for the material station.** Right after a connect or a printer switch, the station status can take several seconds to arrive. The dialog read it once and showed "Material station not connected" with no slots. It now keeps asking for about 15 seconds.
+- **Bundled go2rtc camera-streaming binaries are now executable.** The five non-Windows binaries shipped with file mode `100644` instead of `100755`, so a fresh Linux or macOS checkout could not start the server — it exited with `EACCES` when it tried to launch go2rtc.
+
+### Testing
+
+- **Browser E2E suite expanded from 14 to 38 tests**, mirroring the desktop app's per-model emulator track:
+  - A shared four-model emulator matrix (Adventurer 5M Pro, AD5X, Creator 5, Creator 5 Pro) with per-model capability flags; every functional spec now loops all four models
+  - New connect-flow specs: auto-connect, manual connect for each model, rejection of a wrong check code, and UDP discovery
+  - New per-model specs for LED control and job upload
+  - Upload checks mirror the desktop app: the material-matching dialog must appear for a `.3mf` on material-station printers (AD5X, Creator 5, Creator 5 Pro) and never on the 5M series; the uploaded file must land on the printer; with **Start Now** unchecked, the upload must not start a print
+  - Gating and heater specs refactored onto the shared matrix — gating now covers the AD5X, and heaters cover all four models, including per-tool temperature readings on the Creator 5 series
+  - Specs open remembered-token pages, which keeps every suite inside the login rate limit (5 logins per 15 minutes per IP)
+
+## [1.2.0-alpha.7] - 2026-08-21
+
+### Added
+
+- **Upload Job, ported from the desktop app.** The WebUI can now upload a `.gcode`, `.gx`, or `.3mf` file from the browser and start it. Before this, only the desktop app could do that, so a phone or a remote browser could only start files already on the printer. The dialog is a 1:1 port: file picker, **Start Now** and **Auto Level**, the plate thumbnail, and the full metadata grid — printer model, filament type and use, slicer name and version, slice date, print time, first layer time, layer height, infill, layer count, support, and slice warnings. The **Upload Job** button sits with the other job controls and turns on whenever the printer is ready for a new job.
+
+  Material matching runs on the AD5X and the Creator 5 series. A 3MF for a material-station printer opens the existing matching dialog, which maps each tool to a slot and refuses a slot whose loaded material differs. The Creator 5 series is deliberately **not** gated here. It cannot start a job that already sits on the printer, because that firmware reports no per-file tool data — but a fresh 3MF carries its own, so upload is the one path that works on those models.
+
+  A browser knows no local file path, so the upload runs in three steps. The file goes to the WebUI server first. The server parses it and returns the metadata. The start request then hands the printer backend a real path, which is the same input the desktop app gives it. The staged file lives in a temporary directory, is limited to 512 MB, and is deleted after the job starts or the dialog closes. Stale files expire after 30 minutes and on server shutdown. The server accepts only a bare `.gcode`, `.gx`, or `.3mf` file name, and rejects a path or any other extension. The progress bar shows the real browser-to-server transfer, which is the slow part over Wi-Fi.
+
+### Changed
+
+- `@parallel-7/slicer-meta` 1.1.0-20251121155836 -> 1.5.0. The old pin could not report layer height, infill, layer count, first layer time, or slice warnings, so the upload dialog would have shown fewer fields than the desktop one. The package was an unused dependency here until now, so nothing else changed.
+
+- **Material matching and the upload dialog were reworked for clarity.** The matching dialog's confirm button now always reads **Confirm** — it confirms the tool-to-slot mappings, and the flow that opened the dialog decides what happens next. It previously read **Start Print**, which promised an action the dialog itself does not perform. The desktop app's dialog shows the same label in every flow now, so the two stay in step.
+
+  Color mismatches now have a card of their own, above the two lists. It carries one line per mismatched mapping, rebuilt on every change, so it always reflects the whole set — previously only the most recent mismatch produced a warning, so mapping a second tool hid the first problem. Each mapping row also gained a color swatch on both sides, so the expected color and the loaded color sit beside the text that compares them.
+
+  After matching is confirmed, the upload dialog shows the mappings as chips — tool, slot, and material name, with a color swatch for each side — so the set can be checked at a glance before the job is sent. The dialog's primary button is now named after what it does: **Start Print** with **Start Now** ticked, **Send File** otherwise (it read **OK** before). Slice warnings moved out of the metadata grid into their own card, the print-time highlight became a full-width banner across the top of the grid, and on a phone the preview stacks above the metadata while the **Start Now** / **Auto Level** checkboxes stay on one line.
+
+### Fixed
+
+- **Local and recent job start is now disabled for the Creator 5 series.** Creator 5 / Creator 5 Pro firmware neither sends nor accepts material mappings over the HTTP API, so starting a previously-uploaded local or recent job dead-ended at material selection — only a fresh `.3mf` upload and start works. The dashboard's Start Recent and Start Local buttons are now disabled with the message "Local job management is not available on this printer." (the Recent/Local file dialogs show the same message as a toast instead of loading a file list). Fresh uploads are unaffected. Home Axes is likewise disabled for the series — it needs the TCP/G-code passthrough these printers lack — and a second fix was required for that gate to show at all: the shared backend base class hardcoded G-code availability in `BasePrinterBackend.buildFeatureSet()` and silently discarded the Creator 5 backend's "unavailable" declaration; the builder now honors each backend's declaration, keeping the old defaults only as fallback.
+
+- **Security: logging out now actually revokes the session token.** The logout route runs without the auth middleware (a logged-out caller must still reach it), so the code that read the token from the request never saw one and the revocation branch was dead code — a token from a logged-out session kept full API access until it expired. The route now extracts the token from the `Authorization` header directly, using the same helper the middleware uses. Found by the new browser test suite on its first run.
+
+### Testing
+
+- **New browser end-to-end suite drives the real built server against emulated printers — no stubs.** Coverage: login/token lifecycle (bad password, websocket auth gate, session restore, anonymous and forged tokens rejected, logout revocation), cache-busted asset and stale-build checks, printer context switching verified against the server's own state, and the Creator 5 gating above pinned across three printer models. The suite found both fixed bugs above. Note for future tests: the login rate limiter allows 5 logins per 15 minutes per IP and counts successes — every spec file documents its exact budget.
+
+## [1.2.0-alpha.6] - 2026-08-10
+
+### Fixed
+
+- **A paused Creator 5 Pro no longer shows as `Unknown`.** The printer reports the raw status `"pause"`, while the API library only knew the documented `"pausing"` and `"paused"` — so every pause fell through to `Unknown`, and it did so at the worst possible moment: the printer pauses itself when it detects a clog, so the status went blank precisely when you needed to know why the print had stopped. Fixed upstream in `@ghosttypes/ff-api` 2.0.0, which this release bumps to; `"downloading"` now reads as `Busy` for the same reason. Observed on a Creator 5 Pro running firmware 1.9.4.
+
+- **The ETA no longer walks forward while a print is paused.** The displayed completion time was computed as `now + remaining` on every poll, which only holds still while the firmware is counting `estimatedTime` down. It freezes that field the moment the print stops advancing, so with one term fixed and the clock still moving the ETA stepped forward a minute every minute — pause on a clog for an hour and the dashboard claimed the print would finish an hour later than when the pause started, receding indefinitely. The dashboard panel and the Discord notification embed both kept recomputing with nothing to suppress them. Each now shows `--:--` (and the Discord embed omits the ETA field) unless the print is actually advancing, via the new `isPrintAdvancing` predicate in `types/polling.ts`, mirrored browser-side in `webui/static/shared/formatting.ts` — which covers `Printing` only, since the pre-print `Heating` warmup does not advance the job either and drifts identically, just for minutes rather than hours. The *duration* readouts were never wrong and are unchanged. The same bug exists in FlashForgeUI-Electron and in both API libraries, fixed in each; it originates in the C# `ff-5mp-api` (`MachineInfo.cs:210`) that every port inherited the line from.
+
+### Changed
+
+- `@ghosttypes/ff-api` 1.7.1 -> 2.0.0. The major bump is the library making `FFMachineInfo.CompletionTime` nullable for the same paused-print reason described above; this app never read that field (it derives its own ETA from the remaining duration), so nothing here changed but the pin.
+
+## [1.2.0-alpha.5] - 2026-07-26
+
+### Fixed
+
+- Unknown `/api/*` paths returned 401 instead of 404. The auth middleware was mounted as a blanket `app.use('/api', ...)` layer, so it ran for every request under `/api` — including paths with no matching route — and rejected them before they could reach the splat 404 handler. Auth is now applied per-route inside `createAPIRoutes`, so every registered route stays authenticated exactly as before while unmatched paths fall through to 404
+- The E2E workflow now writes a deterministic `data/config.json` before starting the binary, so its auth assertions no longer depend on the current `DEFAULT_CONFIG` values
+
+## [1.2.0-alpha.4] - 2026-07-26
+
+### Fixed
+
+- The dashboard was unusable on a fresh load: a full-screen "Rebooting printer…" overlay rendered whenever no printer was connected (including `--no-printers` startup) and could not be dismissed. The `.reboot-overlay` `display: flex` rule had equal CSS specificity to `.hidden` and came later in source order, so the overlay was always visible. Added `.reboot-overlay.hidden { display: none; }`, mirroring the existing `.cal-overlay.hidden` override. Regression from the SSH toolset port in 1.2.0-alpha.3
+- Same latent CSS specificity bug on the file-manager overlay (`.fm-overlay`); added the matching `.fm-overlay.hidden { display: none; }` override. It only surfaced when the file-manager modal was open, not on a fresh load
+- Lucide "icon name was not found" warnings in the browser console. The vendored lucide bundle (v0.552.0) dropped the legacy kebab-case aliases the boot-time icon scan relied on (wifi, trash-2, alert-triangle, refresh-cw, and others). The boot-time pre-hydration set was expanded to cover every icon used in the static HTML, resolved to its PascalCase key via the existing kebab→PascalCase helper
+
+## [1.2.0-alpha.3] - 2026-07-26
+
+### Added
+
+- **SSH toolset ported from the desktop app** — file manager, calibration assistant, per-printer SSH settings, and remote reboot, all reachable from the topbar.
+  - **File manager** — browse, rename, and multi-select delete gcode/3MF files on internal storage and USB over SFTP, with thumbnails resolved from the printer-side cache and ranged `.3mf` reads rather than full-file downloads.
+  - **Calibration assistant** — the full desktop workflow in the browser, including the bed-mesh visualizer, input-shaper plots, screw-adjustment solver, and animated recommendations.
+  - **SSH settings** — per-printer credentials keyed by serial and encrypted at rest. Passwords can be changed but are never read back to the browser.
+  - **Remote reboot** — one-click printer reboot with live progress.
+  - Requires SSH provisioned the [FlashForge-EasySSH](https://github.com/Parallel-7/FlashForge-EasySSH) way and works only on the Adventurer 5M / 5M Pro / AD5X; the buttons stay hidden on every other model, including the Creator 5 series.
+
+### Changed
+
+- Modern printers are now identified from the USB product ID carried in the UDP discovery broadcast instead of an unauthenticated TCP `M115` probe. The probe was previously skipped only for the HTTP-only Creator 5 series; it is now skipped for every new-API model (5M, 5M Pro, AD5X, Creator 5, Creator 5 Pro), removing a redundant round trip from every modern connect. The same broadcast supplies the serial and name, and `FiveMClient.initialize()` supplies the authoritative capability flags and reachability, so the probe contributed nothing
+- The TCP probe remains the fallback for anything without a product ID — genuine legacy printers, and manual connects that selected "Legacy"
+- Manual connections now send a product ID hint for every modern model (previously Creator 5 / Creator 5 Pro only), so those connects skip the probe as well
+- The manual-connect endpoint now requires a serial number for **all** modern printers, not just the Creator 5 series, since a named model is no longer probed for it. The Creator 5 series keeps its model-specific error message
+- The material-station slot-config request schema (`/spoolman/slot-config`) was tightened to the correct rules — a required material name and a strict 6-digit hex color — matching the AD5X / Creator 5 fixed material and color palettes. The previously permissive 3/6/8-digit hex and nullable material (with the `currentMaterial` fallback) are gone, since the slot editor always sends a material resolved from the model's fixed palette
+- Printer discovery now delegates to the library's `PrinterDiscovery` (`@ghosttypes/ff-api` 1.7.1) instead of a local fork in `PrinterDiscoveryService.ts`, removing ~200 lines of duplicated logic and gaining proper loopback-address discovery. The discovery route was updated to match.
+- Bumped `@ghosttypes/ff-api` to `^1.7.1`, which fixes `FFMachineInfo.HasMatlStation` — a raw copy of an AD5X-only `/detail` field the Creator 5 series never sends, so it arrived `undefined` on a Creator 5 Pro with four loaded slots. This UI gates the material station on `MatlStationInfo` rather than that flag, so nothing here was affected, but 1.7.0 should not ship in a new build.
+- The `data/` directory is no longer tracked in git. `data/config.json` and `data/printer_details.json` were previously committed, so a clone carried the maintainer's local settings and saved printers — including per-printer check codes — and every local run showed up as a dirty working tree. Both are now generated on first run (`ConfigManager` falls back to `DEFAULT_CONFIG`, `PrinterDetailsManager` starts with no printers), and `data/config.example.json` / `data/printer_details.example.json` are tracked in their place to document the schema
+
+### Fixed
+
+- Removed the untyped manual-IP connection path (`offerManualIPEntry` / `connectDirectlyToIP`). It built a printer record from an IP address alone with no product ID, which left `createTemporaryConnection` unable to tell that the printer was HTTP-only — so it fell through to the legacy client and probed TCP 8899, which the Creator 5 series refuses outright. That is the `ECONNREFUSED` reported against this project in [ff-5mp-hass#18](https://github.com/GhostTypes/ff-5mp-hass/issues/18). The path was already unreachable in practice (its input-dialog handler is never registered), but it remained a working re-entry point for the bug. Those entry points now direct the user to the "Add Printer" form, which requires a printer type and so identifies an HTTP-only model before any socket is opened.
+
+- Raw G-code availability is now reported per printer (`features.gcodeCommands`) and the Home Axes button is disabled on printers that don't support it. HTTP-only printers (Creator 5 series) have no TCP channel for raw G-code, so `~G28` could never have worked there
+- `DualAPIBackend` no longer assumes a legacy TCP client exists: `executeGCodeCommand` returns a clear error instead of throwing, and the pause/resume/cancel legacy fallbacks are skipped on HTTP-only backends. Those fallbacks also now report the fallback's own error rather than masking it with the original
+
+## [1.2.0-alpha.2] - 2026-07-05
+
+### Added
+
+- Thumbnail previews in the Recent/Local file dialog: each file now shows a lazily loaded preview image (with a "No Preview" fallback), backed by a persistent per-printer on-disk cache (`data/Thumbnails/{serial}/`) so re-opening the dialog is instant
+
+### Fixed
+
+- TVOC air-quality reading now displays on the filtration card for every printer that reports it (e.g. the Adventurer 5M Pro), instead of only the Creator 5 Pro. The Creator 5 Pro now shows the filtration card with its controls disabled rather than hiding it entirely
+
+## [1.2.0-alpha.1] - 2026-07-04
+
 ### Added
 
 - Creator 5 / Creator 5 Pro printer support via the new `Creator5Backend`, including model detection, an HTTP-only connection flow, and material station support
@@ -200,7 +390,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Optional password authentication
 - Configuration persistence in `data/config.json`
 
-[Unreleased]: https://github.com/Parallel-7/FlashForgeWebUI/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/Parallel-7/FlashForgeWebUI/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/Parallel-7/FlashForgeWebUI/compare/v1.1.0...v1.2.0
+[1.2.0-alpha.8]: https://github.com/Parallel-7/FlashForgeWebUI/compare/v1.2.0-alpha.7...v1.2.0-alpha.8
+[1.2.0-alpha.7]: https://github.com/Parallel-7/FlashForgeWebUI/compare/v1.2.0-alpha.6...v1.2.0-alpha.7
+[1.2.0-alpha.6]: https://github.com/Parallel-7/FlashForgeWebUI/compare/v1.2.0-alpha.5...v1.2.0-alpha.6
+[1.2.0-alpha.5]: https://github.com/Parallel-7/FlashForgeWebUI/compare/v1.2.0-alpha.2...v1.2.0-alpha.5
+[1.2.0-alpha.4]: https://github.com/Parallel-7/FlashForgeWebUI/compare/v1.2.0-alpha.3...v1.2.0-alpha.4
+[1.2.0-alpha.3]: https://github.com/Parallel-7/FlashForgeWebUI/compare/v1.2.0-alpha.2...v1.2.0-alpha.3
+[1.2.0-alpha.2]: https://github.com/Parallel-7/FlashForgeWebUI/compare/v1.2.0-alpha.1...v1.2.0-alpha.2
+[1.2.0-alpha.1]: https://github.com/Parallel-7/FlashForgeWebUI/compare/v1.1.0...v1.2.0-alpha.1
 [1.1.0]: https://github.com/Parallel-7/FlashForgeWebUI/compare/v1.0.2...v1.1.0
 [1.0.2]: https://github.com/Parallel-7/FlashForgeWebUI/compare/v1.0.1...v1.0.2
 [1.0.1]: https://github.com/Parallel-7/FlashForgeWebUI/compare/v1.0.0...v1.0.1

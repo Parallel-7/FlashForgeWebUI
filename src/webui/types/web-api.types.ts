@@ -18,6 +18,9 @@
  * - Errors: WebUIError, WEB_UI_ERROR_CODES constant object, WebUIErrorCode type
  */
 
+import type { RebootStatusPayload } from '../../types/printer-power';
+import type { DeductionSummary } from '../../types/spoolman-tracking';
+
 // ============================================================================
 // AUTHENTICATION TYPES
 // ============================================================================
@@ -66,7 +69,8 @@ export type WebSocketMessageType =
   | 'ERROR'
   | 'COMMAND_RESULT'
   | 'PONG'
-  | 'SPOOLMAN_UPDATE';
+  | 'SPOOLMAN_UPDATE'
+  | 'REBOOT_STATUS';
 
 /**
  * Per-tool temperature reading for multi-tool printers (Creator 5 series).
@@ -101,6 +105,7 @@ export interface PrinterStatusData {
   readonly cumulativeFilament?: number; // Total lifetime filament usage in meters
   readonly cumulativePrintTime?: number; // Total lifetime print time in minutes
   readonly formattedEta?: string; // Firmware ETA string (e.g. "04:48" = 4h48m remaining)
+  readonly completionTime?: string | null; // Library completion timestamp (ISO string), null when not advancing
   readonly elapsedTimeSeconds?: number; // Precise elapsed seconds for HH:MM:SS display
   // Creator 5 series (multi-tool) fields. Undefined/empty on single-nozzle printers.
   readonly toolTemps?: readonly ToolTemperatureData[];
@@ -165,6 +170,8 @@ export interface WebSocketMessage {
     readonly remainingLength: number;
     readonly lastUpdated: string;
   } | null;
+  // Reboot lifecycle fields (when type === 'REBOOT_STATUS')
+  readonly reboot?: RebootStatusPayload;
 }
 
 // ============================================================================
@@ -278,6 +285,12 @@ export interface PrinterFeatures {
   readonly hasMultiTool?: boolean;
   /** Creator 5 Pro — gates the read-only TVOC air-quality display. */
   readonly isCreator5Pro?: boolean;
+  /** Raw G-code passthrough availability (HTTP-only printers like the Creator 5 report available: false). */
+  readonly gcodeCommands?: {
+    readonly available: boolean;
+    readonly usesLegacyAPI: boolean;
+    readonly supportedCommands: readonly string[];
+  };
 }
 
 /**
@@ -347,6 +360,37 @@ export interface SpoolmanConfigResponse extends StandardAPIResponse {
   readonly serverUrl: string;
   readonly updateMode: 'length' | 'weight';
   readonly contextId: string | null;
+  /** Estimate-based tracking info; present only for station contexts. */
+  readonly station?: SpoolmanStationTracking | null;
+}
+
+/**
+ * Per-job tracking info for material-station contexts.
+ */
+export interface SpoolmanStationTracking {
+  readonly supported: boolean;
+  /** Plain explanation surfaced in the panel. */
+  readonly note: string;
+  /** The job tracked now, or null. */
+  readonly activeJob: SpoolmanTrackedJobView | null;
+  readonly lastDeduction: DeductionSummary | null;
+}
+
+/**
+ * Panel view of the job tracked now.
+ */
+export interface SpoolmanTrackedJobView {
+  readonly fileName: string;
+  readonly started: boolean;
+  readonly lastProgress: number | null;
+  readonly hasUsageProfile: boolean;
+  readonly tools: ReadonlyArray<{
+    readonly toolId: number;
+    readonly slotId: number;
+    readonly spoolId: number;
+    readonly usedG: number | null;
+    readonly usedM: number | null;
+  }>;
 }
 
 /**
@@ -441,6 +485,76 @@ export interface SlotConfigResponse extends StandardAPIResponse {
   readonly slot: number;
   readonly material: string;
   readonly colorHex: string;
+}
+
+// ============================================================================
+// JOB UPLOAD API TYPES
+// ============================================================================
+
+/** A single slicer warning extracted from a 3MF, mirroring slicer-meta's SliceWarning. */
+export interface UploadSliceWarning {
+  readonly level: number;
+  readonly message: string;
+}
+
+/**
+ * Per-tool filament entry parsed out of the staged file. Feeds the material
+ * matching modal on material-station printers (AD5X, Creator 5 / 5 Pro).
+ */
+export interface UploadFilamentInfo {
+  /** Gcode tool index (0-based) this filament prints with. */
+  readonly toolId: number;
+  readonly type: string | null;
+  readonly color: string | null;
+  readonly usedM: string | null;
+  readonly usedG: string | null;
+}
+
+/**
+ * Normalized slicer metadata for a staged upload.
+ *
+ * The desktop job uploader reads the raw `ParseResult` and applies a chain of
+ * fallbacks between `file`, `threeMf` and `slicer` while rendering. The WebUI
+ * cannot parse locally, so the server applies the exact same fallbacks here and
+ * ships the resolved values; the browser only formats them.
+ */
+export interface UploadJobMetadata {
+  readonly printerModel: string | null;
+  readonly filamentType: string | null;
+  /** Resolved filament length in meters (file.filaments → threeMf.filaments → filamentUsedMM). */
+  readonly filamentLengthM: number | null;
+  /** Resolved filament weight in grams; only rendered when a length is known. */
+  readonly filamentWeightG: number | null;
+  /** Null when the file carries no 3MF section (the desktop renders "-"). */
+  readonly supportUsed: boolean | null;
+  readonly slicerName: string | null;
+  readonly slicerVersion: string | null;
+  readonly sliceDate: string | null;
+  readonly sliceTime: string | null;
+  readonly printEta: string | null;
+  readonly layerHeight: number | null;
+  readonly infillDensity: number | null;
+  readonly layerCount: number | null;
+  /** First layer time in seconds (3MF only). */
+  readonly firstLayerTime: number | null;
+  readonly warnings: readonly UploadSliceWarning[];
+  /** Base64 PNG (no data URL prefix) from the 3MF plate image or G-code thumbnail. */
+  readonly thumbnail: string | null;
+  readonly filaments: readonly UploadFilamentInfo[];
+}
+
+export interface JobUploadStageResponse extends StandardAPIResponse {
+  /** Handle used to reference the staged file on the follow-up start/cancel calls. */
+  readonly uploadId?: string;
+  readonly fileName?: string;
+  readonly metadata?: UploadJobMetadata;
+  /** True when the active printer has a material station and the file is a 3MF. */
+  readonly requiresMaterialMatching?: boolean;
+}
+
+export interface JobUploadStartResponse extends StandardAPIResponse {
+  readonly fileName?: string;
+  readonly started?: boolean;
 }
 
 // ============================================================================
