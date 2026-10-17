@@ -8,6 +8,13 @@ FlashForgeWebUI is a standalone web-based interface for controlling and monitori
 
 **Current Status**: Production-ready. Core functionality tested and working including multi-printer support, Spoolman integration, Discord webhook notifications, go2rtc-based camera streaming, and cross-platform binary distribution.
 
+## Release State
+
+- **Latest stable: [1.2.0](https://github.com/Parallel-7/FlashForgeWebUI/releases/tag/v1.2.0)** (2026-10-17). It rolls up 1.2.0-alpha.1 through alpha.8 plus the pre-release fixes (go2rtc loopback bind, AD5X Start Local gating). Released alongside FlashForgeUI-Electron 1.0.5.
+- **`alpha` is at `1.2.1-alpha.1`** (version bumped, not yet released). `main` was synced back into `alpha` after the stable cut.
+- **Pending dependency bumps:** `@ghosttypes/ff-api` 2.1.0 and `@parallel-7/slicer-meta` 1.5.3 are published on npm (the 1.0.5 / 1.2.0 releases ship ff-api 2.0.3 and slicer-meta 1.5.0). Review their changelogs and bump on `alpha`.
+- **Release flow:** `release.yml` (`workflow_dispatch`, `version` + `prerelease` inputs) reads notes from the matching `## [X.Y.Z] - date` CHANGELOG section, written in ASD-STE100 style. A stable release compares against the previous stable tag.
+
 ## Build & Development Commands
 
 ### Development
@@ -362,7 +369,7 @@ class Service extends EventEmitter<EventMap> {
 
 1. **Dual Build System**: Backend uses esbuild bundling, frontend uses a separate `tsconfig` for browser modules.
 2. **Data Directory Tracking**: Runtime state lives in `<project>/data/`, which is fully gitignored except `data/*.example.json`. Do not re-add generated state to git — `printer_details.json` holds per-printer check codes, which are the printers' LAN auth credentials.
-3. **Camera Streams**: go2rtc manages camera streams per context, but browsers never reach the go2rtc port directly — video flows through an authenticated WebUI proxy at `/api/camera/ws` (see `CameraStreamProxy`). Only the WebUI port should be exposed/forwarded; the unauthenticated go2rtc port (default `1984`) must NOT be forwarded. There is no user-facing global `CameraProxyPort` setting.
+3. **Camera Streams**: go2rtc manages camera streams per context, but browsers never reach the go2rtc port directly — video flows through an authenticated WebUI proxy at `/api/camera/ws` (see `CameraStreamProxy`). Only the WebUI port should be exposed/forwarded; the unauthenticated go2rtc port (default `1984`) must NOT be forwarded. There is no user-facing global `CameraProxyPort` setting. Since 1.2.0, `Go2rtcBinaryManager` binds the go2rtc API (`127.0.0.1:1984`) and RTSP server (`127.0.0.1:8554`) to loopback, so the LAN cannot reach them; only WebRTC (`:8555`) stays on all interfaces. Keep every go2rtc URL on `127.0.0.1`.
 4. **go2rtc Binary**: The binary is downloaded at `pnpm install` time and stored under `resources/bin/`. If download or packaging fails, camera streaming will not work.
 5. **Polling Frequency**: All contexts poll every 3 seconds to avoid inactive-context TCP keep-alive failures.
 6. **Context IDs**: IDs are UUID-based and generated at connection time; they are not tied to IP or serial number.
@@ -370,7 +377,8 @@ class Service extends EventEmitter<EventMap> {
 8. **Graceful Shutdown**: Shutdown stops polling, Discord, printer connections, go2rtc, and the WebUI with layered timeouts.
 9. **Windows Compatibility**: Ctrl+C handling includes a readline bridge on Windows.
 10. **ARMv7 Builds**: Raspberry Pi 32-bit builds target `node20-linuxstatic-armv7`, which depends on `@yao-pkg/pkg`.
-11. **CRLF vs Biome LF**: The repo is checked out CRLF repo-wide, but `biome.json` sets `lineEnding: "lf"`. As a result `pnpm run check` (and `lint`/`format`) reports ~30+ format errors across nearly every source file regardless of what changed — this is pre-existing, not a regression from your edit. Only fix lint/format issues you actually introduced.
+11. **Start Local gating**: material-station printers (`printerFeatures.hasMaterialStation`, i.e. AD5X and the Creator 5 series) have no local file listing, so `static/ui/panels.ts` disables Start Local and `loadFileList('local')` refuses them; Start Recent is disabled only for the Creator 5 series (`hasMultiTool`). This mirrors FlashForgeUI-Electron's embedded WebUI — change both together.
+12. **CRLF vs Biome LF**: The repo is checked out CRLF repo-wide, but `biome.json` sets `lineEnding: "lf"`. As a result `pnpm run check` (and `lint`/`format`) reports ~30+ format errors across nearly every source file regardless of what changed — this is pre-existing, not a regression from your edit. Only fix lint/format issues you actually introduced.
 
 ## Testing Notes
 
