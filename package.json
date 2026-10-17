@@ -1,6 +1,6 @@
 {
   "name": "flashforge-webui",
-  "version": "1.2.0",
+  "version": "1.2.1-alpha.1",
   "description": "Standalone WebUI for FlashForge 3D Printers",
   "main": "dist/index.js",
   "bin": "dist/index.js",
