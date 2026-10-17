@@ -89,7 +89,12 @@ export async function loadFileList(source: 'recent' | 'local'): Promise<void> {
   // the local API, so local/recent jobs can't be started. The entry buttons are
   // also disabled for these printers (see updateButtonStates in panels.ts); this
   // guard keeps any other caller from dead-ending too.
-  if (state.printerFeatures?.hasMultiTool) {
+  // The AD5X has no local file listing either, so 'local' is refused for every
+  // material-station printer.
+  if (
+    state.printerFeatures?.hasMultiTool ||
+    (source === 'local' && state.printerFeatures?.hasMaterialStation)
+  ) {
     showToast('Local job management is not available on this printer.', 'error');
     return;
   }
