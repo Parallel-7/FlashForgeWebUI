@@ -13,6 +13,14 @@
 </div>
 
 <div align="center">
+  <a href="https://github.com/Parallel-7/FlashForgeWebUI/wiki/"><img src="https://img.shields.io/badge/Wiki-Setup%20%26%20Pairing%20Guide-orange?style=for-the-badge&logo=github&logoColor=white" alt="Wiki"></a>
+</div>
+
+<div align="center">
+  <b>New here?</b> Follow <a href="https://github.com/Parallel-7/FlashForgeWebUI/wiki/1.-Pairing-your-printer">Pairing your printer</a> in the wiki to connect your first printer.
+</div>
+
+<div align="center">
   <h2>Overview</h2>
 </div>
 
@@ -183,6 +191,8 @@ Or if accessing from another device on your network:
 http://<server-ip>:3000
 ```
 
+**Pairing a Printer:** See the [wiki](https://github.com/Parallel-7/FlashForgeWebUI/wiki/) for step-by-step pairing instructions, including where to find the check code and serial number. It also covers multiple printers and OrcaSlicer integration.
+
 **Checking Your Version:** Click the info button in the top bar to open the About window. It shows the running version and links to the [Releases](https://github.com/Parallel-7/FlashForgeWebUI/releases) page, so you can see whether an update is available.
 
 **Default Login:** The default password is `changeme`. You should change this in the active config file (by default `data/config.json`, or the directory pointed to by `DATA_DIR`) or via the `--webui-password` flag.
@@ -291,7 +301,7 @@ pnpm run build:mac-arm      # macOS ARM (Apple Silicon)
 | **"Cannot GET /" or blank page when accessing WebUI** | If running from source: Make sure you ran `pnpm run build` before `pnpm start`<br>If using a pre-1.0.2 binary: Update to version 1.0.2 or later (fixes static file serving bug) |
 | **"Permission denied" when running binary** | Run `chmod +x flashforge-webui-linux-*.bin` to make executable |
 | **Port already in use** | Change the port in the active config file (default `data/config.json`, or the directory pointed to by `DATA_DIR`) or use `--webui-port=3001` |
-| **Cannot connect to printer** | Ensure your printer is on the same network as the device running WebUI<br>Check that the printer's IP address is correct<br>For legacy printers, ensure TCP port 8899 is accessible<br>When adding a modern printer by hand, enter both its serial number and check code |
+| **Cannot connect to printer** | Ensure your printer is on the same network as the device running WebUI<br>Check that the printer's IP address is correct<br>For legacy printers, ensure TCP port 8899 is accessible<br>When adding a modern printer by hand, enter both its serial number and check code<br>See the [wiki](https://github.com/Parallel-7/FlashForgeWebUI/wiki/) for pairing instructions |
 | **Docker: no printers found by discovery** | Run the container with host networking (`--network host`). On Docker Desktop, add the printer by IP address instead |
 | **Camera works locally but not remotely** | Forward only the WebUI port (default `3000`). Video is tunneled through it, so the go2rtc port (`1984`) should never be forwarded |
 | **`401 Unauthorized` from `npm.pkg.github.com` when installing** | Older versions pulled some packages from GitHub Packages through `package-lock.json`. Since 1.2.0 every dependency is on public npm and the project uses pnpm: update your checkout and run `pnpm install`, not `npm install` |
