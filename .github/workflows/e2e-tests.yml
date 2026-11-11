@@ -9,6 +9,12 @@ on:
       - '.gitignore'
       - '.gitattributes'
       - '.editorconfig'
+      - 'docs/**'
+      - 'Dockerfile'
+      - 'compose.yaml'
+      - '.dockerignore'
+      - '.github/workflows/docker-image.yml'
+      - '.github/workflows/release.yml'
   pull_request:
     branches: ['**']
     paths-ignore:
@@ -17,6 +23,12 @@ on:
       - '.gitignore'
       - '.gitattributes'
       - '.editorconfig'
+      - 'docs/**'
+      - 'Dockerfile'
+      - 'compose.yaml'
+      - '.dockerignore'
+      - '.github/workflows/docker-image.yml'
+      - '.github/workflows/release.yml'
   workflow_dispatch:
 
 jobs:
