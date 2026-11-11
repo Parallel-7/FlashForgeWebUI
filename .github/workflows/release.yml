@@ -326,3 +326,15 @@ jobs:
             release_assets/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # Publish the matching multi-arch image to GHCR from the release binaries.
+  # Runs after the release exists, so a failure here never blocks the release.
+  docker_image:
+    needs: create_github_release
+    permissions:
+      contents: read
+      packages: write
+    uses: ./.github/workflows/docker-image.yml
+    with:
+      version: ${{ github.event.inputs.version }}
+      prerelease: ${{ inputs.prerelease }}

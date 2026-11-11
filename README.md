@@ -9,7 +9,7 @@
 <div align="center">
   <img src="https://img.shields.io/badge/Node.js-20%2B-green?style=for-the-badge&logo=node.js&logoColor=white">
   <img src="https://img.shields.io/badge/License-MIT-blue?style=for-the-badge">
-  <img src="https://img.shields.io/badge/Platforms-Win%20%7C%20macOS%20%7C%20Linux-blue?style=for-the-badge">
+  <img src="https://img.shields.io/badge/Platforms-Win%20%7C%20macOS%20%7C%20Linux%20%7C%20Docker-blue?style=for-the-badge">
 </div>
 
 <div align="center">
@@ -36,7 +36,7 @@ FlashForge WebUI is a lightweight, standalone web interface for monitoring and c
 | **Spoolman Integration** | Filament usage tracking: the active spool on single-extruder printers, and per-job, per-tool tracking on material-station printers |
 | **Discord Notifications** | Webhook notifications for print events, plus periodic status updates with optional camera snapshots |
 | **Responsive Dashboard** | Customizable grid-based UI that works on desktop, tablet, and mobile |
-| **Cross-Platform** | Native binaries for Windows, macOS, and Linux (x64, ARM64, ARMv7) |
+| **Cross-Platform** | Native binaries for Windows, macOS, and Linux (x64, ARM64, ARMv7) • Multi-arch Docker image on GHCR |
 
 </div>
 
@@ -106,6 +106,36 @@ chmod +x flashforge-webui-linux-arm64.bin
 # Run without auto-connect
 ./flashforge-webui-linux-arm64.bin --no-printers
 ```
+
+<div align="center">
+  <h3>Docker</h3>
+</div>
+
+A multi-arch image (x64, ARM64, ARMv7) is published to the GitHub Container Registry with each release. It wraps the same release binaries listed above.
+
+```bash
+docker run -d --name flashforge-webui --network host --init --restart unless-stopped   -v flashforge-data:/data ghcr.io/parallel-7/flashforge-webui:latest
+```
+
+Or use the [`compose.yaml`](compose.yaml) in this repository:
+
+```bash
+docker compose up -d
+```
+
+<div align="center">
+
+| Tag | Contents |
+| --- | --- |
+| `latest` | Latest stable release |
+| `X.Y.Z` / `X.Y` | A specific stable release |
+| `alpha` | Latest pre-release |
+
+</div>
+
+- **Host networking is recommended.** Printer discovery uses a UDP broadcast, which does not leave Docker's default bridge network. Host networking also lets camera WebRTC work with no extra setup. Docker host networking works on Linux, which includes the Raspberry Pi. On Docker Desktop (Windows/macOS), use bridge mode with `-p 3000:3000 -p 8555:8555` and add printers by IP address.
+- **Data:** config, saved printers (including their check codes), and caches live in the `/data` volume. Keep it on a named volume or a host folder. The container runs as UID `1000`. If you bind-mount a host folder, make it writable by that user (`sudo chown 1000:1000 ./data`).
+- **Startup mode:** the image starts with `--all-saved-printers`. To use a different mode, pass it after the image name, for example `... flashforge-webui:latest --last-used`.
 
 <div align="center">
   <h3>Running from Source</h3>
@@ -262,6 +292,7 @@ pnpm run build:mac-arm      # macOS ARM (Apple Silicon)
 | **"Permission denied" when running binary** | Run `chmod +x flashforge-webui-linux-*.bin` to make executable |
 | **Port already in use** | Change the port in the active config file (default `data/config.json`, or the directory pointed to by `DATA_DIR`) or use `--webui-port=3001` |
 | **Cannot connect to printer** | Ensure your printer is on the same network as the device running WebUI<br>Check that the printer's IP address is correct<br>For legacy printers, ensure TCP port 8899 is accessible<br>When adding a modern printer by hand, enter both its serial number and check code |
+| **Docker: no printers found by discovery** | Run the container with host networking (`--network host`). On Docker Desktop, add the printer by IP address instead |
 | **Camera works locally but not remotely** | Forward only the WebUI port (default `3000`). Video is tunneled through it, so the go2rtc port (`1984`) should never be forwarded |
 | **`401 Unauthorized` from `npm.pkg.github.com` when installing** | Older versions pulled some packages from GitHub Packages through `package-lock.json`. Since 1.2.0 every dependency is on public npm and the project uses pnpm: update your checkout and run `pnpm install`, not `npm install` |
 | **Selecting the correct binary for your platform** | Windows: `flashforge-webui-win-x64.exe`<br>macOS Intel: `flashforge-webui-macos-x64.bin`<br>macOS Apple Silicon: `flashforge-webui-macos-arm64.bin`<br>Linux x64: `flashforge-webui-linux-x64.bin`<br>Raspberry Pi (64-bit OS): `flashforge-webui-linux-arm64.bin`<br>Raspberry Pi (32-bit OS): `flashforge-webui-linux-armv7.bin`<br>Check your architecture with `uname -m` (x86_64 = x64, aarch64 = ARM64, armv7l = ARMv7) |
