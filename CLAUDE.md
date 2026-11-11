@@ -229,6 +229,12 @@ Default config values live in `src/types/config.ts` and are loaded through `Conf
 - Production builds use `@yao-pkg/pkg` to create standalone executables
 - Packaged assets include `dist/webui/**/*` and `resources/bin/**/*`
 
+**Docker Image** (`Dockerfile`, `compose.yaml`, `.github/workflows/docker-image.yml`):
+- Wraps the Linux release binaries (x64/arm64/armv7); it never compiles. `release.yml` calls `docker-image.yml` after the release is created, which downloads the assets, checks them against GitHub's recorded SHA-256 digests, and pushes `ghcr.io/parallel-7/flashforge-webui` (stable: `X.Y.Z`, `X.Y`, `latest`; pre-release: full version + `alpha`). It can also be dispatched by hand to (re)publish an existing release.
+- The final stage has no `RUN`, so the multi-arch build needs no QEMU. Runs as UID 1000, `DATA_DIR=/data` (a volume), default command `--all-saved-printers`.
+- Host networking is the supported setup: UDP discovery broadcasts do not leave Docker's bridge network.
+- Originally proposed by jasonmeisel (issue #25); credit him in related commits.
+
 **Why `@yao-pkg/pkg` instead of official `pkg`?**
 - The official `pkg` package is no longer maintained and lacks newer Node.js and ARMv7 support
 - `@yao-pkg/pkg` supports `node20-linuxstatic-armv7`, which is required for Raspberry Pi 32-bit builds

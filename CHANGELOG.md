@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Docker image.** Each release now publishes a container image to `ghcr.io/parallel-7/flashforge-webui` for x64, ARM64, and ARMv7. The image contains the same binary as the release files. The `latest` tag follows stable releases and the `alpha` tag follows pre-releases. The repository has a `compose.yaml` example. Use host networking so that printer discovery operates. The image runs as a user that is not root, and it keeps all data in the `/data` volume. Thanks to @jasonmeisel for the proposal and the first version (#25).
+
 ## [1.2.0] - 2026-10-17
 
 This is the first stable release after 1.1.0. It contains all changes from 1.2.0-alpha.1 to 1.2.0-alpha.8. It also contains the changes in the Added, Security, and Fixed sections below. The CHANGELOG gives more detail about each alpha release.

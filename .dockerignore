@@ -1,0 +1,3 @@
+# The image only needs the Dockerfile and the prepared release binaries.
+*
+!docker-bin/
