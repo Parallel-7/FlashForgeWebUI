@@ -122,7 +122,7 @@ Open an [issue](https://github.com/Parallel-7/FlashForgeWebUI/issues) and includ
 
 ## For maintainers: cutting releases
 
-Releases are built and published by the **Build and Release** workflow (`.github/workflows/release.yml`), which you start by hand from the Actions tab. It builds all six binaries, creates the `vX.Y.Z` tag at the commit it ran on, and publishes the GitHub release. The release body is the matching `## [X.Y.Z]` section of `CHANGELOG.md`, so that section must already be pushed. **Never create release tags by hand.**
+Releases are built and published by the **Build and Release** workflow (`.github/workflows/release.yml`), which you start by hand from the Actions tab. It builds all six binaries, creates the `vX.Y.Z` tag at the commit it ran on, and publishes the GitHub release. It then publishes the Docker image (`ghcr.io/parallel-7/flashforge-webui`) from the Linux binaries of that release. A stable release moves the `X.Y.Z`, `X.Y`, and `latest` tags; a pre-release pushes its version and the `alpha` tag. The release body is the matching `## [X.Y.Z]` section of `CHANGELOG.md`, so that section must already be pushed. **Never create release tags by hand.**
 
 ### Alpha pre-release (from `alpha`)
 
@@ -152,3 +152,5 @@ Check that the tag points at the commit you released:
 git fetch --tags
 git rev-list -n1 vX.Y.Z      # must match the branch head you released from
 ```
+
+Check that the **docker_image** job of the run passed. The Docker step runs after the release is created, so a failure there does not affect the release. To publish the image again, run the **Publish Docker Image** workflow (`.github/workflows/docker-image.yml`) by hand with the same version and pre-release setting.
